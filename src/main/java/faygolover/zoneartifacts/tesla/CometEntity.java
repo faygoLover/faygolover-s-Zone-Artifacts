@@ -194,7 +194,7 @@ public class CometEntity extends TeslaEntity {
         if (motion.lengthSqr() > 4.0) motion = Vec3.ZERO; // a respawn jump, not flight
         double radius = 0.4 * size;
 
-        double rate = 0.25 * intensity * Math.sqrt(size);
+        double rate = 0.083 * intensity * Math.sqrt(size);
         int count = (int) rate + (random.nextDouble() < rate - (int) rate ? 1 : 0);
         for (int i = 0; i < count; i++) {
             Vec3 dir = new Vec3(random.nextGaussian(), random.nextGaussian(), random.nextGaussian()).normalize();
@@ -212,7 +212,7 @@ public class CometEntity extends TeslaEntity {
                 this.level().addParticle(ModParticles.EMBER.get(), p.x, p.y, p.z, v.x, v.y + 0.01, v.z);
             }
         }
-        if (random.nextInt(6) == 0) {
+        if (random.nextInt(18) == 0) {
             Vec3 p = motion.lengthSqr() < 1.0E-8 ? c : c.subtract(motion.normalize().scale(radius));
             this.level().addParticle(isCold() ? ModParticles.FROST_MIST.get() : ModParticles.HEAT_SMOKE.get(),
                     p.x, p.y, p.z, 0.0, 0.02, 0.0);

@@ -1,7 +1,13 @@
 package faygolover.zoneartifacts.client.tesla;
 
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.BufferBuilder;
+import com.mojang.blaze3d.vertex.BufferUploader;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.mojang.blaze3d.vertex.VertexFormat;
 import faygolover.zoneartifacts.ZoneArtifacts;
 import faygolover.zoneartifacts.client.GlowRenderType;
 import faygolover.zoneartifacts.config.ModClientConfig;
@@ -9,6 +15,7 @@ import faygolover.zoneartifacts.tesla.CometEntity;
 import faygolover.zoneartifacts.tesla.Tesla;
 import faygolover.zoneartifacts.tesla.TeslaEntity;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
@@ -16,9 +23,12 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
+import net.minecraftforge.client.event.RenderLevelStageEvent;
 import org.joml.Matrix4f;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
@@ -75,17 +85,111 @@ public class CometRenderer extends EntityRenderer<CometEntity> {
         return UNUSED_TEXTURE;
     }
 
+    /**
+     * Only notes the Comet down: it's drawn later, after every entity and the clouds
+     * ({@link #renderPending}). Its fire doesn't write depth (overlapping flames would fight), so
+     * anything drawn after it — mobs, clouds — used to show through it.
+     */
     @Override
     public void render(CometEntity entity, float entityYaw, float partialTick, PoseStack poseStack,
                        MultiBufferSource buffers, int packedLight) {
-        TeslaEntity.State state = entity.getState();
-        if (!state.isVisible()) return;
+        if (entity.getState().isVisible()) PENDING.add(entity);
+    }
 
-        float grow = 1.0f;
-        if (state == TeslaEntity.State.SPAWNING) {
-            float t = Mth.clamp(entity.clientStateAge(partialTick) / Tesla.SPAWN_GROW_TICKS, 0.0f, 1.0f);
-            grow = t * t * (3.0f - 2.0f * t);
+    private static final Set<CometEntity> PENDING = new LinkedHashSet<>();
+
+    private static float grow(CometEntity entity, float partialTick) {
+        if (entity.getState() != TeslaEntity.State.SPAWNING) return 1.0f;
+        float t = Mth.clamp(entity.clientStateAge(partialTick) / Tesla.SPAWN_GROW_TICKS, 0.0f, 1.0f);
+        return t * t * (3.0f - 2.0f * t);
+    }
+
+    /** Draws the Comets noted this frame; called at {@code AFTER_WEATHER} (after the clouds). */
+    static void renderPending(RenderLevelStageEvent event) {
+        if (PENDING.isEmpty()) return;
+        Minecraft mc = Minecraft.getInstance();
+        float partialTick = event.getPartialTick();
+        Vec3 cam = event.getCamera().getPosition();
+        PoseStack poseStack = event.getPoseStack();
+
+        // Pass 1: the core, solid (plain alpha blending) — nothing behind it shows through.
+        poseStack.pushPose();
+        poseStack.translate(-cam.x, -cam.y, -cam.z);
+        Matrix4f world = poseStack.last().pose();
+        RenderSystem.setShader(GameRenderer::getPositionColorShader);
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        RenderSystem.disableCull();
+        RenderSystem.enableDepthTest();
+        RenderSystem.depthFunc(515); // GL_LEQUAL
+        RenderSystem.depthMask(false);
+        BufferBuilder core = Tesselator.getInstance().getBuilder();
+        core.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
+        for (CometEntity entity : PENDING) {
+            if (entity.isRemoved()) continue;
+            float grow = grow(entity, partialTick);
+            if (grow < 0.02f) continue;
+            Vec3 c = entity.getPosition(partialTick).add(0.0, entity.getBbHeight() / 2.0, 0.0);
+            boolean cold = entity.isCold();
+            int color = FireDraw.mix(cold ? SOUL_CYAN : YELLOW, cold ? SOUL_WHITE : HOT_WHITE, 0.5f);
+            coreDisc(core, world, c, 0.34 * grow * entity.getSize(), cam, color);
         }
+        BufferUploader.drawWithShader(core.end());
+        RenderSystem.enableCull();
+        RenderSystem.disableBlend();
+        poseStack.popPose();
+
+        // Pass 2: the fire (additive glow).
+        MultiBufferSource.BufferSource bufferSource = mc.renderBuffers().bufferSource();
+        for (CometEntity entity : PENDING) {
+            if (entity.isRemoved()) continue;
+            Vec3 pos = entity.getPosition(partialTick);
+            poseStack.pushPose();
+            poseStack.translate(pos.x - cam.x, pos.y - cam.y, pos.z - cam.z);
+            drawFire(entity, partialTick, poseStack, bufferSource);
+            poseStack.popPose();
+        }
+        bufferSource.endBatch(GlowRenderType.GLOW);
+        RenderSystem.depthMask(true);
+        PENDING.clear();
+    }
+
+    /** A camera-facing disc, solid in the middle and soft at the rim. */
+    private static void coreDisc(BufferBuilder buffer, Matrix4f m, Vec3 c, double radius, Vec3 cam, int color) {
+        Vec3 toCam = cam.subtract(c);
+        if (toCam.lengthSqr() < 1.0E-6 || radius < 0.01) return;
+        toCam = toCam.normalize();
+        Vec3 up = Math.abs(toCam.y) < 0.95 ? new Vec3(0, 1, 0) : new Vec3(1, 0, 0);
+        Vec3 right = toCam.cross(up).normalize();
+        Vec3 upOnPlane = right.cross(toCam).normalize();
+        int r = (color >> 16) & 0xFF, g = (color >> 8) & 0xFF, b = color & 0xFF;
+        int slices = 20;
+        double solid = radius * 0.7;
+        for (int i = 0; i < slices; i++) {
+            double a0 = Math.PI * 2.0 * i / slices;
+            double a1 = Math.PI * 2.0 * (i + 1) / slices;
+            Vec3 d0 = right.scale(Math.cos(a0)).add(upOnPlane.scale(Math.sin(a0)));
+            Vec3 d1 = right.scale(Math.cos(a1)).add(upOnPlane.scale(Math.sin(a1)));
+            // Solid fan...
+            put(buffer, m, c, r, g, b, 245);
+            put(buffer, m, c.add(d0.scale(solid)), r, g, b, 245);
+            put(buffer, m, c.add(d1.scale(solid)), r, g, b, 245);
+            put(buffer, m, c.add(d1.scale(solid)), r, g, b, 245);
+            // ...and a soft rim.
+            put(buffer, m, c.add(d0.scale(solid)), r, g, b, 245);
+            put(buffer, m, c.add(d0.scale(radius)), r, g, b, 0);
+            put(buffer, m, c.add(d1.scale(radius)), r, g, b, 0);
+            put(buffer, m, c.add(d1.scale(solid)), r, g, b, 245);
+        }
+    }
+
+    private static void put(BufferBuilder buffer, Matrix4f m, Vec3 p, int r, int g, int b, int a) {
+        buffer.vertex(m, (float) p.x, (float) p.y, (float) p.z).color(r, g, b, a).endVertex();
+    }
+
+    private static void drawFire(CometEntity entity, float partialTick, PoseStack poseStack, MultiBufferSource buffers) {
+        TeslaEntity.State state = entity.getState();
+        float grow = grow(entity, partialTick);
         if (grow < 0.02f) return;
 
         boolean cold = entity.isCold();

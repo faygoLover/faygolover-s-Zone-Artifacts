@@ -6,6 +6,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.block.SnowLayerBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
@@ -91,22 +92,44 @@ public final class Razlom {
         return new Vec3(from.x + dx * 0.35, y, from.z + dz * 0.35);
     }
 
-    /** Top of the first solid surface in column (x, z), scanning down from {@code fromY} to
-     *  {@code toY}; null if there is none. */
+    /** Top of the first surface in column (x, z), scanning down from {@code fromY} to
+     *  {@code toY}; null if there is none. Follows the real shape of the block at that point:
+     *  a path, farmland, a slab, stairs, a snow layer or a carpet count at their own height;
+     *  things you walk through (grass, flowers) and the gaps beside a fence post don't. */
     @Nullable
     public static Double groundY(BlockGetter level, double x, double z, double fromY, double toY) {
         int bx = Mth.floor(x);
         int bz = Mth.floor(z);
+        double fx = x - bx;
+        double fz = z - bz;
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         BlockPos.MutableBlockPos above = new BlockPos.MutableBlockPos();
         for (int y = Mth.floor(fromY); y >= Mth.floor(toY); y--) {
             pos.set(bx, y, bz);
-            if (!level.getBlockState(pos).isFaceSturdy(level, pos, Direction.UP)) continue;
-            above.set(bx, y + 1, bz);
-            if (level.getBlockState(above).isSolidRender(level, above)) continue;
-            return (double) (y + 1);
+            double top = surfaceTop(level, pos, fx, fz);
+            if (Double.isNaN(top)) continue;
+            if (top >= 0.999) {
+                above.set(bx, y + 1, bz);
+                if (level.getBlockState(above).isSolidRender(level, above)) continue;
+            }
+            return y + top;
         }
         return null;
+    }
+
+    /** Height (0..1) of the block's top under the point (fx, fz) inside it; NaN if nothing to stand on there. */
+    private static double surfaceTop(BlockGetter level, BlockPos pos, double fx, double fz) {
+        BlockState state = level.getBlockState(pos);
+        if (state.isAir()) return Double.NaN;
+        VoxelShape shape = state.getCollisionShape(level, pos, CollisionContext.empty());
+        if (shape.isEmpty() && state.getBlock() instanceof SnowLayerBlock) shape = state.getShape(level, pos);
+        if (shape.isEmpty()) return Double.NaN;
+        double top = Double.NaN;
+        for (AABB box : shape.toAabbs()) {
+            if (fx < box.minX - 1.0E-4 || fx > box.maxX + 1.0E-4 || fz < box.minZ - 1.0E-4 || fz > box.maxZ + 1.0E-4) continue;
+            if (Double.isNaN(top) || box.maxY > top) top = box.maxY;
+        }
+        return Double.isNaN(top) || top > 1.0 ? Double.NaN : top;
     }
 
     /** The jet's arc from {@code from} towards {@code aim}, as far as it has shot out

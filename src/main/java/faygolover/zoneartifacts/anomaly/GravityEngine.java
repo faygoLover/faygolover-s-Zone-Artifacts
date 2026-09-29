@@ -158,7 +158,7 @@ public final class GravityEngine {
         double seconds = AnomalyTypeIds.KARUSEL.equals(type) ? ModCommonConfig.KARUSEL_SPIN_SECONDS.get()
                 : AnomalyTypeIds.VORONKA.equals(type) ? ModCommonConfig.VORONKA_PULL_SECONDS.get()
                 : ModCommonConfig.PLESH_PULL_SECONDS.get();
-        return AnomalyDefaults.ticks(seconds);
+        return Gravity.phaseTicks(type, seconds);
     }
 
     private static void tickPhase(ServerLevel level, AnomalyInstance instance) {
@@ -187,7 +187,7 @@ public final class GravityEngine {
             if (karusel) {
                 v = Gravity.swirl(e.position(), e.getDeltaMovement(), c, r, force, e.onGround());
             } else {
-                Gravity.Orbit orbit = plesh ? Gravity.Orbit.of(instance.phaseSeed(), e.getId()) : Gravity.Orbit.STILL;
+                Gravity.Orbit orbit = plesh ? Gravity.Orbit.of(instance.phaseSeed(), e.getId()) : Gravity.Orbit.tight(instance.phaseSeed(), e.getId());
                 v = Gravity.pull(e.getBoundingBox().getCenter(), e.getDeltaMovement(), c, force, Gravity.gravityOf(e), orbit, t);
             }
             e.setDeltaMovement(v);
@@ -234,11 +234,12 @@ public final class GravityEngine {
             destroyItems(level, c, core, instance);
             goreActive = true;
             try {
+                // Everyone in the whirl is hurt: fully at the axis, a quarter at its edge.
                 for (LivingEntity victim : level.getEntitiesOfClass(LivingEntity.class, new AABB(c, c).inflate(r + 1.0), GravityEngine::hurtable)) {
                     if (!Gravity.inCylinder(victim, instance.pos(), instance.size())) continue;
-                    if (Gravity.horizontalDistance(victim, c) > core) continue;
+                    double d = Gravity.horizontalDistance(victim, c);
                     victim.invulnerableTime = 0;
-                    AnomalyCombat.hurt(level, victim, Gravity.GRAVITY_DAMAGE_TYPE, instance.damage());
+                    AnomalyCombat.hurt(level, victim, Gravity.GRAVITY_DAMAGE_TYPE, (float) (instance.damage() * Gravity.falloff(d, r, 0.25)));
                 }
             } finally {
                 goreActive = false;

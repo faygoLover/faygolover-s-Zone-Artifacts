@@ -141,6 +141,8 @@
   "subtitles.fl_zone_arts.voronka_blowout": "Воронка разрывается",
   "subtitles.fl_zone_arts.karusel_blowout": "Карусель закручивает",
   "subtitles.fl_zone_arts.karusel_idle": "Карусель шелестит",
+  "subtitles.fl_zone_arts.plesh_idle": "Шуршит пыль",
+  "subtitles.fl_zone_arts.voronka_idle": "Воронка гудит",
   "subtitles.fl_zone_arts.podushka_bounce": "Подушка подбрасывает",
   "subtitles.fl_zone_arts.anomaly_body_tear": "Тело разрывает",
   "item.fl_zone_arts.plesh_placer.desc.0": "Затягивает всё вокруг к центру,",

@@ -101,6 +101,10 @@ public final class RazlomRenderer {
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
         RenderSystem.disableCull();
+        // Vanilla leaves the depth test off after the translucent layer: without this the
+        // shapes would show through blocks.
+        RenderSystem.enableDepthTest();
+        RenderSystem.depthFunc(515); // GL_LEQUAL
         RenderSystem.depthMask(false);
         BufferBuilder buffer = Tesselator.getInstance().getBuilder();
         buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);

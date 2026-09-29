@@ -115,11 +115,9 @@
   "karusel_idle": {
     "subtitle": "subtitles.fl_zone_arts.karusel_idle",
     "sounds": [
-      {
-        "name": "item.elytra.flying",
-        "type": "event",
-        "pitch": 0.6
-      }
+      "fl_zone_arts:karusel_idle1",
+      "fl_zone_arts:karusel_idle2",
+      "fl_zone_arts:karusel_idle3"
     ]
   },
   "podushka_bounce": {
@@ -137,6 +135,20 @@
     "subtitle": "subtitles.fl_zone_arts.anomaly_body_tear",
     "sounds": [
       "fl_zone_arts:anomaly_body_tear"
+    ]
+  },
+  "plesh_idle": {
+    "subtitle": "subtitles.fl_zone_arts.plesh_idle",
+    "sounds": [
+      "fl_zone_arts:plesh_idle1",
+      "fl_zone_arts:plesh_idle2",
+      "fl_zone_arts:plesh_idle3"
+    ]
+  },
+  "voronka_idle": {
+    "subtitle": "subtitles.fl_zone_arts.voronka_idle",
+    "sounds": [
+      "fl_zone_arts:voronka_idle"
     ]
   }
 }

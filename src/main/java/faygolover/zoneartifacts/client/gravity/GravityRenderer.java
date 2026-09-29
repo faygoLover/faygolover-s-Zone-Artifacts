@@ -24,6 +24,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
+import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.joml.Matrix4f;
@@ -88,9 +89,19 @@ public final class GravityRenderer {
             }
         }
         bufferSource.endBatch();
+    }
 
-        // Voronka's refraction (a copy of the frame, drawn distorted).
-        VoronkaLens.render(mc, cam, new Matrix4f(poseStack.last().pose()), now, partial);
+    /** The soft shapes go after the air distortion ({@code Distortion}, low priority), so the
+     *  refraction doesn't bend them. */
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public static void onRenderShapes(RenderLevelStageEvent event) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null || GravityClientHandler.states().isEmpty()) return;
+        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) return;
+        float partial = event.getPartialTick();
+        long now = mc.level.getGameTime();
+        Vec3 cam = event.getCamera().getPosition();
+        PoseStack poseStack = event.getPoseStack();
 
         // Soft dark shapes: alpha-blended, no depth writes.
         poseStack.pushPose();
@@ -100,6 +111,10 @@ public final class GravityRenderer {
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
         RenderSystem.disableCull();
+        // Vanilla leaves the depth test off after the translucent layer: without this the
+        // shapes would show through blocks.
+        RenderSystem.enableDepthTest();
+        RenderSystem.depthFunc(515); // GL_LEQUAL
         RenderSystem.depthMask(false);
         BufferBuilder buffer = Tesselator.getInstance().getBuilder();
         buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
@@ -180,7 +195,19 @@ public final class GravityRenderer {
                     }
                 }
                 case VORONKA -> {
-                    // No outline: at rest it's only the refraction. While pulling, faint rings run in.
+                    // The zone's edge: a faint pale rim over the band of stronger refraction.
+                    if (state.active()) {
+                        double lensR = Math.max(half, reach * (1.0 - 0.45 * t));
+                        double open = Math.min(1.0, t / 0.15);
+                        double rim = Mth.lerp(open, half * 1.1, lensR) * VoronkaLens.RIM_AT;
+                        ring(matrix, buffer, c, rim, cam, 0.012f, FireDraw.argb((int) (35 + 45 * t), 205, 220, 255));
+                    } else {
+                        float ready = state.readiness(now, partial);
+                        if (ready > 0.0f) {
+                            ring(matrix, buffer, c, half * 1.1 * VoronkaLens.RIM_AT, cam, 0.01f, FireDraw.argb((int) (22 * ready), 205, 220, 255));
+                        }
+                    }
+                    // While pulling, faint rings run in.
                     if (state.active()) {
                         for (int k = 0; k < 2; k++) {
                             float s = frac(time * 0.03f + k * 0.5f);
@@ -196,6 +223,14 @@ public final class GravityRenderer {
                     }
                 }
                 case KARUSEL -> {
+                    // The whirl: streaks of air spiralling in over the ground and rising up the axis.
+                    float ready = state.readiness(now, partial);
+                    float strength = state.active() ? Math.min(1.0f, 0.35f + t * 3.0f) : 0.18f * ready;
+                    if (strength > 0.01f) {
+                        double ground = state.groundY() != null ? state.groundY() : state.zone().minY;
+                        whirl(matrix, buffer, new Vec3(c.x, ground, c.z), reach, time, state.active(), strength,
+                                state.entry().pos().hashCode(), Math.min(1.0f, level), cam);
+                    }
                     for (GravityClientHandler.Glint g : state.glints()) {
                         float life = (now - g.born() + partial) / g.life();
                         if (life < 0 || life > 1) continue;
@@ -231,6 +266,39 @@ public final class GravityRenderer {
         double radius = 0.3 + reach * 1.6 * e;
         int alpha = (int) (200 * (1.0f - life));
         ring(matrix, buffer, c, radius, cam, 0.04f + 0.08f * (1 - life), FireDraw.argb(alpha, r, g, b));
+    }
+
+    /**
+     * Karusel's whirl: a few streaks of air, each a spiral from the rim over the ground in to the
+     * axis and up it, turning — quick and visible while it spins, a faint slow stir at rest.
+     */
+    private static void whirl(Matrix4f matrix, VertexConsumer buffer, Vec3 base, double reach, float time, boolean active,
+                              float strength, int seed, float level, Vec3 cam) {
+        int arms = active ? 5 : 3;
+        int points = 36;
+        float turn = time * (active ? 0.16f : 0.03f);
+        for (int k = 0; k < arms; k++) {
+            float phase = (float) (Math.PI * 2.0 * k / arms) + (seed & 0xFF) * 0.1f;
+            // Each streak runs in along its own path: it slides round so the air visibly flows inward.
+            float flow = frac(time * (active ? 0.02f : 0.006f) + k / (float) arms);
+            Vec3[] pts = new Vec3[points + 1];
+            float[] widths = new float[points + 1];
+            int[] colors = new int[points + 1];
+            for (int i = 0; i <= points; i++) {
+                double s = i / (double) points;
+                double r = reach * 0.95 * Math.pow(1.0 - s, 1.3) + 0.12;
+                double a = phase + turn + s * Math.PI * 2.6;
+                double y = base.y + 0.06 + Math.pow(s, 1.8) * reach * 0.9;
+                pts[i] = new Vec3(base.x + Math.cos(a) * r, y, base.z + Math.sin(a) * r);
+                // A brighter pulse travelling in along the streak; the ends fade.
+                double pulse = Math.exp(-Math.pow((s - flow) / 0.18, 2.0));
+                double ends = Math.min(1.0, s / 0.12) * Math.min(1.0, (1.0 - s) / 0.25);
+                int alpha = (int) (strength * level * (active ? 75 : 45) * ends * (0.35 + 0.65 * pulse));
+                widths[i] = (float) ((active ? 0.03 : 0.02) + 0.03 * s);
+                colors[i] = FireDraw.argb(alpha, 225, 228, 232);
+            }
+            FireDraw.ribbon(matrix, buffer, pts, widths, colors, cam);
+        }
     }
 
     /** Karusel's wave: a ring lying flat, rushing out and fading. */

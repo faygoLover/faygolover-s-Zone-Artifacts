@@ -246,7 +246,7 @@ public final class ModCommonConfig {
         PLESH_DAMAGE = b.comment("Damage for slamming into a wall after the throw, at full speed, half-hearts.")
                 .defineInRange("damage", 4.0, 0.0, 1000.0);
         PLESH_INTENSITY = b.defineInRange("intensity", 3, 1, 50);
-        PLESH_PULL_SECONDS = b.comment("Pull time before the throw (2.5 matches the sound).")
+        PLESH_PULL_SECONDS = b.comment("Pull time before the throw (2.5 matches the sound; never shorter than 2).")
                 .defineInRange("pullSeconds", 2.5, 0.5, 60.0);
         PLESH_THROW_SPEED = b.comment("Throw speed at x1.0, blocks per tick (1.6 flies roughly 10-12 blocks).")
                 .defineInRange("throwSpeed", 1.6, 0.1, 10.0);
@@ -261,21 +261,24 @@ public final class ModCommonConfig {
         VORONKA_DAMAGE = b.comment("Damage at the center (30 % at the edge), half-hearts.")
                 .defineInRange("damage", 12.0, 0.0, 1000.0);
         VORONKA_INTENSITY = b.defineInRange("intensity", 3, 1, 50);
-        VORONKA_PULL_SECONDS = b.defineInRange("pullSeconds", 3.0, 0.5, 60.0);
+        VORONKA_PULL_SECONDS = b.comment("Pull time before the tear (never shorter than 2, the sound's build-up).")
+                .defineInRange("pullSeconds", 3.0, 0.5, 60.0);
         VORONKA_CORE_RADIUS = b.comment("Items within this many blocks of the center are destroyed.")
                 .defineInRange("coreRadius", 1.0, 0.1, 16.0);
         b.pop();
 
         b.comment("Karusel (carousel): a whirlwind — pulls sideways to its axis and spins, no vertical pull.",
-                "After spinSeconds everyone near the axis is hurt and a flat wave of air pushes everything out.",
+                "After spinSeconds everyone in it is hurt (the closer to the axis, the worse) and a flat wave of air",
+                "pushes everything out.",
                 "Running flat out gets you away; jumping doesn't.",
                 "The speed tuner scales the pull.").push("karusel");
         KARUSEL_COOLDOWN_SECONDS = b.defineInRange("cooldownSeconds", 6, 1, 3600);
-        KARUSEL_DAMAGE = b.defineInRange("damage", 12.0, 0.0, 1000.0);
+        KARUSEL_DAMAGE = b.comment("Damage at the axis (a quarter at the edge of the whirl), half-hearts.")
+                .defineInRange("damage", 12.0, 0.0, 1000.0);
         KARUSEL_INTENSITY = b.defineInRange("intensity", 3, 1, 50);
-        KARUSEL_SPIN_SECONDS = b.comment("Spin time from the trigger to the blowout (6.4 matches the sound).")
-                .defineInRange("spinSeconds", 6.4, 0.5, 60.0);
-        KARUSEL_CORE_RADIUS = b.comment("Only those within this many blocks of the axis get hurt.")
+        KARUSEL_SPIN_SECONDS = b.comment("Spin time from the trigger to the blowout (6.0 matches the sound; never shorter than that).")
+                .defineInRange("spinSeconds", 6.0, 0.5, 60.0);
+        KARUSEL_CORE_RADIUS = b.comment("Items within this many blocks of the axis are destroyed.")
                 .defineInRange("coreRadius", 0.75, 0.1, 16.0);
         b.pop();
 

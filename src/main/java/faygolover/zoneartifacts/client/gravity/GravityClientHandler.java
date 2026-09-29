@@ -11,11 +11,14 @@ import faygolover.zoneartifacts.config.ModCommonConfig;
 import faygolover.zoneartifacts.network.GravityEventPacket;
 import faygolover.zoneartifacts.network.SyncAnomaliesPacket;
 import faygolover.zoneartifacts.registry.ModParticles;
+import faygolover.zoneartifacts.registry.ModSounds;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
@@ -130,7 +133,9 @@ public final class GravityClientHandler {
         /** Game time the cooldown last ended; long ago = fully shown. */
         long readySince = -1_000_000L;
         @Nullable
-        KaruselIdleSound idleSound;
+        GravityLoopSound idleLoop;
+        /** When the next idle rustle is due (Plesh, Karusel). */
+        long nextRustle = -1;
 
         public SyncAnomaliesPacket.Entry entry() {
             return entry;
@@ -201,15 +206,14 @@ public final class GravityClientHandler {
      *  config is loaded on the client too — from its own file, normally the same values. */
     private static int phaseTicks(Kind kind) {
         try {
-            double seconds = switch (kind) {
-                case KARUSEL -> ModCommonConfig.KARUSEL_SPIN_SECONDS.get();
-                case VORONKA -> ModCommonConfig.VORONKA_PULL_SECONDS.get();
-                default -> ModCommonConfig.PLESH_PULL_SECONDS.get();
+            return switch (kind) {
+                case KARUSEL -> Gravity.phaseTicks(AnomalyTypeIds.KARUSEL, ModCommonConfig.KARUSEL_SPIN_SECONDS.get());
+                case VORONKA -> Gravity.phaseTicks(AnomalyTypeIds.VORONKA, ModCommonConfig.VORONKA_PULL_SECONDS.get());
+                default -> Gravity.phaseTicks(AnomalyTypeIds.PLESH, ModCommonConfig.PLESH_PULL_SECONDS.get());
             };
-            return Math.max(1, (int) Math.round(seconds * 20.0));
         } catch (IllegalStateException notLoaded) {
             return switch (kind) {
-                case KARUSEL -> 128;
+                case KARUSEL -> 120;
                 case VORONKA -> 60;
                 default -> 50;
             };
@@ -337,7 +341,7 @@ public final class GravityClientHandler {
             switch (state.kind) {
                 case PLESH, VORONKA -> {
                     if (!state.active() || !Gravity.inSphere(player, entry.pos(), entry.size())) continue;
-                    Gravity.Orbit orbit = state.kind == Kind.PLESH ? Gravity.Orbit.of(state.seed, player.getId()) : Gravity.Orbit.STILL;
+                    Gravity.Orbit orbit = state.kind == Kind.PLESH ? Gravity.Orbit.of(state.seed, player.getId()) : Gravity.Orbit.tight(state.seed, player.getId());
                     player.setDeltaMovement(Gravity.pull(player.getBoundingBox().getCenter(), v, state.center(), force,
                             Gravity.gravityOf(player), orbit, now - state.activeStart));
                 }
@@ -407,12 +411,37 @@ public final class GravityClientHandler {
             tickDebris(level, state, now);
             tickParticles(level, state, now);
             state.glints.removeIf(g -> now > g.born() + g.life());
-            if (kind == Kind.KARUSEL && (state.idleSound == null || state.idleSound.isStopped())) {
-                state.idleSound = new KaruselIdleSound(state, state.center());
-                mc.getSoundManager().play(state.idleSound);
-            }
+            tickIdleSound(mc, state, now);
         }
         STATES.keySet().removeIf(pos -> !seen.contains(pos));
+    }
+
+    /**
+     * Idle sounds: Voronka hums (a loop), Plesh and Karusel now and then rustle with wind and dust
+     * somewhere inside. Nothing on cooldown; after it they come back with the anomaly.
+     */
+    private static void tickIdleSound(Minecraft mc, State state, long now) {
+        if (state.kind == Kind.VORONKA) {
+            if (state.idleLoop == null || state.idleLoop.isStopped()) {
+                state.idleLoop = new GravityLoopSound(state, ModSounds.VORONKA_IDLE.get(), state.center(), 0.45f);
+                mc.getSoundManager().play(state.idleLoop);
+            }
+            return;
+        }
+        if (state.kind != Kind.PLESH && state.kind != Kind.KARUSEL) return;
+        if (state.nextRustle < 0) state.nextRustle = now + 20 + RANDOM.nextInt(100);
+        if (now < state.nextRustle) return;
+        boolean karusel = state.kind == Kind.KARUSEL;
+        state.nextRustle = now + (karusel ? 60 + RANDOM.nextInt(80) : 80 + RANDOM.nextInt(100));
+        float ready = state.readiness(now, 0.0f);
+        if (state.active() || ready < 0.5f) return;
+        AABB zone = state.zone();
+        double ground = state.groundY != null ? state.groundY : zone.minY;
+        double x = Mth.lerp(RANDOM.nextDouble(), zone.minX, zone.maxX);
+        double z = Mth.lerp(RANDOM.nextDouble(), zone.minZ, zone.maxZ);
+        mc.getSoundManager().play(new SimpleSoundInstance(karusel ? ModSounds.KARUSEL_IDLE.get() : ModSounds.PLESH_IDLE.get(),
+                SoundSource.AMBIENT, (karusel ? 0.6f : 0.5f) * ready, 0.88f + RANDOM.nextFloat() * 0.24f,
+                RandomSource.create(), x, ground + 0.3, z));
     }
 
     /** Ground under the zone and the blocks the debris is made of. */
@@ -623,7 +652,19 @@ public final class GravityClientHandler {
             }
             case KARUSEL -> {
                 double ground = state.groundY != null ? state.groundY : state.zone().minY;
-                int n = roll((active ? 0.6 : 0.15) * eff);
+                float ready = state.readiness(now, 0.0f);
+                if (active) {
+                    // The funnel: dust drawn up the axis in a tight helix.
+                    int m = roll(0.35 * eff);
+                    for (int i = 0; i < m; i++) {
+                        double a = RANDOM.nextDouble() * Math.PI * 2.0;
+                        double r = 0.15 + RANDOM.nextDouble() * 0.35;
+                        Vec3 p = new Vec3(c.x + Math.cos(a) * r, ground + 0.1 + RANDOM.nextDouble() * 0.4, c.z + Math.sin(a) * r);
+                        level.addParticle(ModParticles.GRAV_DUST.get(), p.x, p.y, p.z,
+                                -Math.sin(a) * 0.18, 0.09 + RANDOM.nextDouble() * 0.06, Math.cos(a) * 0.18);
+                    }
+                }
+                int n = roll((active ? 0.6 : 0.15 * ready) * eff);
                 for (int i = 0; i < n; i++) {
                     double a = RANDOM.nextDouble() * Math.PI * 2.0;
                     double r = reach * Math.sqrt(RANDOM.nextDouble());
@@ -634,7 +675,7 @@ public final class GravityClientHandler {
                             -Math.sin(a) * tangential - Math.cos(a) * 0.02, active ? 0.02 : 0.0, Math.cos(a) * tangential - Math.sin(a) * 0.02);
                 }
                 // Twinkles: a slight shimmer, more of it while spinning.
-                if (RANDOM.nextDouble() < (active ? 0.3 : 0.05) * eff) {
+                if (RANDOM.nextDouble() < (active ? 0.3 : 0.05 * ready) * eff) {
                     double a = RANDOM.nextDouble() * Math.PI * 2.0;
                     double r = reach * Math.sqrt(RANDOM.nextDouble());
                     Vec3 p = new Vec3(c.x + Math.cos(a) * r, ground + RANDOM.nextDouble() * reach, c.z + Math.sin(a) * r);

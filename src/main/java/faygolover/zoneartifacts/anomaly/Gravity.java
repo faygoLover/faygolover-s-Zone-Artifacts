@@ -37,14 +37,16 @@ public final class Gravity {
 
     // ---- sounds ------------------------------------------------------------------------------
     /** Each blowout sound covers the whole phase: the build-up, then the burst. Played so that the
-     *  burst in it (this far into the file) lands exactly on the release. */
+     *  burst in it (this far into the file) lands exactly on the release; a phase is never shorter
+     *  than the build-up ({@link #phaseTicks}). */
     public static final ResourceLocation PLESH_BLOWOUT_SOUND = id("plesh_blowout");
     public static final int PLESH_BURST_TICKS = 40;
     public static final ResourceLocation VORONKA_BLOWOUT_SOUND = id("voronka_blowout");
     public static final int VORONKA_BURST_TICKS = 41;
     public static final ResourceLocation KARUSEL_BLOWOUT_SOUND = id("karusel_blowout");
-    public static final int KARUSEL_BURST_TICKS = 128;
-    /** Karusel's quiet idle rustle (client loop). */
+    /** The loud crack in karusel_blowout is at 5.95–6.0 s (the low boom follows at 6.15–6.3 s). */
+    public static final int KARUSEL_BURST_TICKS = 120;
+    /** Karusel's idle rustles of wind and dust (client, now and then). */
     public static final ResourceLocation KARUSEL_IDLE_SOUND = id("karusel_idle");
     public static final ResourceLocation PODUSHKA_BOUNCE_SOUND = id("podushka_bounce");
     public static final ResourceLocation GORE_SOUND = id("anomaly_body_tear");
@@ -53,6 +55,14 @@ public final class Gravity {
     public static final ResourceLocation IMPACT_DAMAGE_TYPE = id("anomaly_impact");
 
     private Gravity() {
+    }
+
+    /** Phase length in ticks: the configured seconds, but at least the blowout sound's build-up,
+     *  so the release always falls on the burst in the sound. */
+    public static int phaseTicks(ResourceLocation type, double configuredSeconds) {
+        int burst = AnomalyTypeIds.KARUSEL.equals(type) ? KARUSEL_BURST_TICKS
+                : AnomalyTypeIds.VORONKA.equals(type) ? VORONKA_BURST_TICKS : PLESH_BURST_TICKS;
+        return Math.max(burst, (int) Math.round(configuredSeconds * 20.0));
     }
 
     // ==== geometry ======================================================================
@@ -125,6 +135,15 @@ public final class Gravity {
             Vec3 u = n.cross(helper).normalize();
             Vec3 w = n.cross(u).normalize();
             return new Orbit(u, w, 0.35 + r.nextDouble() * 0.35, 0.18 + r.nextDouble() * 0.16, r.nextDouble() * Math.PI * 2.0);
+        }
+
+        /** Voronka: a tight, fast circle right at the center. Something held perfectly still
+         *  isn't re-sent to the clients, and there an item falls under its own gravity until the
+         *  next full resync (it looked dropped and pulled in again) — a moving one is sent every tick. */
+        public static Orbit tight(int anomalySeed, int entityId) {
+            Orbit o = of(anomalySeed + 7919, entityId);
+            RandomSource r = RandomSource.create(anomalySeed * 17L + entityId * 31L);
+            return new Orbit(o.u(), o.w(), 0.12 + r.nextDouble() * 0.1, 0.3 + r.nextDouble() * 0.15, o.phase());
         }
 
         public Vec3 offset(double ticks) {

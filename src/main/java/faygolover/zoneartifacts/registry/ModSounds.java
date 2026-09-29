@@ -34,6 +34,8 @@ public final class ModSounds {
     public static final RegistryObject<SoundEvent> VORONKA_BLOWOUT = register("voronka_blowout");
     public static final RegistryObject<SoundEvent> KARUSEL_BLOWOUT = register("karusel_blowout");
     public static final RegistryObject<SoundEvent> KARUSEL_IDLE = register("karusel_idle");
+    public static final RegistryObject<SoundEvent> PLESH_IDLE = register("plesh_idle");
+    public static final RegistryObject<SoundEvent> VORONKA_IDLE = register("voronka_idle");
     public static final RegistryObject<SoundEvent> PODUSHKA_BOUNCE = register("podushka_bounce");
     public static final RegistryObject<SoundEvent> BODY_TEAR = register("anomaly_body_tear");
 

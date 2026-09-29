@@ -141,6 +141,8 @@
   "subtitles.fl_zone_arts.voronka_blowout": "Vortex tears",
   "subtitles.fl_zone_arts.karusel_blowout": "Carousel whirls",
   "subtitles.fl_zone_arts.karusel_idle": "Carousel rustles",
+  "subtitles.fl_zone_arts.plesh_idle": "Dust rustles",
+  "subtitles.fl_zone_arts.voronka_idle": "Vortex hums",
   "subtitles.fl_zone_arts.podushka_bounce": "Cushion bounces",
   "subtitles.fl_zone_arts.anomaly_body_tear": "Body torn apart",
   "item.fl_zone_arts.plesh_placer.desc.0": "Pulls everything around to its center,",
