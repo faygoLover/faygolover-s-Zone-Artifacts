@@ -4,6 +4,7 @@ import faygolover.zoneartifacts.anomaly.AnomalyInstance;
 import faygolover.zoneartifacts.anomaly.AnomalySavedData;
 import faygolover.zoneartifacts.anomaly.AnomalyType;
 import faygolover.zoneartifacts.anomaly.AnomalyTypeManager;
+import faygolover.zoneartifacts.network.AnomalySyncHandler;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -11,6 +12,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 
@@ -19,15 +21,16 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * One instance of this item exists per anomaly type (see ModItems). Right-clicking a block:
- * <ul>
- *     <li>places a new anomaly of this type at level 1, if none of this type exists there yet;</li>
- *     <li>cycles the level (1 -&gt; 2 -&gt; ... -&gt; max -&gt; 1) if one of this type already
- *     sits at that exact block;</li>
- *     <li>shift + right-click removes an existing anomaly of this type at that position.</li>
- * </ul>
- * All logic runs server-side; the anomaly itself is data (see {@link AnomalySavedData}), not a
- * block or entity in the world.
+ * One instance of this item exists per anomaly type (see ModItems).
+ * <p>
+ * Interacting with an <em>existing</em> anomaly of this type (aiming anywhere inside its zone,
+ * like clicking a light block) is handled elsewhere and cancels the vanilla interaction before
+ * {@link #useOn} ever runs: right-click removal goes through {@code AnomalyInteractionHandler}
+ * (a server-side raytrace), left-click level-cycling goes through {@code ClientAnomalyInputHandler}
+ * + {@code CycleAnomalyPacket} (has to start client-side — see that class's javadoc for why).
+ * <p>
+ * This class's {@link #useOn} is therefore just the fallback: right-click on a block with no
+ * anomaly of this type on it yet places a new one at level 1.
  */
 public class AnomalyPlacerItem extends Item {
 
@@ -42,6 +45,18 @@ public class AnomalyPlacerItem extends Item {
         return anomalyTypeId;
     }
 
+    @Nullable
+    public static ResourceLocation heldTypeId(Player player) {
+        ResourceLocation main = fromStack(player.getMainHandItem());
+        if (main != null) return main;
+        return fromStack(player.getOffhandItem());
+    }
+
+    @Nullable
+    private static ResourceLocation fromStack(ItemStack stack) {
+        return stack.getItem() instanceof AnomalyPlacerItem placer ? placer.anomalyTypeId() : null;
+    }
+
     @Override
     public InteractionResult useOn(UseOnContext context) {
         Level level = context.getLevel();
@@ -49,13 +64,13 @@ public class AnomalyPlacerItem extends Item {
         Player player = context.getPlayer();
 
         if (level instanceof ServerLevel serverLevel) {
-            applyPlacement(serverLevel, player, pos);
+            placeIfEmpty(serverLevel, player, pos);
         }
 
         return InteractionResult.sidedSuccess(level.isClientSide);
     }
 
-    private void applyPlacement(ServerLevel serverLevel, @Nullable Player player, BlockPos pos) {
+    private void placeIfEmpty(ServerLevel serverLevel, @Nullable Player player, BlockPos pos) {
         AnomalyType type = AnomalyTypeManager.get(anomalyTypeId);
         if (type == null) {
             notify(player, "anomaly type '" + anomalyTypeId + "' is not loaded (check the datapack / run /reload)");
@@ -63,28 +78,17 @@ public class AnomalyPlacerItem extends Item {
         }
 
         AnomalySavedData data = AnomalySavedData.get(serverLevel);
-        Optional<AnomalyInstance> existing = findAt(data, pos, anomalyTypeId);
-
-        if (player != null && player.isShiftKeyDown()) {
-            if (existing.isPresent()) {
-                data.remove(existing.get());
-                notify(player, "removed " + anomalyTypeId + " at " + pos.toShortString());
-            } else {
-                notify(player, "nothing to remove at " + pos.toShortString());
-            }
+        if (findAt(data, pos, anomalyTypeId).isPresent()) {
+            // An anomaly is already anchored exactly here; AnomalyInteractionHandler's raytrace
+            // should have caught the click and removed it before this ever runs. If it somehow
+            // didn't (e.g. clicking exactly on the block from an odd angle), do nothing rather
+            // than silently stacking a second one on top.
             return;
         }
 
-        if (existing.isPresent()) {
-            AnomalyInstance instance = existing.get();
-            int nextLevel = instance.level() % type.maxLevel() + 1;
-            instance.setLevel(nextLevel);
-            data.setDirty();
-            notify(player, anomalyTypeId + " at " + pos.toShortString() + " -> level " + nextLevel);
-        } else {
-            data.add(new AnomalyInstance(anomalyTypeId, pos.immutable(), 1));
-            notify(player, "placed " + anomalyTypeId + " at " + pos.toShortString() + " (level 1)");
-        }
+        data.add(new AnomalyInstance(anomalyTypeId, pos.immutable(), 1));
+        notify(player, "placed " + anomalyTypeId + " at " + pos.toShortString() + " (level 1)");
+        AnomalySyncHandler.broadcast(serverLevel);
     }
 
     private static Optional<AnomalyInstance> findAt(AnomalySavedData data, BlockPos pos, ResourceLocation typeId) {

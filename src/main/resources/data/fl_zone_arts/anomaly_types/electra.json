@@ -6,7 +6,7 @@
   },
   "trigger": {
     "type": "burst",
-    "cooldown_ticks": 20
+    "cooldown_ticks": 100
   },
   "detect": {
     "players": true,

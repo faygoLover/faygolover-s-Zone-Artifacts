@@ -1,5 +1,6 @@
 package faygolover.zoneartifacts;
 
+import faygolover.zoneartifacts.network.ModNetwork;
 import faygolover.zoneartifacts.registry.ModCreativeTabs;
 import faygolover.zoneartifacts.registry.ModItems;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -24,5 +25,7 @@ public class ZoneArtifacts {
 
         ModItems.ITEMS.register(modEventBus);
         ModCreativeTabs.TABS.register(modEventBus);
+
+        ModNetwork.register();
     }
 }

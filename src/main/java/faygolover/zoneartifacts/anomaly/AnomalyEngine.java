@@ -2,6 +2,8 @@ package faygolover.zoneartifacts.anomaly;
 
 import faygolover.zoneartifacts.ZoneArtifacts;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.Holder;
 import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
@@ -15,13 +17,16 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Projectile;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.registries.ForgeRegistries;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Server-side tick logic for placed anomalies: ambient particles/sound, and — for
@@ -63,28 +68,18 @@ public class AnomalyEngine {
         // PASSIVE_FIELD / PHASED: not implemented yet, see AnomalyTrigger's javadoc.
     }
 
-    private static AABB zoneAabb(AnomalyInstance instance, AnomalyType type) {
-        int size = type.shape().sizeForLevel(instance.level());
-        BlockPos pos = instance.pos();
-        double half = size / 2.0;
-        double cx = pos.getX() + 0.5;
-        double cy = pos.getY() + 0.5;
-        double cz = pos.getZ() + 0.5;
-        return new AABB(cx - half, cy - half, cz - half, cx + half, cy + half, cz + half);
-    }
-
     // ---- ambient (always-on) visual/sound ---------------------------------
 
     private static void tickAmbient(ServerLevel level, AnomalyInstance instance, AnomalyType type) {
         AnomalyVisualSound ambient = type.ambient();
         if (ambient == null) return;
 
-        AABB aabb = zoneAabb(instance, type);
+        AABB aabb = AnomalyGeometry.zoneAabb(instance, type);
 
         if (ambient.particle() != null && ambient.intervalTicks() > 0) {
             int t = instance.ambientParticleTicker() - 1;
             if (t <= 0) {
-                spawnParticles(level, aabb, ambient);
+                spawnParticlesOnSurfaces(level, aabb, ambient);
                 t = ambient.intervalTicks();
             }
             instance.setAmbientParticleTicker(t);
@@ -100,7 +95,69 @@ public class AnomalyEngine {
         }
     }
 
-    private static void spawnParticles(ServerLevel level, AABB aabb, AnomalyVisualSound visual) {
+    /**
+     * Ambient sparks should look like they're jumping between surfaces the zone touches, not
+     * floating randomly in mid-air. This scans the block positions the zone's AABB overlaps
+     * (plus their immediate neighbors) for "solid face next to non-solid space" pairs and spawns
+     * particles on those faces; if the zone doesn't touch any solid surface at all (floating in
+     * open air), it simply spawns nothing that tick rather than falling back to mid-air points.
+     */
+    private static void spawnParticlesOnSurfaces(ServerLevel level, AABB aabb, AnomalyVisualSound visual) {
+        if (!(ForgeRegistries.PARTICLE_TYPES.getValue(visual.particle()) instanceof SimpleParticleType particleType)) {
+            return;
+        }
+
+        List<Vec3Point> surfacePoints = findSurfacePoints(level, aabb);
+        if (surfacePoints.isEmpty()) return;
+
+        for (int i = 0; i < visual.particleCount(); i++) {
+            Vec3Point p = surfacePoints.get(level.random.nextInt(surfacePoints.size()));
+            level.sendParticles(particleType, p.x(), p.y(), p.z(), 1, 0, 0, 0, 0.0);
+        }
+    }
+
+    private record Vec3Point(double x, double y, double z) {
+    }
+
+    private static List<Vec3Point> findSurfacePoints(ServerLevel level, AABB aabb) {
+        List<Vec3Point> points = new ArrayList<>();
+        BlockPos min = BlockPos.containing(aabb.minX, aabb.minY, aabb.minZ);
+        BlockPos max = BlockPos.containing(aabb.maxX, aabb.maxY, aabb.maxZ);
+
+        for (BlockPos pos : BlockPos.betweenClosed(min, max)) {
+            if (isSolid(level, pos)) continue; // looking for empty cells with a solid neighbor
+            for (Direction dir : Direction.values()) {
+                BlockPos neighbor = pos.relative(dir);
+                if (isSolid(level, neighbor)) {
+                    points.add(faceMidpoint(pos.immutable(), dir, level));
+                }
+            }
+        }
+        return points;
+    }
+
+    private static boolean isSolid(ServerLevel level, BlockPos pos) {
+        BlockState state = level.getBlockState(pos);
+        return !state.getCollisionShape(level, pos).isEmpty();
+    }
+
+    private static Vec3Point faceMidpoint(BlockPos emptyPos, Direction dir, ServerLevel level) {
+        double baseX = emptyPos.getX() + 0.5 + dir.getStepX() * 0.5;
+        double baseY = emptyPos.getY() + 0.5 + dir.getStepY() * 0.5;
+        double baseZ = emptyPos.getZ() + 0.5 + dir.getStepZ() * 0.5;
+
+        double jitter = 0.35;
+        Direction.Axis axis = dir.getAxis();
+        double jx = axis == Direction.Axis.X ? 0 : (level.random.nextDouble() - 0.5) * jitter;
+        double jy = axis == Direction.Axis.Y ? 0 : (level.random.nextDouble() - 0.5) * jitter;
+        double jz = axis == Direction.Axis.Z ? 0 : (level.random.nextDouble() - 0.5) * jitter;
+
+        return new Vec3Point(baseX + jx, baseY + jy, baseZ + jz);
+    }
+
+    /** Used for the one-shot trigger burst, where a diffuse mid-air flash reads fine — unlike the
+     *  ambient hum, it isn't meant to look surface-anchored. */
+    private static void spawnParticlesInVolume(ServerLevel level, AABB aabb, AnomalyVisualSound visual) {
         if (!(ForgeRegistries.PARTICLE_TYPES.getValue(visual.particle()) instanceof SimpleParticleType particleType)) {
             return;
         }
@@ -134,7 +191,7 @@ public class AnomalyEngine {
             return;
         }
 
-        AABB aabb = zoneAabb(instance, type);
+        AABB aabb = AnomalyGeometry.zoneAabb(instance, type);
         AnomalyDetect detect = type.detect();
         List<Entity> hits = level.getEntities((Entity) null, aabb, e -> matches(e, detect));
         if (hits.isEmpty()) return;
@@ -164,8 +221,18 @@ public class AnomalyEngine {
     }
 
     private static void applyDamage(ServerLevel level, AnomalyInstance instance, AnomalyType type, LivingEntity target) {
+        // DamageSources' own source(ResourceKey) helper is private (used only for vanilla's
+        // built-in damage types), so a custom damage type has to be wrapped by hand: look up its
+        // Holder in the damage-type registry and build the DamageSource directly from that.
         ResourceKey<DamageType> key = ResourceKey.create(Registries.DAMAGE_TYPE, type.effect().damageType());
-        DamageSource source = level.damageSources().source(key);
+        Optional<Holder.Reference<DamageType>> holder = level.registryAccess()
+                .registryOrThrow(Registries.DAMAGE_TYPE)
+                .getHolder(key);
+        if (holder.isEmpty()) {
+            // damage_type json for this id is missing/misspelled; skip rather than crash.
+            return;
+        }
+        DamageSource source = new DamageSource(holder.get());
         float amount = type.effect().damageForLevel(instance.level());
         target.hurt(source, amount);
     }
@@ -174,7 +241,7 @@ public class AnomalyEngine {
         AnomalyVisualSound trigger = type.triggerEffect();
         if (trigger == null) return;
         if (trigger.particle() != null) {
-            spawnParticles(level, aabb, trigger);
+            spawnParticlesInVolume(level, aabb, trigger);
         }
         if (trigger.sound() != null) {
             playSound(level, aabb, trigger.sound(), trigger.soundVolume(), trigger.soundPitch());
