@@ -3,10 +3,10 @@ package faygolover.zoneartifacts.client.thermal;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import faygolover.zoneartifacts.ZoneArtifacts;
+import faygolover.zoneartifacts.client.GlowRenderType;
 import faygolover.zoneartifacts.config.ModClientConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
@@ -27,7 +27,8 @@ import java.util.Map;
  * Crystal positions are seeded from the face, so they stay put (no flicker when the face cache
  * refreshes). How many are drawn per face follows the effective intensity.
  * <p>
- * Drawn with vanilla's {@link RenderType#lightning()} (additive, unlit, back faces culled): every
+ * Drawn with {@link GlowRenderType#GLOW} (vanilla lightning look — additive, unlit, back faces
+ * culled — without depth writes, so neighbouring crystals never flicker against each other): every
  * quad is wound counter-clockwise as seen from the face's outside.
  */
 @Mod.EventBusSubscriber(modid = ZoneArtifacts.MODID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.FORGE)
@@ -88,7 +89,7 @@ public final class IneyFrostRenderer {
             int count = perFace(ModClientConfig.effective(state.entry().intensity()));
             float baseAlpha = 0.16f + 0.6f * activity;
 
-            if (buffer == null) buffer = bufferSource.getBuffer(RenderType.lightning());
+            if (buffer == null) buffer = bufferSource.getBuffer(GlowRenderType.GLOW);
             for (List<Crystal> crystals : cache.perFace()) {
                 for (int i = 0; i < count && i < crystals.size(); i++) {
                     Crystal c = crystals.get(i);
@@ -102,7 +103,7 @@ public final class IneyFrostRenderer {
         CACHES.clear();
         CACHES.putAll(used);
 
-        if (buffer != null) bufferSource.endBatch(RenderType.lightning());
+        if (buffer != null) bufferSource.endBatch(GlowRenderType.GLOW);
         poseStack.popPose();
     }
 

@@ -9,6 +9,7 @@ import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import faygolover.zoneartifacts.ZoneArtifacts;
+import faygolover.zoneartifacts.client.GlowRenderType;
 import faygolover.zoneartifacts.anomaly.Razlom;
 import faygolover.zoneartifacts.client.tesla.FireDraw;
 import faygolover.zoneartifacts.config.ModClientConfig;
@@ -140,34 +141,14 @@ public final class RazlomRenderer {
         poseStack.translate(-cam.x, -cam.y, -cam.z);
         Matrix4f matrix = poseStack.last().pose();
         MultiBufferSource.BufferSource bufferSource = mc.renderBuffers().bufferSource();
+        // Pass 1 — flames and jets (vanilla lightning type).
         VertexConsumer buffer = bufferSource.getBuffer(RenderType.lightning());
-
         for (RazlomClientHandler.State state : RazlomClientHandler.states()) {
             Palette pal = palette(state);
             boolean jetting = state.jetActive(now);
-            boolean resting = state.entry().onCooldown();
-            float level = jetting ? 1.25f : resting ? 0.55f : 1.0f;
-            float widthScale = (float) Mth.clamp(Math.sqrt(state.entry().size()), 1.0, 2.0);
-            float seed = (state.entry().pos().hashCode() & 0xFFFF) / 6553.6f;
-
-            // Seams: flat glowing lines on the ground, pulsing.
-            for (RazlomClientHandler.Crack crack : state.cracks()) {
-                for (int i = 0; i < crack.xs.length - 1; i++) {
-                    // The seam stops a segment short of the dark crack's free ends.
-                    if (!crack.seamCovers(i) || !flatSegment(crack, i)) continue;
-                    float pa = 0.75f + 0.25f * Mth.sin(time * 0.08f + i * 0.5f + seed);
-                    float pb = 0.75f + 0.25f * Mth.sin(time * 0.08f + (i + 1) * 0.5f + seed);
-                    int ca = FireDraw.fade(FireDraw.mix(pal.seamDim(), pal.seamHot(), crack.widths[i] * pa), level * pa);
-                    int cb = FireDraw.fade(FireDraw.mix(pal.seamDim(), pal.seamHot(), crack.widths[i + 1] * pb), level * pb);
-                    float wa = SEAM_HALF_WIDTH * widthScale * (0.35f + 0.65f * crack.widths[i]);
-                    float wb = SEAM_HALF_WIDTH * widthScale * (0.35f + 0.65f * crack.widths[i + 1]);
-                    flatQuadUp(buffer, matrix, crack, i, crack.ys[i] + SEAM_LIFT, wa, wb, ca, cb);
-                }
-            }
-
+            float seed = seed(state);
             Vec3 f = state.flame();
-            // The flame is out while resting (it fades out and flares up again).
-            float flameSize = FLAME_SCALE * (jetting ? 1.35f : 1.0f) * state.flameLevel(partial);
+            float flameSize = flameSize(state, jetting, partial);
 
             // Jet streams: shooting out along the arc, stopped by the first block in the way.
             RazlomClientHandler.Jet jet = state.jet();
@@ -177,7 +158,7 @@ public final class RazlomRenderer {
             }
             if (flameSize < 0.02f) continue;
 
-            // Flame tongues, then its glow last (the render type writes depth).
+            // Flame tongues.
             for (int k = 0; k < 2; k++) {
                 float sway = Mth.sin(time * 0.3f + k * 2.1f + seed) * 0.35f;
                 Vec3 bend = new Vec3(sway, 0.0, Mth.cos(time * 0.27f + k * 1.7f + seed) * 0.35f);
@@ -192,13 +173,52 @@ public final class RazlomRenderer {
                 }
                 FireDraw.ribbon(matrix, buffer, points, widths, colors, cam);
             }
+        }
+        bufferSource.endBatch(RenderType.lightning());
+
+        // Pass 2 — glowing seams and the flame's glow, without depth writes (GlowRenderType):
+        // no z-fighting between glow layers, or between the seams and the ground.
+        buffer = bufferSource.getBuffer(GlowRenderType.GLOW);
+        for (RazlomClientHandler.State state : RazlomClientHandler.states()) {
+            Palette pal = palette(state);
+            boolean jetting = state.jetActive(now);
+            boolean resting = state.entry().onCooldown();
+            float level = jetting ? 1.25f : resting ? 0.55f : 1.0f;
+            float widthScale = (float) Mth.clamp(Math.sqrt(state.entry().size()), 1.0, 2.0);
+            float seed = seed(state);
+
+            for (RazlomClientHandler.Crack crack : state.cracks()) {
+                for (int i = 0; i < crack.xs.length - 1; i++) {
+                    // The seam stops a segment short of the dark crack's free ends.
+                    if (!crack.seamCovers(i) || !flatSegment(crack, i)) continue;
+                    float pa = 0.75f + 0.25f * Mth.sin(time * 0.08f + i * 0.5f + seed);
+                    float pb = 0.75f + 0.25f * Mth.sin(time * 0.08f + (i + 1) * 0.5f + seed);
+                    int ca = FireDraw.fade(FireDraw.mix(pal.seamDim(), pal.seamHot(), crack.widths[i] * pa), level * pa);
+                    int cb = FireDraw.fade(FireDraw.mix(pal.seamDim(), pal.seamHot(), crack.widths[i + 1] * pb), level * pb);
+                    float wa = SEAM_HALF_WIDTH * widthScale * (0.35f + 0.65f * crack.widths[i]);
+                    float wb = SEAM_HALF_WIDTH * widthScale * (0.35f + 0.65f * crack.widths[i + 1]);
+                    flatQuadUp(buffer, matrix, crack, i, crack.ys[i] + SEAM_LIFT, wa, wb, ca, cb);
+                }
+            }
+
+            float flameSize = flameSize(state, jetting, partial);
+            if (flameSize < 0.02f) continue;
+            Vec3 f = state.flame();
             float flicker = 1.0f + 0.12f * Mth.sin(time * 0.9f + seed) + 0.06f * Mth.sin(time * 2.3f);
             FireDraw.glow(matrix, buffer, f, 0.34 * flameSize * flicker, cam, pal.flameOuter(), 16);
             FireDraw.glow(matrix, buffer, f, 0.14 * flameSize * flicker, cam, pal.flameInner(), 12);
         }
-
-        bufferSource.endBatch(RenderType.lightning());
+        bufferSource.endBatch(GlowRenderType.GLOW);
         poseStack.popPose();
+    }
+
+    private static float seed(RazlomClientHandler.State state) {
+        return (state.entry().pos().hashCode() & 0xFFFF) / 6553.6f;
+    }
+
+    /** The flame is out while resting (it fades out and flares up again), bigger while jetting. */
+    private static float flameSize(RazlomClientHandler.State state, boolean jetting, float partial) {
+        return FLAME_SCALE * (jetting ? 1.35f : 1.0f) * state.flameLevel(partial);
     }
 
     /**

@@ -3,6 +3,7 @@ package faygolover.zoneartifacts.client.tesla;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import faygolover.zoneartifacts.ZoneArtifacts;
+import faygolover.zoneartifacts.client.GlowRenderType;
 import faygolover.zoneartifacts.config.ModClientConfig;
 import faygolover.zoneartifacts.tesla.CometEntity;
 import faygolover.zoneartifacts.tesla.Tesla;
@@ -184,7 +185,10 @@ public class CometRenderer extends EntityRenderer<CometEntity> {
             }
         }
 
-        // ---- the glowing core, last: the render type writes depth ----
+        // ---- the glowing core: its own pass without depth writes (additive, so the order doesn't
+        // matter). Its layers used to fight over the same depth (the rippling halo), and the
+        // halo's disc hid the arches behind the ball.
+        buffer = buffers.getBuffer(GlowRenderType.GLOW);
         float pulse = 1.0f + 0.07f * Mth.sin(time * 0.7f + ball.phase);
         FireDraw.glow(matrix, buffer, center, 0.8 * scale * pulse, cam, FireDraw.fade(FireDraw.mix(cDeep, body, 0.5f), 0.45f), 20);
         FireDraw.glow(matrix, buffer, center, 0.48 * scale * pulse, cam, FireDraw.fade(body, 0.75f), 18);

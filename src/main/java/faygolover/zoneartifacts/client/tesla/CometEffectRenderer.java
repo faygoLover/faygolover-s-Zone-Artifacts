@@ -3,6 +3,7 @@ package faygolover.zoneartifacts.client.tesla;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import faygolover.zoneartifacts.ZoneArtifacts;
+import faygolover.zoneartifacts.client.GlowBatch;
 import faygolover.zoneartifacts.config.ModClientConfig;
 import faygolover.zoneartifacts.registry.ModParticles;
 import faygolover.zoneartifacts.tesla.Comet;
@@ -153,6 +154,7 @@ public final class CometEffectRenderer {
         Matrix4f matrix = poseStack.last().pose();
         MultiBufferSource.BufferSource bufferSource = mc.renderBuffers().bufferSource();
         VertexConsumer buffer = bufferSource.getBuffer(RenderType.lightning());
+        GlowBatch glows = new GlowBatch();
 
         for (Iterator<Blast> it = BLASTS.iterator(); it.hasNext(); ) {
             Blast blast = it.next();
@@ -179,13 +181,14 @@ public final class CometEffectRenderer {
                 FireDraw.ribbon(matrix, buffer, points, widths, colors, cam);
             }
 
-            // The fireball itself last (the render type writes depth).
+            // The fireball: drawn after all the flames, without depth writes (see GlowRenderType).
             double r = blast.radius * (0.25 + 0.45 * extend);
-            FireDraw.glow(matrix, buffer, blast.center, r, cam, FireDraw.fade(body, 0.8f * alpha), 24);
-            FireDraw.glow(matrix, buffer, blast.center, r * 0.45, cam, FireDraw.fade(bright, alpha * (1.0f - life)), 18);
+            glows.add(blast.center, r, FireDraw.fade(body, 0.8f * alpha), 24);
+            glows.add(blast.center, r * 0.45, FireDraw.fade(bright, alpha * (1.0f - life)), 18);
         }
 
         bufferSource.endBatch(RenderType.lightning());
+        glows.draw(bufferSource, matrix, cam);
         poseStack.popPose();
     }
 

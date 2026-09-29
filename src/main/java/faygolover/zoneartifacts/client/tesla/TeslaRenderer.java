@@ -3,6 +3,7 @@ package faygolover.zoneartifacts.client.tesla;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import faygolover.zoneartifacts.ZoneArtifacts;
+import faygolover.zoneartifacts.client.GlowRenderType;
 import faygolover.zoneartifacts.config.ModClientConfig;
 import faygolover.zoneartifacts.tesla.Tesla;
 import faygolover.zoneartifacts.tesla.TeslaEntity;
@@ -133,6 +134,9 @@ public class TeslaRenderer extends EntityRenderer<TeslaEntity> {
             LightningDraw.ribbon(matrix, buffer, path, width * 0.8f, 185, 222, 255, alpha, camLocal);
         }
 
+        // The glow in its own pass without depth writes (additive, so the order doesn't matter):
+        // loops behind the ball shine through it instead of being cut off by the halo's disc.
+        buffer = buffers.getBuffer(GlowRenderType.GLOW);
         float pulse = 1.0f + 0.08f * Mth.sin((now + partialTick) * 0.9f);
         LightningDraw.glow(matrix, buffer, center, 0.55 * scale * pulse, camLocal, 110, 180, 255, 120, 18);
         Vec3 toCam = camLocal.subtract(center).normalize();
