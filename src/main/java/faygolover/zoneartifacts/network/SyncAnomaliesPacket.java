@@ -37,7 +37,8 @@ public class SyncAnomaliesPacket {
     public static SyncAnomaliesPacket of(ResourceKey<Level> dimension, List<AnomalyInstance> instances) {
         List<Entry> entries = new ArrayList<>(instances.size());
         for (AnomalyInstance instance : instances) {
-            entries.add(new Entry(instance.typeId(), instance.pos(), (float) instance.size(), instance.intensity(), instance.cooldownTicks() > 0));
+            entries.add(new Entry(instance.typeId(), instance.pos(), (float) instance.size(), instance.intensity(),
+                    instance.cooldownTicks() > 0, instance.active()));
         }
         return new SyncAnomaliesPacket(dimension, entries);
     }
@@ -51,6 +52,7 @@ public class SyncAnomaliesPacket {
             buf.writeFloat(entry.size());
             buf.writeVarInt(entry.intensity());
             buf.writeBoolean(entry.onCooldown());
+            buf.writeBoolean(entry.active());
         }
     }
 
@@ -64,7 +66,8 @@ public class SyncAnomaliesPacket {
             float size = buf.readFloat();
             int intensity = buf.readVarInt();
             boolean onCooldown = buf.readBoolean();
-            entries.add(new Entry(typeId, pos, size, intensity, onCooldown));
+            boolean active = buf.readBoolean();
+            entries.add(new Entry(typeId, pos, size, intensity, onCooldown, active));
         }
         return new SyncAnomaliesPacket(dimension, entries);
     }
@@ -80,7 +83,9 @@ public class SyncAnomaliesPacket {
      *  AnomalyAmbientSoundHandler}) and the ambient lightning arcs ({@code AnomalyArcRenderer}):
      *  both stop the instant this flips to true and resume the instant it flips back. In practice
      *  this flag is usually kept current by the much lighter {@link SyncAnomalyCooldownPacket}
-     *  rather than a full resend of this packet — see that class's javadoc. */
-    public record Entry(ResourceLocation typeId, BlockPos pos, float size, int intensity, boolean onCooldown) {
+     *  rather than a full resend of this packet — see that class's javadoc.
+     *  {@code active} is used by the thermal anomalies (Zharka, Iney): someone is inside right now,
+     *  so the visuals and sound ramp up. Always false for Electra. */
+    public record Entry(ResourceLocation typeId, BlockPos pos, float size, int intensity, boolean onCooldown, boolean active) {
     }
 }

@@ -14,7 +14,7 @@ import java.util.List;
  * Client-side snapshot of "what anomalies exist and where", refreshed wholesale whenever a
  * {@link SyncAnomaliesPacket} arrives (join, dimension change, or any placement/removal/level
  * change) — or patched in place, one entry at a time, whenever a lighter-weight {@link
- * SyncAnomalyCooldownPacket} arrives (see {@link #updateCooldown}). Purely a rendering aid for
+ * SyncAnomalyCooldownPacket} arrives (see {@link #updateState}). Purely a rendering aid for
  * {@code AnomalyHighlightRenderer} — never authoritative, the server always re-checks for real
  * before acting on a click (see AnomalyTargeting).
  */
@@ -28,15 +28,15 @@ public final class ClientAnomalyCache {
         entries = newEntries;
     }
 
-    /** Patches a single entry's cooldown flag in place, without touching anything else about it —
-     *  the cheap counterpart to a full {@link #set}, driven by {@link SyncAnomalyCooldownPacket}. */
-    public static void updateCooldown(ResourceLocation typeId, BlockPos pos, boolean onCooldown) {
+    /** Patches a single entry's cooldown / active flags in place, without touching anything else
+     *  about it — the cheap counterpart to a full {@link #set}, driven by {@link SyncAnomalyCooldownPacket}. */
+    public static void updateState(ResourceLocation typeId, BlockPos pos, boolean onCooldown, boolean active) {
         for (int i = 0; i < entries.size(); i++) {
             SyncAnomaliesPacket.Entry entry = entries.get(i);
             if (entry.typeId().equals(typeId) && entry.pos().equals(pos)) {
-                if (entry.onCooldown() == onCooldown) return;
+                if (entry.onCooldown() == onCooldown && entry.active() == active) return;
                 List<SyncAnomaliesPacket.Entry> updated = new ArrayList<>(entries);
-                updated.set(i, new SyncAnomaliesPacket.Entry(entry.typeId(), entry.pos(), entry.size(), entry.intensity(), onCooldown));
+                updated.set(i, new SyncAnomaliesPacket.Entry(entry.typeId(), entry.pos(), entry.size(), entry.intensity(), onCooldown, active));
                 entries = updated;
                 return;
             }

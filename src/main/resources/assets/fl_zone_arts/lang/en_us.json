@@ -39,5 +39,14 @@
   "message.fl_zone_arts.anomaly.inside_other": "Anomalies are placed on blocks only, not inside another anomaly",
   "message.fl_zone_arts.tuner.value": "%1$s — %2$s: %3$s (standard %4$s)",
   "message.fl_zone_arts.tuner.not_applicable": "%1$s has no %2$s to tune",
-  "message.fl_zone_arts.tuner.tesla_route": "Tesla #%1$s"
+  "message.fl_zone_arts.tuner.tesla_route": "Tesla #%1$s",
+  "item.fl_zone_arts.zharka_placer": "Anomaly Placer: Zharka",
+  "item.fl_zone_arts.iney_placer": "Anomaly Placer: Iney",
+  "anomaly.fl_zone_arts.zharka": "Zharka",
+  "anomaly.fl_zone_arts.iney": "Iney",
+  "tuner.fl_zone_arts.damage_interval": "damage interval",
+  "death.attack.fl_zone_arts.anomaly_heat": "%1$s was burned by an anomaly",
+  "death.attack.fl_zone_arts.anomaly_cold": "%1$s froze in an anomaly",
+  "subtitles.fl_zone_arts.zharka_idle": "Zharka roars",
+  "subtitles.fl_zone_arts.iney_idle": "Iney crackles"
 }

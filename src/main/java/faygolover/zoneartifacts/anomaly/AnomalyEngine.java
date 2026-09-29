@@ -21,7 +21,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Server-side tick logic for placed zone anomalies (currently only Electra): detecting entities
+ * Server-side tick logic for placed zone anomalies. Electra is handled here (Zharka and Iney in
+ * {@link ThermalEngine}): detecting entities
  * inside the zone, applying damage, sending the strike/electrify visuals, running the cooldown.
  * All values come from the anomaly itself ({@link AnomalyInstance}), set with the tuners.
  * <p>
@@ -40,6 +41,8 @@ public class AnomalyEngine {
         for (AnomalyInstance instance : List.copyOf(data.instances())) {
             if (AnomalyTypeIds.ELECTRA.equals(instance.typeId())) {
                 tickElectra(serverLevel, instance);
+            } else if (AnomalyTypeIds.isThermal(instance.typeId())) {
+                ThermalEngine.tick(serverLevel, instance);
             }
         }
     }

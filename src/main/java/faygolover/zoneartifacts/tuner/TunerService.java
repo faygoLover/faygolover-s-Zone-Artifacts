@@ -1,10 +1,10 @@
 package faygolover.zoneartifacts.tuner;
 
+import faygolover.zoneartifacts.anomaly.AnomalyDefaults;
 import faygolover.zoneartifacts.anomaly.AnomalyGeometry;
 import faygolover.zoneartifacts.anomaly.AnomalyInstance;
 import faygolover.zoneartifacts.anomaly.AnomalySavedData;
 import faygolover.zoneartifacts.anomaly.AnomalyTargeting;
-import faygolover.zoneartifacts.anomaly.Electra;
 import faygolover.zoneartifacts.config.ModCommonConfig;
 import faygolover.zoneartifacts.item.AnomalyTunerItem;
 import faygolover.zoneartifacts.network.AnomalySyncHandler;
@@ -56,7 +56,8 @@ public final class TunerService {
         double reach = MAX_CLICK_DISTANCE + instance.size();
         if (player.getEyePosition().distanceToSqr(AnomalyGeometry.zoneAabb(instance).getCenter()) > reach * reach) return;
 
-        Component name = Component.translatable("anomaly.fl_zone_arts.electra");
+        Component name = Component.translatable(AnomalyDefaults.nameKey(typeId));
+        Component setting = Component.translatable(AnomalyDefaults.settingKey(typeId, kind));
         double step = kind.step(sneaking) * (increase ? 1 : -1);
         String value;
         String standard;
@@ -64,27 +65,27 @@ public final class TunerService {
             case SIZE -> {
                 instance.setSize(round(clamp(instance.size() + step, 1.0, ModCommonConfig.MAX_SIZE.get()), 10));
                 value = fmt1(instance.size());
-                standard = fmt1(Electra.DEFAULT_SIZE);
+                standard = fmt1(AnomalyDefaults.SIZE);
             }
             case SPEED -> {
                 player.displayClientMessage(Component.translatable("message.fl_zone_arts.tuner.not_applicable",
-                        name, Component.translatable(kind.translationKey())), true);
+                        name, setting), true);
                 return;
             }
             case COOLDOWN -> {
                 instance.setCooldownSeconds((int) clamp(instance.cooldownSeconds() + step, 1, ModCommonConfig.MAX_COOLDOWN_SECONDS.get()));
                 value = instance.cooldownSeconds() + " с";
-                standard = ModCommonConfig.ELECTRA_COOLDOWN_SECONDS.get() + " с";
+                standard = AnomalyDefaults.cooldownSeconds(typeId) + " с";
             }
             case INTENSITY -> {
                 instance.setIntensity((int) clamp(instance.intensity() + step, 1, ModCommonConfig.MAX_INTENSITY.get()));
                 value = String.valueOf(instance.intensity());
-                standard = String.valueOf(ModCommonConfig.ELECTRA_INTENSITY.get());
+                standard = String.valueOf(AnomalyDefaults.intensity(typeId));
             }
             case DAMAGE -> {
                 instance.setDamage((float) round(clamp(instance.damage() + step, 0.0, ModCommonConfig.MAX_DAMAGE.get()), 2));
                 value = fmt1(instance.damage());
-                standard = fmt1(ModCommonConfig.ELECTRA_DAMAGE.get());
+                standard = fmt1(AnomalyDefaults.damage(typeId));
             }
             default -> {
                 return;
@@ -92,7 +93,7 @@ public final class TunerService {
         }
         data.setDirty();
         AnomalySyncHandler.broadcast(level);
-        report(player, name, kind, value, standard);
+        report(player, name, setting, value, standard);
     }
 
     public static void tuneRoute(ServerPlayer player, TunerKind kind, boolean increase, boolean sneaking,
@@ -140,7 +141,7 @@ public final class TunerService {
             }
         }
         data.setDirty();
-        report(player, name, kind, value, standard);
+        report(player, name, Component.translatable(kind.translationKey()), value, standard);
     }
 
     // ---- helpers -------------------------------------------------------------------
@@ -150,9 +151,9 @@ public final class TunerService {
                 || AnomalyTunerItem.kindOf(player.getOffhandItem()) == kind;
     }
 
-    private static void report(ServerPlayer player, Component name, TunerKind kind, String value, String standard) {
+    private static void report(ServerPlayer player, Component name, Component setting, String value, String standard) {
         player.displayClientMessage(Component.translatable("message.fl_zone_arts.tuner.value",
-                name, Component.translatable(kind.translationKey()), value, standard), true);
+                name, setting, value, standard), true);
     }
 
     private static double clamp(double value, double min, double max) {

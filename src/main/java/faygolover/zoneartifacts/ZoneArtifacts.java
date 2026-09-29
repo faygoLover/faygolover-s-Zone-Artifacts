@@ -6,6 +6,7 @@ import faygolover.zoneartifacts.network.ModNetwork;
 import faygolover.zoneartifacts.registry.ModCreativeTabs;
 import faygolover.zoneartifacts.registry.ModEntities;
 import faygolover.zoneartifacts.registry.ModItems;
+import faygolover.zoneartifacts.registry.ModParticles;
 import faygolover.zoneartifacts.registry.ModSounds;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.ModLoadingContext;
@@ -32,6 +33,7 @@ public class ZoneArtifacts {
         ModCreativeTabs.TABS.register(modEventBus);
         ModSounds.SOUNDS.register(modEventBus);
         ModEntities.ENTITY_TYPES.register(modEventBus);
+        ModParticles.PARTICLES.register(modEventBus);
 
         ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, ModCommonConfig.SPEC, MODID + "-common.toml");
         ModLoadingContext.get().registerConfig(ModConfig.Type.CLIENT, ModClientConfig.SPEC, MODID + "-client.toml");

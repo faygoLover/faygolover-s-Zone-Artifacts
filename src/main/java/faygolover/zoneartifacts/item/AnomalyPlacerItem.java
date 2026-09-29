@@ -1,9 +1,9 @@
 package faygolover.zoneartifacts.item;
 
+import faygolover.zoneartifacts.anomaly.AnomalyDefaults;
 import faygolover.zoneartifacts.anomaly.AnomalyGeometry;
 import faygolover.zoneartifacts.anomaly.AnomalyInstance;
 import faygolover.zoneartifacts.anomaly.AnomalySavedData;
-import faygolover.zoneartifacts.anomaly.AnomalyTypeIds;
 import faygolover.zoneartifacts.network.AnomalySyncHandler;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -71,8 +71,6 @@ public class AnomalyPlacerItem extends Item {
     }
 
     private void place(ServerLevel serverLevel, @Nullable Player player, BlockPos pos) {
-        if (!AnomalyTypeIds.ELECTRA.equals(anomalyTypeId)) return;
-
         AnomalySavedData data = AnomalySavedData.get(serverLevel);
         for (AnomalyInstance existing : List.copyOf(data.instances())) {
             if (existing.pos().equals(pos) || AnomalyGeometry.containsBlockCenter(AnomalyGeometry.zoneAabb(existing), pos)) {
@@ -81,9 +79,9 @@ public class AnomalyPlacerItem extends Item {
             }
         }
 
-        data.add(AnomalyInstance.newElectra(pos));
+        data.add(AnomalyInstance.create(anomalyTypeId, pos));
         notify(player, Component.translatable("message.fl_zone_arts.anomaly.placed",
-                Component.translatable("anomaly.fl_zone_arts.electra"), pos.toShortString()));
+                Component.translatable(AnomalyDefaults.nameKey(anomalyTypeId)), pos.toShortString()));
         AnomalySyncHandler.broadcast(serverLevel);
     }
 

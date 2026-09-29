@@ -21,6 +21,8 @@ public class ModCreativeTabs {
                     .icon(() -> new ItemStack(ModItems.ELECTRA_PLACER.get()))
                     .displayItems((parameters, output) -> {
                         output.accept(ModItems.ELECTRA_PLACER.get());
+                        output.accept(ModItems.ZHARKA_PLACER.get());
+                        output.accept(ModItems.INEY_PLACER.get());
                         output.accept(ModItems.TESLA_PLACER.get());
                         output.accept(ModItems.SIZE_TUNER.get());
                         output.accept(ModItems.SPEED_TUNER.get());

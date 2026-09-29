@@ -54,6 +54,12 @@ public class AnomalySyncHandler {
      */
     public static void broadcastCooldown(ServerLevel level, AnomalyInstance instance, boolean onCooldown) {
         ModNetwork.CHANNEL.send(PacketDistributor.DIMENSION.with(level::dimension),
-                new SyncAnomalyCooldownPacket(instance.typeId(), instance.pos(), onCooldown));
+                new SyncAnomalyCooldownPacket(instance.typeId(), instance.pos(), onCooldown, instance.active()));
+    }
+
+    /** Same cheap patch for a thermal anomaly whose {@code active} flag just flipped. */
+    public static void broadcastState(ServerLevel level, AnomalyInstance instance) {
+        ModNetwork.CHANNEL.send(PacketDistributor.DIMENSION.with(level::dimension),
+                new SyncAnomalyCooldownPacket(instance.typeId(), instance.pos(), instance.cooldownTicks() > 0, instance.active()));
     }
 }

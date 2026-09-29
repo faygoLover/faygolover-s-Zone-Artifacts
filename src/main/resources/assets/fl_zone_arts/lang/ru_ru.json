@@ -39,5 +39,14 @@
   "message.fl_zone_arts.anomaly.inside_other": "Аномалии ставятся только на блоки, не внутрь другой аномалии",
   "message.fl_zone_arts.tuner.value": "%1$s — %2$s: %3$s (стандарт %4$s)",
   "message.fl_zone_arts.tuner.not_applicable": "У аномалии «%1$s» нельзя настроить параметр «%2$s»",
-  "message.fl_zone_arts.tuner.tesla_route": "Тесла #%1$s"
+  "message.fl_zone_arts.tuner.tesla_route": "Тесла #%1$s",
+  "item.fl_zone_arts.zharka_placer": "Установщик аномалии «Жарка»",
+  "item.fl_zone_arts.iney_placer": "Установщик аномалии «Иней»",
+  "anomaly.fl_zone_arts.zharka": "Жарка",
+  "anomaly.fl_zone_arts.iney": "Иней",
+  "tuner.fl_zone_arts.damage_interval": "интервал урона",
+  "death.attack.fl_zone_arts.anomaly_heat": "%1$s сгорел в аномалии",
+  "death.attack.fl_zone_arts.anomaly_cold": "%1$s замёрз в аномалии",
+  "subtitles.fl_zone_arts.zharka_idle": "Жарка гудит",
+  "subtitles.fl_zone_arts.iney_idle": "Иней потрескивает"
 }

@@ -26,6 +26,20 @@ public final class ModCommonConfig {
     public static final ForgeConfigSpec.DoubleValue ELECTRA_DAMAGE;
     public static final ForgeConfigSpec.IntValue ELECTRA_INTENSITY;
 
+    // zharka / iney
+    public static final ForgeConfigSpec.IntValue ZHARKA_INTERVAL_SECONDS;
+    public static final ForgeConfigSpec.DoubleValue ZHARKA_DAMAGE;
+    public static final ForgeConfigSpec.IntValue ZHARKA_INTENSITY;
+    public static final ForgeConfigSpec.DoubleValue ZHARKA_IGNITE_CHANCE;
+    public static final ForgeConfigSpec.IntValue ZHARKA_IGNITE_SECONDS;
+    public static final ForgeConfigSpec.BooleanValue ZHARKA_ALTERS_BLOCKS;
+    public static final ForgeConfigSpec.IntValue INEY_INTERVAL_SECONDS;
+    public static final ForgeConfigSpec.DoubleValue INEY_DAMAGE;
+    public static final ForgeConfigSpec.IntValue INEY_INTENSITY;
+    public static final ForgeConfigSpec.IntValue INEY_FREEZE_PER_TICK;
+    public static final ForgeConfigSpec.BooleanValue INEY_ALTERS_BLOCKS;
+    public static final ForgeConfigSpec.IntValue THERMAL_BLOCK_RADIUS;
+
     // tesla
     public static final ForgeConfigSpec.DoubleValue TESLA_BASE_SPEED;
     public static final ForgeConfigSpec.IntValue TESLA_RESPAWN_SECONDS;
@@ -57,6 +71,35 @@ public final class ModCommonConfig {
         ELECTRA_COOLDOWN_SECONDS = b.defineInRange("cooldownSeconds", 5, 1, 3600);
         ELECTRA_DAMAGE = b.defineInRange("damage", 3.0, 0.0, 1000.0);
         ELECTRA_INTENSITY = b.defineInRange("intensity", 3, 1, 50);
+        b.pop();
+
+        b.comment("Defaults for a newly placed Zharka (heat). Its 'cooldown' is the damage interval:",
+                "while anyone is inside, everyone inside takes damage once per interval.").push("zharka");
+        ZHARKA_INTERVAL_SECONDS = b.defineInRange("intervalSeconds", 1, 1, 3600);
+        ZHARKA_DAMAGE = b.defineInRange("damage", 2.0, 0.0, 1000.0);
+        ZHARKA_INTENSITY = b.defineInRange("intensity", 3, 1, 50);
+        ZHARKA_IGNITE_CHANCE = b.comment("Chance (0..1) that a damage pulse also sets the victim on fire.")
+                .defineInRange("igniteChance", 0.25, 0.0, 1.0);
+        ZHARKA_IGNITE_SECONDS = b.comment("How long a victim burns when set on fire, seconds.")
+                .defineInRange("igniteSeconds", 3, 1, 60);
+        ZHARKA_ALTERS_BLOCKS = b.comment("While active, burn flammable blocks, melt ice and snow, evaporate water, dry out grass and mud.")
+                .define("altersBlocks", true);
+        b.pop();
+
+        b.comment("Defaults for a newly placed Iney (frost). Its 'cooldown' is the damage interval.").push("iney");
+        INEY_INTERVAL_SECONDS = b.defineInRange("intervalSeconds", 1, 1, 3600);
+        INEY_DAMAGE = b.defineInRange("damage", 1.0, 0.0, 1000.0);
+        INEY_INTENSITY = b.defineInRange("intensity", 3, 1, 50);
+        INEY_FREEZE_PER_TICK = b.comment("Vanilla freezing ticks added per tick inside (vanilla thaws 2 per tick,",
+                        "full freeze is 140): 4 means fully frozen in about 3.5 s.")
+                .defineInRange("freezePerTick", 4, 3, 50);
+        INEY_ALTERS_BLOCKS = b.comment("While active, freeze water (and lava), put out fires and campfires, kill leaves and plants, lay snow.")
+                .define("altersBlocks", true);
+        b.pop();
+
+        b.push("thermal");
+        THERMAL_BLOCK_RADIUS = b.comment("How far beyond the zone Zharka and Iney alter blocks, blocks.")
+                .defineInRange("blockRadius", 2, 0, 16);
         b.pop();
 
         b.comment("Tesla settings. A new route starts with size 1 and speed x1.0.").push("tesla");

@@ -1,14 +1,13 @@
 package faygolover.zoneartifacts.anomaly;
 
-import faygolover.zoneartifacts.config.ModCommonConfig;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 
 /**
- * One zone anomaly placed in the world, with its own settings (changed with the tuners):
- * size in blocks, cooldown in seconds, damage per hit and visual intensity. The cooldown timer
- * itself is runtime-only and restarts on world load.
+ * One zone anomaly placed in the world (Electra, Zharka, Iney), with its own settings changed with
+ * the tuners: size in blocks, cooldown in seconds (for Zharka and Iney: the damage interval),
+ * damage per hit and visual intensity. Timers and the "someone is inside" flag are runtime-only.
  */
 public class AnomalyInstance {
 
@@ -21,6 +20,11 @@ public class AnomalyInstance {
 
     private transient int cooldownTicks;
 
+    // Thermal (passive-field) runtime state, not saved.
+    private transient boolean active;
+    private transient int pulseTicks;
+    private transient int blockTicks;
+
     public AnomalyInstance(ResourceLocation typeId, BlockPos pos, double size, int cooldownSeconds, float damage, int intensity) {
         this.typeId = typeId;
         this.pos = pos;
@@ -30,12 +34,10 @@ public class AnomalyInstance {
         this.intensity = intensity;
     }
 
-    /** A new Electra with the defaults from the common config. */
-    public static AnomalyInstance newElectra(BlockPos pos) {
-        return new AnomalyInstance(AnomalyTypeIds.ELECTRA, pos.immutable(), Electra.DEFAULT_SIZE,
-                ModCommonConfig.ELECTRA_COOLDOWN_SECONDS.get(),
-                ModCommonConfig.ELECTRA_DAMAGE.get().floatValue(),
-                ModCommonConfig.ELECTRA_INTENSITY.get());
+    /** A new anomaly of {@code typeId} with that type's defaults from the common config. */
+    public static AnomalyInstance create(ResourceLocation typeId, BlockPos pos) {
+        return new AnomalyInstance(typeId, pos.immutable(), AnomalyDefaults.SIZE,
+                AnomalyDefaults.cooldownSeconds(typeId), AnomalyDefaults.damage(typeId), AnomalyDefaults.intensity(typeId));
     }
 
     public ResourceLocation typeId() {
@@ -86,6 +88,31 @@ public class AnomalyInstance {
         this.cooldownTicks = ticks;
     }
 
+    /** Thermal anomalies: someone is inside right now (synced to clients for the visuals). */
+    public boolean active() {
+        return active;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
+    }
+
+    public int pulseTicks() {
+        return pulseTicks;
+    }
+
+    public void setPulseTicks(int ticks) {
+        this.pulseTicks = ticks;
+    }
+
+    public int blockTicks() {
+        return blockTicks;
+    }
+
+    public void setBlockTicks(int ticks) {
+        this.blockTicks = ticks;
+    }
+
     public CompoundTag save() {
         CompoundTag tag = new CompoundTag();
         tag.putString("type", typeId.toString());
@@ -106,9 +133,9 @@ public class AnomalyInstance {
         // Anomalies saved before 0.1.3.0 only had a level 1..3, whose sizes were 1/2/3 blocks,
         // and took everything else from the (now removed) datapack — so fill in today's defaults.
         double size = tag.contains("size") ? tag.getDouble("size") : Math.max(1, tag.getInt("level"));
-        int cooldown = tag.contains("cooldown_seconds") ? tag.getInt("cooldown_seconds") : ModCommonConfig.ELECTRA_COOLDOWN_SECONDS.get();
-        float damage = tag.contains("damage") ? tag.getFloat("damage") : ModCommonConfig.ELECTRA_DAMAGE.get().floatValue();
-        int intensity = tag.contains("intensity") ? tag.getInt("intensity") : ModCommonConfig.ELECTRA_INTENSITY.get();
+        int cooldown = tag.contains("cooldown_seconds") ? tag.getInt("cooldown_seconds") : AnomalyDefaults.cooldownSeconds(typeId);
+        float damage = tag.contains("damage") ? tag.getFloat("damage") : AnomalyDefaults.damage(typeId);
+        int intensity = tag.contains("intensity") ? tag.getInt("intensity") : AnomalyDefaults.intensity(typeId);
         return new AnomalyInstance(typeId, pos, size, cooldown, damage, intensity);
     }
 }

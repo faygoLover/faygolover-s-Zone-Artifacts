@@ -10,7 +10,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import faygolover.zoneartifacts.ZoneArtifacts;
 import faygolover.zoneartifacts.anomaly.AnomalyGeometry;
-import faygolover.zoneartifacts.anomaly.Electra;
+import faygolover.zoneartifacts.anomaly.AnomalyDefaults;
 import faygolover.zoneartifacts.item.AnomalyPlacerItem;
 import faygolover.zoneartifacts.item.AnomalyTunerItem;
 import faygolover.zoneartifacts.network.SyncAnomaliesPacket;
@@ -144,7 +144,7 @@ public class AnomalyHighlightRenderer {
         }
 
         if (previewPos != null) {
-            boxes.add(new Box(AnomalyGeometry.centeredAabb(previewPos, Electra.DEFAULT_SIZE), false));
+            boxes.add(new Box(AnomalyGeometry.centeredAabb(previewPos, AnomalyDefaults.SIZE), false));
         }
         return boxes;
     }
