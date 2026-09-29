@@ -1,5 +1,6 @@
 package faygolover.zoneartifacts.tesla;
 
+import faygolover.zoneartifacts.network.TeslaSyncHandler;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
@@ -271,9 +272,12 @@ public class TeslaEntity extends Entity {
         }
 
         double radius = type.detectRadius();
+        // No "e != this" check needed: TeslaEntity extends Entity directly, not LivingEntity, so
+        // it can never appear in its own getEntitiesOfClass(LivingEntity.class, ...) results in
+        // the first place (in fact javac rejects that comparison outright as incomparable types).
         List<LivingEntity> nearby = level.getEntitiesOfClass(LivingEntity.class,
                 this.getBoundingBox().inflate(radius),
-                e -> e != this && e.isAlive() && !(e instanceof Player p && p.isSpectator()));
+                e -> e.isAlive() && !(e instanceof Player p && p.isSpectator()));
 
         LivingEntity nearest = null;
         double nearestDistSq = Double.MAX_VALUE;
