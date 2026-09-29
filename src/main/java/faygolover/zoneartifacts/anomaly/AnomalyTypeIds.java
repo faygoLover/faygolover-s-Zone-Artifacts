@@ -10,6 +10,7 @@ public final class AnomalyTypeIds {
     public static final ResourceLocation ELECTRA = new ResourceLocation(ZoneArtifacts.MODID, "electra");
     public static final ResourceLocation ZHARKA = new ResourceLocation(ZoneArtifacts.MODID, "zharka");
     public static final ResourceLocation INEY = new ResourceLocation(ZoneArtifacts.MODID, "iney");
+    public static final ResourceLocation RAZLOM = new ResourceLocation(ZoneArtifacts.MODID, "razlom");
 
     private AnomalyTypeIds() {
     }

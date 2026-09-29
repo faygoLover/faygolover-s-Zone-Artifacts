@@ -1,0 +1,298 @@
+package faygolover.zoneartifacts.client.tesla;
+
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import faygolover.zoneartifacts.ZoneArtifacts;
+import faygolover.zoneartifacts.config.ModClientConfig;
+import faygolover.zoneartifacts.tesla.CometEntity;
+import faygolover.zoneartifacts.tesla.Tesla;
+import faygolover.zoneartifacts.tesla.TeslaEntity;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.entity.EntityRenderer;
+import net.minecraft.client.renderer.entity.EntityRendererProvider;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Mth;
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.phys.Vec3;
+import org.joml.Matrix4f;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.WeakHashMap;
+
+/**
+ * The Comet: a blazing point at the center that slowly shifts between orange and yellow, wrapped
+ * in a halo, with
+ * <ul>
+ *     <li><b>prominences</b> — arches of flame that rise off the surface and sink back (as many as
+ *     the intensity, capped by the player's {@code maxEffectIntensity}), slowly turning with the
+ *     ball, plus a faint ring of fire circling it;</li>
+ *     <li><b>flares</b> — now and then a short tongue of flame thrown out to the side, where the
+ *     Tesla has its grabbing arcs.</li>
+ * </ul>
+ * While spawning it grows from a point, like the Tesla. Sparks and smoke come from
+ * {@link CometEntity}'s client tick.
+ */
+public class CometRenderer extends EntityRenderer<CometEntity> {
+
+    private static final ResourceLocation UNUSED_TEXTURE = new ResourceLocation(ZoneArtifacts.MODID, "textures/entity/comet.png");
+
+    /** Surface radius at size 1. */
+    private static final double RADIUS = 0.36;
+
+    private static final int ORANGE = FireDraw.argb(255, 255, 110, 20);
+    private static final int YELLOW = FireDraw.argb(255, 255, 210, 60);
+    private static final int DEEP_RED = FireDraw.argb(255, 220, 45, 10);
+    private static final int HOT_WHITE = FireDraw.argb(245, 255, 246, 205);
+
+    private static final int MIN_PROMINENCE_LIFE = 25;
+    private static final int MAX_PROMINENCE_LIFE = 60;
+    private static final int ARCH_SEGMENTS = 10;
+
+    private static final int MIN_FLARE_PAUSE = 15;
+    private static final int MAX_FLARE_PAUSE = 45;
+    private static final int MIN_FLARE_LIFE = 6;
+    private static final int MAX_FLARE_LIFE = 11;
+
+    private static final Map<CometEntity, Ball> BALLS = new WeakHashMap<>();
+
+    public CometRenderer(EntityRendererProvider.Context context) {
+        super(context);
+        this.shadowRadius = 0.0f;
+    }
+
+    @Override
+    public ResourceLocation getTextureLocation(CometEntity entity) {
+        return UNUSED_TEXTURE;
+    }
+
+    @Override
+    public void render(CometEntity entity, float entityYaw, float partialTick, PoseStack poseStack,
+                       MultiBufferSource buffers, int packedLight) {
+        TeslaEntity.State state = entity.getState();
+        if (!state.isVisible()) return;
+
+        float grow = 1.0f;
+        if (state == TeslaEntity.State.SPAWNING) {
+            float t = Mth.clamp(entity.clientStateAge(partialTick) / Tesla.SPAWN_GROW_TICKS, 0.0f, 1.0f);
+            grow = t * t * (3.0f - 2.0f * t);
+        }
+        if (grow < 0.02f) return;
+
+        float size = entity.getSize();
+        double scale = grow * size;
+        double radius = RADIUS * scale;
+        float widthScale = (float) Math.sqrt(size) * grow;
+        int intensity = ModClientConfig.effective(entity.getIntensity());
+
+        Vec3 lerpPos = entity.getPosition(partialTick);
+        Vec3 cam = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition().subtract(lerpPos);
+        Vec3 center = new Vec3(0.0, entity.getBbHeight() / 2.0, 0.0);
+        Matrix4f matrix = poseStack.last().pose();
+        VertexConsumer buffer = buffers.getBuffer(RenderType.lightning());
+
+        long now = entity.level().getGameTime();
+        float time = (now % 72000L) + partialTick;
+        Ball ball = BALLS.computeIfAbsent(entity, e -> new Ball(e.getId()));
+        ball.update(now, intensity);
+
+        // Colour of the moment: orange drifting to yellow and back.
+        float shift = 0.5f + 0.5f * Mth.sin(time * 0.05f + ball.phase);
+        int body = FireDraw.mix(ORANGE, YELLOW, shift);
+        float spin = time * ball.spinSpeed;
+
+        // ---- prominences: arches rising from the surface and sinking back ----
+        for (Prominence p : ball.prominences) {
+            float t = Mth.clamp((now - p.start + partialTick) / (float) (p.expires - p.start), 0.0f, 1.0f);
+            float rise = Mth.sin((float) Math.PI * t);
+            float fade = Math.min(1.0f, t * 5.0f) * Math.min(1.0f, (1.0f - t) * 5.0f);
+            if (fade <= 0.01f) continue;
+            Vec3 a = rotate(p.from, ball.axis, spin);
+            Vec3 b = rotate(p.to, ball.axis, spin);
+
+            Vec3[] points = new Vec3[ARCH_SEGMENTS + 1];
+            float[] outer = new float[ARCH_SEGMENTS + 1];
+            float[] inner = new float[ARCH_SEGMENTS + 1];
+            int[] outerColor = new int[ARCH_SEGMENTS + 1];
+            int[] innerColor = new int[ARCH_SEGMENTS + 1];
+            for (int k = 0; k <= ARCH_SEGMENTS; k++) {
+                double s = k / (double) ARCH_SEGMENTS;
+                double bump = Math.sin(Math.PI * s);
+                Vec3 dir = a.scale(1.0 - s).add(b.scale(s)).normalize();
+                double wobble = 0.04 * Math.sin(time * 0.25 + k * 1.3 + p.seed);
+                points[k] = center.add(dir.scale(radius * (0.92 + (p.height * rise + wobble) * bump)));
+                outer[k] = 0.045f * widthScale * (0.5f + 0.5f * (float) bump);
+                inner[k] = 0.018f * widthScale * (0.5f + 0.5f * (float) bump);
+                outerColor[k] = FireDraw.fade(FireDraw.mix(DEEP_RED, body, (float) bump * 0.6f), 0.6f * fade);
+                innerColor[k] = FireDraw.fade(FireDraw.mix(body, HOT_WHITE, (float) bump * 0.5f), 0.9f * fade);
+            }
+            FireDraw.ribbon(matrix, buffer, points, outer, outerColor, cam);
+            FireDraw.ribbon(matrix, buffer, points, inner, innerColor, cam);
+        }
+
+        // ---- a faint ring of fire circling the ball ----
+        int ringPoints = 28;
+        Vec3[] ring = new Vec3[ringPoints + 1];
+        float[] ringWidth = new float[ringPoints + 1];
+        int[] ringColor = new int[ringPoints + 1];
+        Vec3 u = ball.ringU;
+        Vec3 v = ball.ringV;
+        for (int k = 0; k <= ringPoints; k++) {
+            double angle = Math.PI * 2.0 * k / ringPoints + time * 0.04;
+            double r = radius * (1.25 + 0.05 * Math.sin(angle * 3.0 + time * 0.2));
+            ring[k] = center.add(rotate(u.scale(Math.cos(angle) * r).add(v.scale(Math.sin(angle) * r)), ball.axis, spin * 0.5f));
+            float flicker = 0.55f + 0.45f * Mth.sin((float) (angle * 2.0) + time * 0.3f);
+            ringWidth[k] = 0.02f * widthScale;
+            ringColor[k] = FireDraw.fade(FireDraw.mix(DEEP_RED, body, flicker), 0.45f * flicker);
+        }
+        FireDraw.ribbon(matrix, buffer, ring, ringWidth, ringColor, cam);
+
+        // ---- flares: short tongues of flame thrown out to the side ----
+        if (state != TeslaEntity.State.SPAWNING) {
+            for (Flare f : ball.flares) {
+                if (f == null || now < f.start) continue;
+                float t = Mth.clamp((now - f.start + partialTick) / (float) (f.expires - f.start), 0.0f, 1.0f);
+                float extend = 1.0f - (1.0f - t) * (1.0f - t);
+                float alpha = 1.0f - t * t;
+                Vec3 dir = rotate(f.dir, ball.axis, spin);
+                Vec3 bend = rotate(f.bend, ball.axis, spin);
+                Vec3 base = center.add(dir.scale(radius * 0.9));
+                Vec3[] points = FireDraw.tongue(base, dir, bend, f.length * scale * extend, 6);
+                float[] widths = new float[points.length];
+                int[] colors = new int[points.length];
+                for (int k = 0; k < points.length; k++) {
+                    float s = k / (float) (points.length - 1);
+                    widths[k] = 0.06f * widthScale * (1.0f - s) * (1.0f - 0.3f * t);
+                    colors[k] = FireDraw.fade(FireDraw.mix(FireDraw.mix(body, HOT_WHITE, 0.4f), DEEP_RED, s), alpha * (1.0f - 0.6f * s));
+                }
+                FireDraw.ribbon(matrix, buffer, points, widths, colors, cam);
+            }
+        }
+
+        // ---- the glowing core, last: the render type writes depth ----
+        float pulse = 1.0f + 0.07f * Mth.sin(time * 0.7f + ball.phase);
+        FireDraw.glow(matrix, buffer, center, 0.8 * scale * pulse, cam, FireDraw.fade(FireDraw.mix(DEEP_RED, body, 0.5f), 0.45f), 20);
+        FireDraw.glow(matrix, buffer, center, 0.48 * scale * pulse, cam, FireDraw.fade(body, 0.75f), 18);
+        Vec3 toCam = cam.subtract(center).normalize();
+        FireDraw.glow(matrix, buffer, center.add(toCam.scale(0.02 * size)), 0.2 * scale * pulse, cam,
+                FireDraw.mix(HOT_WHITE, YELLOW, 0.3f * shift), 14);
+    }
+
+    /** Rotates {@code v} around the unit {@code axis} by {@code angle} radians (Rodrigues). */
+    private static Vec3 rotate(Vec3 v, Vec3 axis, float angle) {
+        double cos = Math.cos(angle);
+        double sin = Math.sin(angle);
+        return v.scale(cos).add(axis.cross(v).scale(sin)).add(axis.scale(axis.dot(v) * (1.0 - cos)));
+    }
+
+    private static Vec3 randomUnit(RandomSource random) {
+        double z = random.nextDouble() * 2.0 - 1.0;
+        double angle = random.nextDouble() * Math.PI * 2.0;
+        double r = Math.sqrt(1.0 - z * z);
+        return new Vec3(r * Math.cos(angle), r * Math.sin(angle), z);
+    }
+
+    /** Per-Comet client state. */
+    private static final class Ball {
+        final RandomSource random = RandomSource.create();
+        final List<Prominence> prominences = new ArrayList<>();
+        Flare[] flares = new Flare[0];
+        final float phase;
+        final float spinSpeed;
+        final Vec3 axis;
+        final Vec3 ringU;
+        final Vec3 ringV;
+        long lastUpdate = -1_000_000L;
+
+        Ball(int id) {
+            this.phase = (id * 0.618f) % 1.0f * (float) (Math.PI * 2.0);
+            this.spinSpeed = 0.015f + random.nextFloat() * 0.015f;
+            this.axis = randomUnit(random);
+            Vec3 helper = Math.abs(axis.y) < 0.9 ? new Vec3(0, 1, 0) : new Vec3(1, 0, 0);
+            Vec3 tilt = randomUnit(random).scale(0.5).add(axis).normalize();
+            Vec3 u = tilt.cross(helper).normalize();
+            this.ringU = u;
+            this.ringV = tilt.cross(u).normalize();
+        }
+
+        void update(long now, int intensity) {
+            if (now == lastUpdate) return;
+            lastUpdate = now;
+
+            while (prominences.size() < intensity) {
+                Prominence p = Prominence.create(random, now);
+                // Stagger so they don't all rise and sink together.
+                long life = p.expires - p.start;
+                long age = random.nextInt((int) life);
+                p.start -= age;
+                p.expires -= age;
+                prominences.add(p);
+            }
+            while (prominences.size() > intensity) prominences.remove(prominences.size() - 1);
+            for (int i = 0; i < prominences.size(); i++) {
+                if (now >= prominences.get(i).expires) prominences.set(i, Prominence.create(random, now));
+            }
+
+            int flareCount = Math.max(1, (intensity + 1) / 2);
+            if (flares.length != flareCount) {
+                flares = new Flare[flareCount];
+                for (int i = 0; i < flareCount; i++) flares[i] = Flare.create(random, now + random.nextInt(MAX_FLARE_PAUSE));
+            }
+            for (int i = 0; i < flares.length; i++) {
+                if (now >= flares[i].expires) {
+                    flares[i] = Flare.create(random, now + MIN_FLARE_PAUSE + random.nextInt(MAX_FLARE_PAUSE - MIN_FLARE_PAUSE + 1));
+                }
+            }
+        }
+    }
+
+    /** An arch between two surface points (unit directions, before the ball's spin). */
+    private static final class Prominence {
+        Vec3 from;
+        Vec3 to;
+        double height;
+        float seed;
+        long start;
+        long expires;
+
+        static Prominence create(RandomSource random, long now) {
+            Prominence p = new Prominence();
+            p.from = randomUnit(random);
+            // The other foot 25–60° away.
+            Vec3 helper = randomUnit(random);
+            Vec3 perp = p.from.cross(helper);
+            if (perp.lengthSqr() < 1.0E-4) perp = p.from.cross(new Vec3(0, 1, 0.3));
+            perp = perp.normalize();
+            double angle = Math.toRadians(25 + random.nextDouble() * 35);
+            p.to = p.from.scale(Math.cos(angle)).add(perp.scale(Math.sin(angle))).normalize();
+            p.height = 0.35 + random.nextDouble() * 0.45;
+            p.seed = random.nextFloat() * 10.0f;
+            p.start = now;
+            p.expires = now + MIN_PROMINENCE_LIFE + random.nextInt(MAX_PROMINENCE_LIFE - MIN_PROMINENCE_LIFE + 1);
+            return p;
+        }
+    }
+
+    /** A tongue of flame, starting at {@code start}. */
+    private static final class Flare {
+        Vec3 dir;
+        Vec3 bend;
+        double length;
+        long start;
+        long expires;
+
+        static Flare create(RandomSource random, long start) {
+            Flare f = new Flare();
+            f.dir = randomUnit(random);
+            Vec3 side = f.dir.cross(randomUnit(random));
+            f.bend = side.lengthSqr() < 1.0E-4 ? Vec3.ZERO : side.normalize().scale(0.4 + random.nextDouble() * 0.4);
+            f.length = 0.35 + random.nextDouble() * 0.45;
+            f.start = start;
+            f.expires = start + MIN_FLARE_LIFE + random.nextInt(MAX_FLARE_LIFE - MIN_FLARE_LIFE + 1);
+            return f;
+        }
+    }
+}

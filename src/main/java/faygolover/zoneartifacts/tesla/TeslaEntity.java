@@ -93,6 +93,12 @@ public class TeslaEntity extends Entity {
     /** Client only: {@link #tickCount} when the synced state last changed, for spawn animation. */
     private int clientStateChangeTick;
 
+    /** Client only: smooth flight between position updates (a plain Entity just jumps to them). */
+    private int lerpSteps;
+    private double lerpX;
+    private double lerpY;
+    private double lerpZ;
+
     public TeslaEntity(EntityType<? extends TeslaEntity> type, Level level) {
         super(type, level);
         this.setNoGravity(true);
@@ -198,10 +204,31 @@ public class TeslaEntity extends Entity {
 
     @Override
     public void tick() {
+        if (this.level().isClientSide && this.lerpSteps > 0) {
+            this.setPos(getX() + (lerpX - getX()) / lerpSteps,
+                    getY() + (lerpY - getY()) / lerpSteps,
+                    getZ() + (lerpZ - getZ()) / lerpSteps);
+            this.lerpSteps--;
+        }
         super.tick();
         if (this.level() instanceof ServerLevel serverLevel) {
             serverTick(serverLevel);
         }
+    }
+
+    /** Glide to server positions over the given steps instead of jumping; a big jump (respawn on
+     *  another waypoint) still snaps. */
+    @Override
+    public void lerpTo(double x, double y, double z, float yRot, float xRot, int steps, boolean teleport) {
+        if (this.distanceToSqr(x, y, z) > 4.0) {
+            this.setPos(x, y, z);
+            this.lerpSteps = 0;
+            return;
+        }
+        this.lerpX = x;
+        this.lerpY = y;
+        this.lerpZ = z;
+        this.lerpSteps = Math.max(1, steps);
     }
 
     private void serverTick(ServerLevel level) {
@@ -250,14 +277,14 @@ public class TeslaEntity extends Entity {
                 ? target.getBoundingBox().getCenter()
                 : TeslaGeometry.center(route.waypoints().get(targetIndex));
 
-        double speed = ModCommonConfig.TESLA_BASE_SPEED.get() * route.speedMultiplier();
+        double speed = route.kind().baseSpeed() * route.speedMultiplier();
         Vec3 toDest = dest.subtract(center());
         double dist = toDest.length();
         if (dist > 1.0E-4 && speed > 1.0E-6) {
             Vec3 motion = toDest.scale(Math.min(speed, dist) / dist);
             move(MoverType.SELF, motion);
             if (this.horizontalCollision || this.verticalCollision) {
-                pop(level, route, collisionNormal(motion), false);
+                onBlockCollision(level, route, collisionNormal(motion));
                 return;
             }
         }
@@ -341,8 +368,13 @@ public class TeslaEntity extends Entity {
         return new Vec3(0, 0, -Math.signum(motion.z));
     }
 
-    /** One hit on contact; the electrification that follows is purely visual. */
-    private void shock(ServerLevel level, TeslaRoute route, List<LivingEntity> touched) {
+    /** Flew into a block. The Tesla pops (bolts scatter away from the wall); the Comet overrides this. */
+    protected void onBlockCollision(ServerLevel level, TeslaRoute route, Vec3 normal) {
+        pop(level, route, normal, false);
+    }
+
+    /** One hit on contact; the electrification that follows is purely visual. The Comet overrides this. */
+    protected void shock(ServerLevel level, TeslaRoute route, List<LivingEntity> touched) {
         for (LivingEntity target : touched) {
             AnomalyCombat.hurt(level, target, Tesla.DAMAGE_TYPE, route.damage());
             AnomalyCombat.playRandom(level, target.getBoundingBox().getCenter(), Tesla.HIT_SOUNDS, Tesla.SOUND_VOLUME);
@@ -357,6 +389,11 @@ public class TeslaEntity extends Entity {
         ModNetwork.CHANNEL.send(PacketDistributor.TRACKING_ENTITY.with(() -> this),
                 new TeslaBurstPacket(c, normal, getSize(), route.intensity()));
         AnomalyCombat.playSound(level, c, contact ? Tesla.CONTACT_SOUND : Tesla.BLOCK_SOUND, Tesla.SOUND_VOLUME);
+        die();
+    }
+
+    /** Gone until the respawn delay passes (then it reappears on a random waypoint). */
+    protected void die() {
         chaseTargetUuid = null;
         setState(State.DEAD);
     }

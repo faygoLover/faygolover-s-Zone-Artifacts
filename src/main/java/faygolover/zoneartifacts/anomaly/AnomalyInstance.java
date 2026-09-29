@@ -25,6 +25,9 @@ public class AnomalyInstance {
     private transient int pulseTicks;
     private transient int blockTicks;
 
+    // Razlom runtime state, not saved: the entity its fire jet is aimed at (-1 = none).
+    private transient int jetTargetId = -1;
+
     public AnomalyInstance(ResourceLocation typeId, BlockPos pos, double size, double cooldownSeconds, float damage, int intensity) {
         this.typeId = typeId;
         this.pos = pos;
@@ -112,6 +115,14 @@ public class AnomalyInstance {
 
     public void setBlockTicks(int ticks) {
         this.blockTicks = ticks;
+    }
+
+    public int jetTargetId() {
+        return jetTargetId;
+    }
+
+    public void setJetTargetId(int id) {
+        this.jetTargetId = id;
     }
 
     public CompoundTag save() {

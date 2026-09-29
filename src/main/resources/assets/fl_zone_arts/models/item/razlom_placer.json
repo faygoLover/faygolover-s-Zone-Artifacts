@@ -1,0 +1,6 @@
+{
+  "parent": "item/generated",
+  "textures": {
+    "layer0": "fl_zone_arts:item/razlom_placer"
+  }
+}

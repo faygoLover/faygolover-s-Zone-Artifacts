@@ -38,8 +38,8 @@ public class TeslaRouteSavedData extends SavedData {
         return routes.get(id);
     }
 
-    public TeslaRoute create(List<BlockPos> waypoints) {
-        TeslaRoute route = new TeslaRoute(nextId++, waypoints);
+    public TeslaRoute create(RouteKind kind, List<BlockPos> waypoints) {
+        TeslaRoute route = new TeslaRoute(nextId++, kind, waypoints);
         routes.put(route.id(), route);
         setDirty();
         return route;

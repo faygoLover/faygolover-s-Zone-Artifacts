@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
-    "fl_zone_arts:anomaly_heat"
+    "fl_zone_arts:anomaly_heat",
+    "fl_zone_arts:anomaly_comet"
   ]
 }

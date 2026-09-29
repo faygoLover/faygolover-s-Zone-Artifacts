@@ -1,6 +1,7 @@
 package faygolover.zoneartifacts.registry;
 
 import faygolover.zoneartifacts.ZoneArtifacts;
+import faygolover.zoneartifacts.tesla.CometEntity;
 import faygolover.zoneartifacts.tesla.Tesla;
 import faygolover.zoneartifacts.tesla.TeslaEntity;
 import net.minecraft.resources.ResourceLocation;
@@ -28,6 +29,15 @@ public final class ModEntities {
                     .clientTrackingRange(8)
                     .updateInterval(1)
                     .build(new ResourceLocation(ZoneArtifacts.MODID, "tesla").toString()));
+
+    /** The Comet: same body and tracking as the Tesla (it extends it), its own renderer. */
+    public static final RegistryObject<EntityType<CometEntity>> COMET = ENTITY_TYPES.register("comet",
+            () -> EntityType.Builder.<CometEntity>of(CometEntity::new, MobCategory.MISC)
+                    .sized(Tesla.BASE_HITBOX, Tesla.BASE_HITBOX)
+                    .fireImmune()
+                    .clientTrackingRange(8)
+                    .updateInterval(1)
+                    .build(new ResourceLocation(ZoneArtifacts.MODID, "comet").toString()));
 
     private ModEntities() {
     }

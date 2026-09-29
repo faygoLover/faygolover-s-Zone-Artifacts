@@ -41,11 +41,14 @@ public final class Thermal {
     public static final float ZHARKA_IDLE_VOLUME = 0.7f;
     public static final float ZHARKA_ACTIVE_VOLUME = 1.0f;
 
-    /** Iney's loop (ice_loop) and the chime played when it activates (ice_enter). Same levels as Zharka. */
+    /** Iney's crackles (vanilla freezing sounds, see sounds.json) — played now and then, per-tick
+     *  chance idle ~ every 3 s, active ~ every 0.6 s — and the sound when it activates (ice_enter). */
     public static final ResourceLocation INEY_IDLE_SOUND = id("iney_idle");
     public static final ResourceLocation INEY_ENTER_SOUND = id("iney_enter");
-    public static final float INEY_IDLE_VOLUME = 0.7f;
-    public static final float INEY_ACTIVE_VOLUME = 1.0f;
+    public static final float INEY_IDLE_CHANCE = 1.0f / 60.0f;
+    public static final float INEY_ACTIVE_CHANCE = 1.0f / 12.0f;
+    public static final float INEY_IDLE_VOLUME = 0.5f;
+    public static final float INEY_ACTIVE_VOLUME = 0.9f;
     public static final float INEY_ENTER_VOLUME = 1.0f;
 
     private Thermal() {

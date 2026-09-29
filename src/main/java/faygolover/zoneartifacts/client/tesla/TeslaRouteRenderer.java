@@ -13,6 +13,7 @@ import faygolover.zoneartifacts.client.TunerClientHandler;
 import faygolover.zoneartifacts.item.AnomalyTunerItem;
 import faygolover.zoneartifacts.item.TeslaRoutePlacerItem;
 import faygolover.zoneartifacts.network.SyncTeslaRoutesPacket;
+import faygolover.zoneartifacts.tesla.RouteKind;
 import faygolover.zoneartifacts.tesla.TeslaGeometry;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GameRenderer;
@@ -34,6 +35,7 @@ import net.minecraftforge.fml.common.Mod;
 import org.joml.Matrix4f;
 
 import javax.annotation.Nullable;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -54,6 +56,8 @@ public final class TeslaRouteRenderer {
 
     private static final int DRAFT_RGB = 0xFFD23C;
     private static final int COMPLETE_RGB = 0x46C8FF;
+    /** Completed Comet routes: orange instead of the Tesla's cyan. */
+    private static final int COMET_COMPLETE_RGB = 0xFF6A1E;
     private static final int FILL_ALPHA = 0x60;
     private static final int PREVIEW_ALPHA = 0x28;
 
@@ -70,7 +74,12 @@ public final class TeslaRouteRenderer {
         boolean tuner = !placer && AnomalyTunerItem.isHeld(player);
         if (!placer && !tuner) return;
 
-        List<SyncTeslaRoutesPacket.Entry> routes = TeslaClientCache.routesFor(mc.level.dimension());
+        // A placer shows only routes of its own kind; a tuner shows all of them.
+        RouteKind heldKind = placer ? TeslaRoutePlacerItem.heldKind(player) : null;
+        List<SyncTeslaRoutesPacket.Entry> routes = new ArrayList<>();
+        for (SyncTeslaRoutesPacket.Entry route : TeslaClientCache.routesFor(mc.level.dimension())) {
+            if (heldKind == null || route.kind() == heldKind) routes.add(route);
+        }
         Optional<TeslaGeometry.WaypointRef> aimed;
         if (placer) {
             Optional<TeslaGeometry.WaypointHit> hit = TeslaClientHandler.pick(player);
@@ -94,7 +103,7 @@ public final class TeslaRouteRenderer {
 
         // Translucent fills first (immediate mode, like Electra's highlight box)...
         for (SyncTeslaRoutesPacket.Entry route : routes) {
-            int rgb = route.complete() ? COMPLETE_RGB : DRAFT_RGB;
+            int rgb = color(route);
             List<BlockPos> points = route.points();
             for (int i = 0; i < points.size(); i++) {
                 if (TeslaGeometry.center(points.get(i)).distanceToSqr(playerPos) > radiusSq) continue;
@@ -109,7 +118,7 @@ public final class TeslaRouteRenderer {
         VertexConsumer lines = bufferSource.getBuffer(RenderType.lines());
         PoseStack.Pose pose = poseStack.last();
         for (SyncTeslaRoutesPacket.Entry route : routes) {
-            int rgb = route.complete() ? COMPLETE_RGB : DRAFT_RGB;
+            int rgb = color(route);
             List<BlockPos> points = route.points();
             for (int i = 0; i < points.size(); i++) {
                 Vec3 c = TeslaGeometry.center(points.get(i));
@@ -135,6 +144,11 @@ public final class TeslaRouteRenderer {
         bufferSource.endBatch(RenderType.lines());
 
         poseStack.popPose();
+    }
+
+    private static int color(SyncTeslaRoutesPacket.Entry route) {
+        if (!route.complete()) return DRAFT_RGB;
+        return route.kind() == RouteKind.COMET ? COMET_COMPLETE_RGB : COMPLETE_RGB;
     }
 
     private static AABB markerBox(SyncTeslaRoutesPacket.Entry route, int index) {

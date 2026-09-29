@@ -27,10 +27,12 @@ public final class TeslaDrafts {
         private final UUID owner;
         private final String ownerName;
         private final ResourceKey<Level> dimension;
+        private final RouteKind kind;
         private final List<BlockPos> points = new ArrayList<>();
 
-        Draft(int id, UUID owner, String ownerName, ResourceKey<Level> dimension, BlockPos start) {
+        Draft(int id, UUID owner, String ownerName, ResourceKey<Level> dimension, RouteKind kind, BlockPos start) {
             this.id = id;
+            this.kind = kind;
             this.owner = owner;
             this.ownerName = ownerName;
             this.dimension = dimension;
@@ -51,6 +53,10 @@ public final class TeslaDrafts {
 
         public ResourceKey<Level> dimension() {
             return dimension;
+        }
+
+        public RouteKind kind() {
+            return kind;
         }
 
         /** Live list — only {@link TeslaRouteService} mutates it. */
@@ -74,8 +80,8 @@ public final class TeslaDrafts {
         return BY_OWNER.get(owner);
     }
 
-    public static Draft start(UUID owner, String ownerName, ResourceKey<Level> dimension, BlockPos start) {
-        Draft draft = new Draft(nextId--, owner, ownerName, dimension, start);
+    public static Draft start(UUID owner, String ownerName, ResourceKey<Level> dimension, RouteKind kind, BlockPos start) {
+        Draft draft = new Draft(nextId--, owner, ownerName, dimension, kind, start);
         BY_OWNER.put(owner, draft);
         return draft;
     }

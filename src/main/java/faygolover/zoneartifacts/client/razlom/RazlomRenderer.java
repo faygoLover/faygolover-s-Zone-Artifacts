@@ -1,0 +1,257 @@
+package faygolover.zoneartifacts.client.razlom;
+
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.BufferBuilder;
+import com.mojang.blaze3d.vertex.BufferUploader;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.Tesselator;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.mojang.blaze3d.vertex.VertexFormat;
+import faygolover.zoneartifacts.ZoneArtifacts;
+import faygolover.zoneartifacts.client.tesla.FireDraw;
+import faygolover.zoneartifacts.config.ModClientConfig;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.GameRenderer;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.RenderType;
+import net.minecraft.util.Mth;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.RenderLevelStageEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
+import org.joml.Matrix4f;
+
+/**
+ * Draws every Razlom in range:
+ * <ul>
+ *     <li><b>cracks</b> — dark jagged bands lying on the ground (plain alpha blending, so they
+ *     really darken the blocks), each with a thin glowing seam of fire along its middle (additive),
+ *     pulsing slowly; brighter while the jet burns, dimmer while it rests;</li>
+ *     <li><b>the flame</b> hovering over the crossing point: a flickering glow with a couple of
+ *     small tongues licking upwards;</li>
+ *     <li><b>the jet</b> — twisting streams of fire from the flame to the target, widening towards
+ *     it, cut short by any block in between.</li>
+ * </ul>
+ */
+@Mod.EventBusSubscriber(modid = ZoneArtifacts.MODID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.FORGE)
+public final class RazlomRenderer {
+
+    private static final float DARK_HALF_WIDTH = 0.075f;
+    private static final float SEAM_HALF_WIDTH = 0.022f;
+    private static final double DARK_LIFT = 0.006;
+    private static final double SEAM_LIFT = 0.009;
+
+    private static final int SEAM_HOT = FireDraw.argb(230, 255, 170, 50);
+    private static final int SEAM_DIM = FireDraw.argb(170, 230, 70, 15);
+    private static final int FLAME_OUTER = FireDraw.argb(130, 255, 100, 20);
+    private static final int FLAME_INNER = FireDraw.argb(220, 255, 215, 110);
+    private static final int JET_BASE = FireDraw.argb(235, 255, 235, 170);
+    private static final int JET_MID = FireDraw.argb(200, 255, 140, 30);
+    private static final int JET_TIP = FireDraw.argb(110, 200, 40, 10);
+
+    private RazlomRenderer() {
+    }
+
+    @SubscribeEvent
+    public static void onRenderLevelStage(RenderLevelStageEvent event) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null || RazlomClientHandler.states().isEmpty()) return;
+        if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) {
+            renderDark(event);
+        } else if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_PARTICLES) {
+            renderFire(event, mc);
+        }
+    }
+
+    // ---- dark bands (immediate mode, alpha blended) ------------------------------------
+
+    private static void renderDark(RenderLevelStageEvent event) {
+        Vec3 cam = event.getCamera().getPosition();
+        PoseStack poseStack = event.getPoseStack();
+        poseStack.pushPose();
+        poseStack.translate(-cam.x, -cam.y, -cam.z);
+        Matrix4f matrix = poseStack.last().pose();
+
+        RenderSystem.setShader(GameRenderer::getPositionColorShader);
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        RenderSystem.disableCull();
+        RenderSystem.depthMask(false);
+        BufferBuilder buffer = Tesselator.getInstance().getBuilder();
+        buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
+
+        for (RazlomClientHandler.State state : RazlomClientHandler.states()) {
+            float widthScale = (float) Mth.clamp(Math.sqrt(state.entry().size()), 1.0, 2.0);
+            for (RazlomClientHandler.Crack crack : state.cracks()) {
+                for (int i = 0; i < crack.xs.length - 1; i++) {
+                    if (!flatSegment(crack, i)) continue;
+                    float wa = DARK_HALF_WIDTH * widthScale * (0.4f + 0.6f * crack.widths[i]);
+                    float wb = DARK_HALF_WIDTH * widthScale * (0.4f + 0.6f * crack.widths[i + 1]);
+                    int aa = (int) (150 + 90 * crack.widths[i]);
+                    int ab = (int) (150 + 90 * crack.widths[i + 1]);
+                    flatQuad(buffer, matrix, crack, i, crack.ys[i] + DARK_LIFT, wa, wb,
+                            FireDraw.argb(aa, 20, 12, 8), FireDraw.argb(ab, 20, 12, 8));
+                }
+            }
+        }
+
+        BufferUploader.drawWithShader(buffer.end());
+        RenderSystem.depthMask(true);
+        RenderSystem.enableCull();
+        RenderSystem.disableBlend();
+        poseStack.popPose();
+    }
+
+    // ---- seams, flame and jet (additive) ---------------------------------------------------
+
+    private static void renderFire(RenderLevelStageEvent event, Minecraft mc) {
+        float partial = event.getPartialTick();
+        long now = mc.level.getGameTime();
+        float time = (now % 72000L) + partial;
+        Vec3 cam = event.getCamera().getPosition();
+        PoseStack poseStack = event.getPoseStack();
+        poseStack.pushPose();
+        poseStack.translate(-cam.x, -cam.y, -cam.z);
+        Matrix4f matrix = poseStack.last().pose();
+        MultiBufferSource.BufferSource bufferSource = mc.renderBuffers().bufferSource();
+        VertexConsumer buffer = bufferSource.getBuffer(RenderType.lightning());
+
+        for (RazlomClientHandler.State state : RazlomClientHandler.states()) {
+            boolean jetting = state.jetActive(now);
+            boolean resting = state.entry().onCooldown();
+            float level = jetting ? 1.25f : resting ? 0.55f : 1.0f;
+            float widthScale = (float) Mth.clamp(Math.sqrt(state.entry().size()), 1.0, 2.0);
+            float seed = (state.entry().pos().hashCode() & 0xFFFF) / 6553.6f;
+
+            // Seams: flat glowing lines on the ground, pulsing.
+            for (RazlomClientHandler.Crack crack : state.cracks()) {
+                for (int i = 0; i < crack.xs.length - 1; i++) {
+                    if (!flatSegment(crack, i)) continue;
+                    float pa = 0.75f + 0.25f * Mth.sin(time * 0.08f + i * 0.5f + seed);
+                    float pb = 0.75f + 0.25f * Mth.sin(time * 0.08f + (i + 1) * 0.5f + seed);
+                    int ca = FireDraw.fade(FireDraw.mix(SEAM_DIM, SEAM_HOT, crack.widths[i] * pa), level * pa);
+                    int cb = FireDraw.fade(FireDraw.mix(SEAM_DIM, SEAM_HOT, crack.widths[i + 1] * pb), level * pb);
+                    float wa = SEAM_HALF_WIDTH * widthScale * (0.35f + 0.65f * crack.widths[i]);
+                    float wb = SEAM_HALF_WIDTH * widthScale * (0.35f + 0.65f * crack.widths[i + 1]);
+                    flatQuadUp(buffer, matrix, crack, i, crack.ys[i] + SEAM_LIFT, wa, wb, ca, cb);
+                }
+            }
+
+            Vec3 f = state.flame();
+            float flameSize = jetting ? 1.35f : resting ? 0.6f : 1.0f;
+
+            // Jet streams.
+            RazlomClientHandler.Jet jet = state.jet();
+            if (jetting && jet != null) {
+                Entity target = mc.level.getEntity(jet.targetId());
+                if (target != null) {
+                    Vec3 aim = target.getPosition(partial).add(0.0, target.getBbHeight() / 2.0, 0.0);
+                    BlockHitResult hit = mc.level.clip(new ClipContext(f, aim, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, target));
+                    if (hit.getType() != HitResult.Type.MISS) aim = hit.getLocation();
+                    drawJet(matrix, buffer, f, aim, time, ModClientConfig.effective(state.entry().intensity()), cam);
+                }
+            }
+
+            // Flame tongues, then its glow last (the render type writes depth).
+            for (int k = 0; k < 2; k++) {
+                float sway = Mth.sin(time * 0.3f + k * 2.1f + seed) * 0.35f;
+                Vec3 bend = new Vec3(sway, 0.0, Mth.cos(time * 0.27f + k * 1.7f + seed) * 0.35f);
+                double length = (0.22 + 0.06 * Mth.sin(time * 0.45f + k)) * flameSize;
+                Vec3[] points = FireDraw.tongue(f.add(0, -0.05, 0), new Vec3(0, 1, 0), bend, length, 5);
+                float[] widths = new float[points.length];
+                int[] colors = new int[points.length];
+                for (int i = 0; i < points.length; i++) {
+                    float s = i / (float) (points.length - 1);
+                    widths[i] = 0.06f * flameSize * (1.0f - s);
+                    colors[i] = FireDraw.fade(FireDraw.mix(FLAME_INNER, FLAME_OUTER, s), 1.0f - 0.5f * s);
+                }
+                FireDraw.ribbon(matrix, buffer, points, widths, colors, cam);
+            }
+            float flicker = 1.0f + 0.12f * Mth.sin(time * 0.9f + seed) + 0.06f * Mth.sin(time * 2.3f);
+            FireDraw.glow(matrix, buffer, f, 0.34 * flameSize * flicker, cam, FLAME_OUTER, 16);
+            FireDraw.glow(matrix, buffer, f, 0.14 * flameSize * flicker, cam, FLAME_INNER, 12);
+        }
+
+        bufferSource.endBatch(RenderType.lightning());
+        poseStack.popPose();
+    }
+
+    /** Twisting streams from {@code from} to {@code to}, narrow at the flame, wide at the target. */
+    private static void drawJet(Matrix4f matrix, VertexConsumer buffer, Vec3 from, Vec3 to, float time, int intensity, Vec3 cam) {
+        Vec3 dir = to.subtract(from);
+        double len = dir.length();
+        if (len < 0.05) return;
+        Vec3 d = dir.scale(1.0 / len);
+        Vec3 helper = Math.abs(d.y) < 0.9 ? new Vec3(0, 1, 0) : new Vec3(1, 0, 0);
+        Vec3 p1 = d.cross(helper).normalize();
+        Vec3 p2 = d.cross(p1).normalize();
+
+        int streams = Mth.clamp(2 + intensity / 3, 2, 5);
+        int segments = Mth.clamp((int) (len * 4), 6, 40);
+        for (int s = 0; s < streams; s++) {
+            float phase = s * 2.4f;
+            Vec3[] points = new Vec3[segments + 1];
+            float[] widths = new float[segments + 1];
+            int[] colors = new int[segments + 1];
+            for (int i = 0; i <= segments; i++) {
+                double t = i / (double) segments;
+                double swirl = 0.12 * t * Math.sin(time * 0.9 + t * 9.0 + phase);
+                double swirl2 = 0.12 * t * Math.cos(time * 0.8 + t * 7.0 + phase * 1.3);
+                points[i] = from.add(d.scale(len * t)).add(p1.scale(swirl)).add(p2.scale(swirl2));
+                widths[i] = (float) (0.035 + 0.16 * t) * (s == 0 ? 1.0f : 0.7f);
+                int c = t < 0.35 ? FireDraw.mix(JET_BASE, JET_MID, (float) (t / 0.35)) : FireDraw.mix(JET_MID, JET_TIP, (float) ((t - 0.35) / 0.65));
+                colors[i] = s == 0 ? c : FireDraw.fade(c, 0.7f);
+            }
+            FireDraw.ribbon(matrix, buffer, points, widths, colors, cam);
+        }
+    }
+
+    /** Both ends on ground at the same height (a step breaks the line). */
+    private static boolean flatSegment(RazlomClientHandler.Crack crack, int i) {
+        Double a = crack.ys[i];
+        Double b = crack.ys[i + 1];
+        return a != null && b != null && Math.abs(a - b) < 0.01;
+    }
+
+    /** Horizontal quad along a crack segment, for the immediate-mode dark pass (culling off). */
+    private static void flatQuad(BufferBuilder buffer, Matrix4f matrix, RazlomClientHandler.Crack crack, int i, double y,
+                                 float wa, float wb, int ca, int cb) {
+        double ax = crack.xs[i], az = crack.zs[i], bx = crack.xs[i + 1], bz = crack.zs[i + 1];
+        double dx = bx - ax, dz = bz - az;
+        double len = Math.sqrt(dx * dx + dz * dz);
+        if (len < 1.0E-5) return;
+        double sx = -dz / len, sz = dx / len;
+        put(buffer, matrix, ax - sx * wa, y, az - sz * wa, ca);
+        put(buffer, matrix, bx - sx * wb, y, bz - sz * wb, cb);
+        put(buffer, matrix, bx + sx * wb, y, bz + sz * wb, cb);
+        put(buffer, matrix, ax + sx * wa, y, az + sz * wa, ca);
+    }
+
+    /** Horizontal quad wound counter-clockwise seen from above (the lightning type culls back faces). */
+    private static void flatQuadUp(VertexConsumer buffer, Matrix4f matrix, RazlomClientHandler.Crack crack, int i, double y,
+                                   float wa, float wb, int ca, int cb) {
+        double ax = crack.xs[i], az = crack.zs[i], bx = crack.xs[i + 1], bz = crack.zs[i + 1];
+        double dx = bx - ax, dz = bz - az;
+        double len = Math.sqrt(dx * dx + dz * dz);
+        if (len < 1.0E-5) return;
+        dx /= len;
+        dz /= len;
+        // e = up x d = (dz, 0, -dx): (a - e, b - e, b + e, a + e) is CCW seen from +Y.
+        double ex = dz, ez = -dx;
+        put(buffer, matrix, ax - ex * wa, y, az - ez * wa, ca);
+        put(buffer, matrix, bx - ex * wb, y, bz - ez * wb, cb);
+        put(buffer, matrix, bx + ex * wb, y, bz + ez * wb, cb);
+        put(buffer, matrix, ax + ex * wa, y, az + ez * wa, ca);
+    }
+
+    private static void put(VertexConsumer buffer, Matrix4f matrix, double x, double y, double z, int color) {
+        buffer.vertex(matrix, (float) x, (float) y, (float) z)
+                .color((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, (color >>> 24) & 0xFF).endVertex();
+    }
+}

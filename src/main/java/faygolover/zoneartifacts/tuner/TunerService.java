@@ -8,6 +8,7 @@ import faygolover.zoneartifacts.anomaly.AnomalyTargeting;
 import faygolover.zoneartifacts.config.ModCommonConfig;
 import faygolover.zoneartifacts.item.AnomalyTunerItem;
 import faygolover.zoneartifacts.network.AnomalySyncHandler;
+import faygolover.zoneartifacts.tesla.RouteKind;
 import faygolover.zoneartifacts.tesla.Tesla;
 import faygolover.zoneartifacts.tesla.TeslaGeometry;
 import faygolover.zoneartifacts.tesla.TeslaRoute;
@@ -110,7 +111,9 @@ public final class TunerService {
         Vec3 point = TeslaGeometry.center(pos);
         if (player.getEyePosition().distanceToSqr(point) > MAX_CLICK_DISTANCE * MAX_CLICK_DISTANCE) return;
 
-        Component name = Component.translatable("message.fl_zone_arts.tuner.tesla_route", route.id());
+        RouteKind routeKind = route.kind();
+        Component name = Component.translatable("message.fl_zone_arts.tuner.route",
+                Component.translatable(routeKind.nameKey()), route.id());
         double step = kind.step(sneaking) * (increase ? 1 : -1);
         String value;
         String standard;
@@ -118,7 +121,7 @@ public final class TunerService {
             case SIZE -> {
                 route.setSize(round(clamp(route.size() + step, 1.0, ModCommonConfig.MAX_SIZE.get()), 10));
                 value = fmt1(route.size());
-                standard = fmt1(Tesla.DEFAULT_SIZE);
+                standard = fmt1(Tesla.DEFAULT_SIZE);  // 1.0 for every route kind
             }
             case SPEED -> {
                 route.setSpeedMultiplier(round(clamp(route.speedMultiplier() + step, 0.0, ModCommonConfig.MAX_SPEED_MULTIPLIER.get()), 10));
@@ -128,22 +131,22 @@ public final class TunerService {
             case COOLDOWN -> {
                 route.setRespawnSeconds((int) clamp(route.respawnSeconds() + step, 1, ModCommonConfig.MAX_COOLDOWN_SECONDS.get()));
                 value = route.respawnSeconds() + " с";
-                standard = ModCommonConfig.TESLA_RESPAWN_SECONDS.get() + " с";
+                standard = routeKind.defaultRespawnSeconds() + " с";
             }
             case INTENSITY -> {
                 route.setIntensity((int) clamp(route.intensity() + step, 1, ModCommonConfig.MAX_INTENSITY.get()));
                 value = String.valueOf(route.intensity());
-                standard = String.valueOf(ModCommonConfig.TESLA_INTENSITY.get());
+                standard = String.valueOf(routeKind.defaultIntensity());
             }
             case DAMAGE -> {
                 route.setDamage((float) round(clamp(route.damage() + step, 0.0, ModCommonConfig.MAX_DAMAGE.get()), 2));
                 value = fmt1(route.damage());
-                standard = fmt1(ModCommonConfig.TESLA_DAMAGE.get());
+                standard = fmt1(routeKind.defaultDamage());
             }
             case TARGETING -> {
                 route.setChaseRadius(round(clamp(route.chaseRadius() + step, 0.0, ModCommonConfig.MAX_CHASE_RADIUS.get()), 10));
                 value = route.chaseRadius() <= 0 ? "0 (не преследует)" : fmt1(route.chaseRadius()) + " бл.";
-                standard = fmt1(ModCommonConfig.TESLA_CHASE_RADIUS.get()) + " бл.";
+                standard = fmt1(routeKind.defaultChaseRadius()) + " бл.";
             }
             default -> {
                 return;

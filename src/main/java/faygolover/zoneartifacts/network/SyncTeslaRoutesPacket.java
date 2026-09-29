@@ -1,6 +1,7 @@
 package faygolover.zoneartifacts.network;
 
 import faygolover.zoneartifacts.client.tesla.TeslaClientCache;
+import faygolover.zoneartifacts.tesla.RouteKind;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.FriendlyByteBuf;
@@ -22,7 +23,7 @@ import java.util.function.Supplier;
 public class SyncTeslaRoutesPacket {
 
     /** {@code id > 0}: completed route; {@code id < 0}: draft. */
-    public record Entry(int id, boolean complete, List<BlockPos> points) {
+    public record Entry(int id, RouteKind kind, boolean complete, List<BlockPos> points) {
     }
 
     private final ResourceKey<Level> dimension;
@@ -38,6 +39,7 @@ public class SyncTeslaRoutesPacket {
         buf.writeVarInt(packet.entries.size());
         for (Entry entry : packet.entries) {
             buf.writeInt(entry.id());
+            buf.writeByte(entry.kind().ordinal());
             buf.writeBoolean(entry.complete());
             buf.writeVarInt(entry.points().size());
             for (BlockPos pos : entry.points()) {
@@ -52,13 +54,14 @@ public class SyncTeslaRoutesPacket {
         List<Entry> entries = new ArrayList<>(count);
         for (int i = 0; i < count; i++) {
             int id = buf.readInt();
+            RouteKind kind = RouteKind.byOrdinal(buf.readByte());
             boolean complete = buf.readBoolean();
             int pointCount = buf.readVarInt();
             List<BlockPos> points = new ArrayList<>(pointCount);
             for (int j = 0; j < pointCount; j++) {
                 points.add(buf.readBlockPos());
             }
-            entries.add(new Entry(id, complete, List.copyOf(points)));
+            entries.add(new Entry(id, kind, complete, List.copyOf(points)));
         }
         return new SyncTeslaRoutesPacket(dimension, entries);
     }

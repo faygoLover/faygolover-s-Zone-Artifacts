@@ -71,24 +71,25 @@ public final class TeslaCommands {
 
         for (TeslaRoute route : TeslaRouteSavedData.get(level).routes()) {
             String state = switch (status(level, route)) {
-                case ALIVE -> "Тесла жива";
-                case GONE -> "Теслы нет (маршрут завис)";
-                case UNKNOWN -> "Тесла в незагруженном чанке";
+                case ALIVE -> "аномалия на месте";
+                case GONE -> "аномалии нет (маршрут завис)";
+                case UNKNOWN -> "аномалия в незагруженном чанке";
             };
-            lines.add("#" + route.id() + ": " + route.waypoints().size() + " точ., старт "
+            String kindName = route.kind() == RouteKind.COMET ? "Комета" : "Тесла";
+            lines.add("#" + route.id() + " " + kindName + ": " + route.waypoints().size() + " точ., старт "
                     + TeslaRouteService.formatPos(route.waypoints().get(0)) + " — " + state
                     + String.format(java.util.Locale.ROOT, " [размер %.1f, скорость x%.1f, возрождение %d с, урон %.1f, насыщенность %d, наведение %.1f бл.]",
                     route.size(), route.speedMultiplier(), route.respawnSeconds(), route.damage(), route.intensity(), route.chaseRadius()));
         }
         for (TeslaDrafts.Draft draft : TeslaDrafts.inDimension(level.dimension())) {
-            lines.add("строится (" + draft.ownerName() + "): " + draft.points().size() + " точ., старт "
+            lines.add("строится " + (draft.kind() == RouteKind.COMET ? "Комета" : "Тесла") + " (" + draft.ownerName() + "): " + draft.points().size() + " точ., старт "
                     + TeslaRouteService.formatPos(draft.start()));
         }
 
         if (lines.isEmpty()) {
-            source.sendSuccess(() -> Component.literal("[Тесла] В этом измерении маршрутов нет."), false);
+            source.sendSuccess(() -> Component.literal("[Маршруты] В этом измерении маршрутов нет."), false);
         } else {
-            source.sendSuccess(() -> Component.literal("[Тесла] Маршруты в этом измерении (" + lines.size() + "):"), false);
+            source.sendSuccess(() -> Component.literal("[Маршруты] Маршруты в этом измерении (" + lines.size() + "):"), false);
             for (String line : lines) {
                 source.sendSuccess(() -> Component.literal("  " + line), false);
             }
@@ -121,9 +122,9 @@ public final class TeslaCommands {
 
         final int removedFinal = removed;
         final int skippedFinal = skipped;
-        source.sendSuccess(() -> Component.literal("[Тесла] Очистка: незавершённых маршрутов удалено " + drafts
+        source.sendSuccess(() -> Component.literal("[Маршруты] Очистка: незавершённых маршрутов удалено " + drafts
                 + ", зависших готовых — " + removedFinal
-                + (skippedFinal > 0 ? ", пропущено (Тесла в незагруженном чанке) — " + skippedFinal : "") + "."), true);
+                + (skippedFinal > 0 ? ", пропущено (аномалия в незагруженном чанке) — " + skippedFinal : "") + "."), true);
         return drafts + removed;
     }
 
@@ -131,7 +132,7 @@ public final class TeslaCommands {
         ServerPlayer player = EntityArgument.getPlayer(ctx, "player");
         boolean value = BoolArgumentType.getBool(ctx, "value");
         TeslaEntity.setArtifactFlag(player, value);
-        ctx.getSource().sendSuccess(() -> Component.literal("[Тесла] Флаг artifact_equipped для "
+        ctx.getSource().sendSuccess(() -> Component.literal("[Артефакт] Флаг artifact_equipped для "
                 + player.getGameProfile().getName() + ": " + value), true);
         return 1;
     }

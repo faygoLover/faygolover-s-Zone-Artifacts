@@ -4,6 +4,8 @@ import faygolover.zoneartifacts.ZoneArtifacts;
 import faygolover.zoneartifacts.item.TeslaRoutePlacerItem;
 import faygolover.zoneartifacts.network.ModNetwork;
 import faygolover.zoneartifacts.network.TeslaWaypointClickPacket;
+import faygolover.zoneartifacts.tesla.Comet;
+import faygolover.zoneartifacts.tesla.CometEntity;
 import faygolover.zoneartifacts.tesla.Tesla;
 import faygolover.zoneartifacts.tesla.TeslaEntity;
 import faygolover.zoneartifacts.tesla.TeslaGeometry;
@@ -67,13 +69,15 @@ public final class TeslaClientHandler {
             }
         }
 
-        SoundEvent sound = ForgeRegistries.SOUND_EVENTS.getValue(Tesla.IDLE_SOUND);
-        if (sound == null) return;
-
         for (Entity entity : mc.level.entitiesForRendering()) {
             if (!(entity instanceof TeslaEntity tesla) || !tesla.getState().isVisible()) continue;
             if (IDLE_SOUNDS.containsKey(tesla.getId())) continue;
-            TeslaIdleSound idle = new TeslaIdleSound(tesla, sound, Tesla.IDLE_VOLUME, Tesla.IDLE_PITCH);
+            boolean comet = tesla instanceof CometEntity;
+            SoundEvent sound = ForgeRegistries.SOUND_EVENTS.getValue(comet ? Comet.IDLE_SOUND : Tesla.IDLE_SOUND);
+            if (sound == null) continue;
+            TeslaIdleSound idle = comet
+                    ? new TeslaIdleSound(tesla, sound, Comet.IDLE_VOLUME, Comet.IDLE_PITCH)
+                    : new TeslaIdleSound(tesla, sound, Tesla.IDLE_VOLUME, Tesla.IDLE_PITCH);
             IDLE_SOUNDS.put(tesla.getId(), idle);
             mc.getSoundManager().play(idle);
         }
@@ -113,7 +117,8 @@ public final class TeslaClientHandler {
     public static Optional<TeslaGeometry.WaypointHit> pick(Player player) {
         Vec3 eye = player.getEyePosition();
         Vec3 end = eye.add(player.getViewVector(1.0f).scale(TeslaGeometry.CLICK_REACH));
-        return TeslaGeometry.pick(TeslaClientCache.waypointsFor(player.level().dimension()), eye, end);
+        return TeslaGeometry.pick(TeslaClientCache.waypointsFor(player.level().dimension(),
+                TeslaRoutePlacerItem.heldKind(player)), eye, end);
     }
 
     @Nullable

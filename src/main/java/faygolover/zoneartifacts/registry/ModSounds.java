@@ -27,6 +27,9 @@ public final class ModSounds {
     public static final RegistryObject<SoundEvent> ZHARKA_IDLE = register("zharka_idle");
     public static final RegistryObject<SoundEvent> INEY_IDLE = register("iney_idle");
     public static final RegistryObject<SoundEvent> INEY_ENTER = register("iney_enter");
+    public static final RegistryObject<SoundEvent> COMET_IDLE = register("comet_idle");
+    public static final RegistryObject<SoundEvent> COMET_EXPLODE = register("comet_explode");
+    public static final RegistryObject<SoundEvent> RAZLOM_JET = register("razlom_jet");
 
     private static RegistryObject<SoundEvent> register(String name) {
         ResourceLocation id = new ResourceLocation(ZoneArtifacts.MODID, name);

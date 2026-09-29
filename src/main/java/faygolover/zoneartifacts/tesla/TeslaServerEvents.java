@@ -50,8 +50,8 @@ public final class TeslaServerEvents {
         if (draft != null) {
             ServerLevel oldLevel = player.server.getLevel(draft.dimension());
             if (oldLevel != null) TeslaSync.broadcast(oldLevel);
-            player.sendSystemMessage(Component.translatable("message.fl_zone_arts.tesla.draft_reset_dimension",
-                    TeslaRouteService.formatPos(draft.start())));
+            player.sendSystemMessage(TeslaRouteService.prefixed(draft.kind(), Component.translatable(
+                    "message.fl_zone_arts.tesla.draft_reset_dimension", TeslaRouteService.formatPos(draft.start()))));
         }
         if (player.level() instanceof ServerLevel newLevel) {
             TeslaSync.sendTo(player, newLevel);

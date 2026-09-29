@@ -257,7 +257,17 @@ public final class ThermalClientHandler {
             level.addParticle(ParticleTypes.SNOWFLAKE, p.x, p.y, p.z, 0.0, -0.01, 0.0);
         }
 
-        ensureLoop(mc, key, state, zone, Thermal.INEY_IDLE_SOUND, Thermal.INEY_IDLE_VOLUME, Thermal.INEY_ACTIVE_VOLUME);
+        // Icy crackles (vanilla freezing sounds) from a random spot: now and then while idle,
+        // in quick succession while active.
+        float chance = Mth.lerp(a, Thermal.INEY_IDLE_CHANCE, Thermal.INEY_ACTIVE_CHANCE);
+        if (RANDOM.nextFloat() < chance) {
+            SoundEvent crackle = ForgeRegistries.SOUND_EVENTS.getValue(Thermal.INEY_IDLE_SOUND);
+            if (crackle != null) {
+                Vec3 p = randomInside(zone);
+                float volume = Mth.lerp(a, Thermal.INEY_IDLE_VOLUME, Thermal.INEY_ACTIVE_VOLUME);
+                level.playLocalSound(p.x, p.y, p.z, crackle, SoundSource.AMBIENT, volume, 0.85f + RANDOM.nextFloat() * 0.4f, false);
+            }
+        }
 
         if (activated) {
             SoundEvent enter = ForgeRegistries.SOUND_EVENTS.getValue(Thermal.INEY_ENTER_SOUND);

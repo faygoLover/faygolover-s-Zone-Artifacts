@@ -20,10 +20,10 @@ public final class TeslaSync {
     public static SyncTeslaRoutesPacket snapshot(ServerLevel level) {
         List<SyncTeslaRoutesPacket.Entry> entries = new ArrayList<>();
         for (TeslaRoute route : TeslaRouteSavedData.get(level).routes()) {
-            entries.add(new SyncTeslaRoutesPacket.Entry(route.id(), true, route.waypoints()));
+            entries.add(new SyncTeslaRoutesPacket.Entry(route.id(), route.kind(), true, route.waypoints()));
         }
         for (TeslaDrafts.Draft draft : TeslaDrafts.inDimension(level.dimension())) {
-            entries.add(new SyncTeslaRoutesPacket.Entry(draft.id(), false, List.copyOf(draft.points())));
+            entries.add(new SyncTeslaRoutesPacket.Entry(draft.id(), draft.kind(), false, List.copyOf(draft.points())));
         }
         return new SyncTeslaRoutesPacket(level.dimension(), entries);
     }

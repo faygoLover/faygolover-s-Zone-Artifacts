@@ -1,5 +1,6 @@
 package faygolover.zoneartifacts.item;
 
+import faygolover.zoneartifacts.tesla.RouteKind;
 import faygolover.zoneartifacts.tesla.TeslaRouteService;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -20,20 +21,36 @@ import javax.annotation.Nullable;
 import java.util.List;
 
 /**
- * Builds Tesla routes. Right-click logic lives in {@link TeslaRouteService}: {@link #useOn} covers
+ * Builds routes for a route anomaly — one item per {@link RouteKind} (Tesla, Comet); a placer only
+ * sees and edits routes of its own kind. Right-click logic lives in {@link TeslaRouteService}: {@link #useOn} covers
  * clicks that land on a block, {@link #use} covers clicks into the air (a waypoint floating with
  * nothing behind it). Left-click only ever acts on waypoints and is detected client-side (see
  * {@code TeslaClientHandler}); this item never breaks blocks.
  */
 public class TeslaRoutePlacerItem extends Item {
 
-    public TeslaRoutePlacerItem(Properties properties) {
+    private final RouteKind kind;
+
+    public TeslaRoutePlacerItem(RouteKind kind, Properties properties) {
         super(properties);
+        this.kind = kind;
+    }
+
+    public RouteKind kind() {
+        return kind;
     }
 
     public static boolean isHeld(Player player) {
         return player.getMainHandItem().getItem() instanceof TeslaRoutePlacerItem
                 || player.getOffhandItem().getItem() instanceof TeslaRoutePlacerItem;
+    }
+
+    /** Kind of the route placer in the main hand, else the off hand; null if neither holds one. */
+    @Nullable
+    public static RouteKind heldKind(Player player) {
+        if (player.getMainHandItem().getItem() instanceof TeslaRoutePlacerItem placer) return placer.kind();
+        if (player.getOffhandItem().getItem() instanceof TeslaRoutePlacerItem placer) return placer.kind();
+        return null;
     }
 
     @Override
@@ -43,7 +60,7 @@ public class TeslaRoutePlacerItem extends Item {
             // Where a block would go: the neighbour on the clicked face's side, or the clicked
             // block itself if it's replaceable (grass, a snow layer...).
             BlockPos placePos = new BlockPlaceContext(context).getClickedPos();
-            TeslaRouteService.onUseOnBlock(player, placePos, context.getClickLocation());
+            TeslaRouteService.onUseOnBlock(player, kind, placePos, context.getClickLocation());
         }
         // Success on the client too, so it doesn't follow up with a second "use in air" packet.
         return InteractionResult.sidedSuccess(level.isClientSide);
@@ -52,7 +69,7 @@ public class TeslaRoutePlacerItem extends Item {
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         if (!level.isClientSide && player instanceof ServerPlayer serverPlayer) {
-            TeslaRouteService.onUseInAir(serverPlayer);
+            TeslaRouteService.onUseInAir(serverPlayer, kind);
         }
         return InteractionResultHolder.sidedSuccess(player.getItemInHand(hand), level.isClientSide);
     }

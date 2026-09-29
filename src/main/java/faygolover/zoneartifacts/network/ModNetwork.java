@@ -10,7 +10,7 @@ public final class ModNetwork {
     /** Bump whenever packets are added, removed or changed, so a client and server on different
      *  mod versions get a clear "incompatible" message at login instead of odd behaviour.
      *  2 = Tesla (0.1.2.0), 3 = tuners, no datapacks (0.1.3.0). */
-    private static final String PROTOCOL_VERSION = "5";
+    private static final String PROTOCOL_VERSION = "6";
 
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(ZoneArtifacts.MODID, "main"),
@@ -42,6 +42,11 @@ public final class ModNetwork {
                 ElectrifyPacket::encode, ElectrifyPacket::decode, ElectrifyPacket::handle);
         CHANNEL.registerMessage(id++, TunerClickPacket.class,
                 TunerClickPacket::encode, TunerClickPacket::decode, TunerClickPacket::handle);
+        // Comet, Razlom (0.1.8.0)
+        CHANNEL.registerMessage(id++, CometBurstPacket.class,
+                CometBurstPacket::encode, CometBurstPacket::decode, CometBurstPacket::handle);
+        CHANNEL.registerMessage(id++, RazlomJetPacket.class,
+                RazlomJetPacket::encode, RazlomJetPacket::decode, RazlomJetPacket::handle);
     }
 
     private ModNetwork() {

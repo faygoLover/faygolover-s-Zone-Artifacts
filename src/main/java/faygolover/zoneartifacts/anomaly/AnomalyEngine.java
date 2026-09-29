@@ -43,6 +43,8 @@ public class AnomalyEngine {
                 tickElectra(serverLevel, instance);
             } else if (AnomalyTypeIds.isThermal(instance.typeId())) {
                 ThermalEngine.tick(serverLevel, instance);
+            } else if (AnomalyTypeIds.RAZLOM.equals(instance.typeId())) {
+                RazlomEngine.tick(serverLevel, instance);
             }
         }
     }

@@ -18,5 +18,6 @@ public final class TeslaClientSetup {
     @SubscribeEvent
     public static void onRegisterRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(ModEntities.TESLA.get(), TeslaRenderer::new);
+        event.registerEntityRenderer(ModEntities.COMET.get(), CometRenderer::new);
     }
 }

@@ -48,6 +48,24 @@ public final class ModCommonConfig {
     public static final ForgeConfigSpec.IntValue TESLA_INTENSITY;
     public static final ForgeConfigSpec.DoubleValue TESLA_CHASE_RADIUS;
 
+    // comet
+    public static final ForgeConfigSpec.DoubleValue COMET_BASE_SPEED;
+    public static final ForgeConfigSpec.IntValue COMET_RESPAWN_SECONDS;
+    public static final ForgeConfigSpec.DoubleValue COMET_DAMAGE;
+    public static final ForgeConfigSpec.IntValue COMET_INTENSITY;
+    public static final ForgeConfigSpec.DoubleValue COMET_CHASE_RADIUS;
+    public static final ForgeConfigSpec.IntValue COMET_IGNITE_SECONDS;
+    public static final ForgeConfigSpec.BooleanValue COMET_IGNITES_BLOCKS;
+
+    // razlom
+    public static final ForgeConfigSpec.IntValue RAZLOM_COOLDOWN_SECONDS;
+    public static final ForgeConfigSpec.DoubleValue RAZLOM_DAMAGE;
+    public static final ForgeConfigSpec.IntValue RAZLOM_INTENSITY;
+    public static final ForgeConfigSpec.DoubleValue RAZLOM_JET_SECONDS;
+    public static final ForgeConfigSpec.IntValue RAZLOM_HIT_INTERVAL_TICKS;
+    public static final ForgeConfigSpec.DoubleValue RAZLOM_JET_RANGE;
+    public static final ForgeConfigSpec.IntValue RAZLOM_IGNITE_SECONDS;
+
     // effects
     public static final ForgeConfigSpec.DoubleValue ELECTRIFY_SECONDS;
 
@@ -118,6 +136,38 @@ public final class ModCommonConfig {
         TESLA_CHASE_RADIUS = b.comment("Default targeting distance of a new route: radius in which a player flagged",
                         "artifact_equipped is chased, blocks. Changed per route with the targeting tuner.")
                 .defineInRange("chaseRadius", 10.0, 0.0, 128.0);
+        b.pop();
+
+        b.comment("Comet settings (a fireball on a route, like the Tesla). A new route starts with size 1 and speed x1.0.").push("comet");
+        COMET_BASE_SPEED = b.comment("Standard speed (x1.0) in blocks per tick.")
+                .defineInRange("baseSpeed", 0.15, 0.01, 2.0);
+        COMET_RESPAWN_SECONDS = b.comment("Default respawn delay of a new route, seconds.")
+                .defineInRange("respawnSeconds", 6, 1, 3600);
+        COMET_DAMAGE = b.comment("Explosion damage at the center (and to whatever it flew into), half-hearts.",
+                        "Falls off to 30 % at the edge of the blast.")
+                .defineInRange("damage", 6.0, 0.0, 1000.0);
+        COMET_INTENSITY = b.defineInRange("intensity", 3, 1, 50);
+        COMET_CHASE_RADIUS = b.comment("Default targeting distance of a new route, blocks.")
+                .defineInRange("chaseRadius", 12.0, 0.0, 128.0);
+        COMET_IGNITE_SECONDS = b.comment("How long entities caught by the explosion burn, seconds.")
+                .defineInRange("igniteSeconds", 4, 0, 60);
+        COMET_IGNITES_BLOCKS = b.comment("The explosion sets fire around the impact (never breaks blocks).")
+                .define("ignitesBlocks", true);
+        b.pop();
+
+        b.comment("Defaults for a newly placed Razlom (rift). Its cooldown is the pause after a fire jet.").push("razlom");
+        RAZLOM_COOLDOWN_SECONDS = b.defineInRange("cooldownSeconds", 4, 1, 3600);
+        RAZLOM_DAMAGE = b.comment("Damage per jet hit, half-hearts.")
+                .defineInRange("damage", 1.5, 0.0, 1000.0);
+        RAZLOM_INTENSITY = b.defineInRange("intensity", 3, 1, 50);
+        RAZLOM_JET_SECONDS = b.comment("How long one fire jet lasts, seconds.")
+                .defineInRange("jetSeconds", 5.5, 0.5, 60.0);
+        RAZLOM_HIT_INTERVAL_TICKS = b.comment("Ticks between jet hits (20 = 1 s).")
+                .defineInRange("hitIntervalTicks", 10, 1, 200);
+        RAZLOM_JET_RANGE = b.comment("How far beyond its zone the jet keeps following a target, blocks.")
+                .defineInRange("jetRange", 4.0, 0.0, 64.0);
+        RAZLOM_IGNITE_SECONDS = b.comment("How long a target hit by the jet burns, seconds.")
+                .defineInRange("igniteSeconds", 3, 0, 60);
         b.pop();
 
         b.push("effects");
