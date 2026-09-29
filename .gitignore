@@ -22,3 +22,10 @@ Thumbs.db
 
 # Logs
 *.log
+
+# javac crash dumps
+javac.*.args
+
+# Python
+__pycache__/
+*.pyc
