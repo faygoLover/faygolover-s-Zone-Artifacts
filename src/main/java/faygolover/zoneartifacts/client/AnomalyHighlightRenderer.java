@@ -20,7 +20,9 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
@@ -102,7 +104,9 @@ public class AnomalyHighlightRenderer {
         boolean previewPosOccupied = false;
         BlockPos previewPos = null;
         if (mc.hitResult instanceof BlockHitResult blockHit && blockHit.getType() == HitResult.Type.BLOCK) {
-            previewPos = blockHit.getBlockPos();
+            // Same resolution as AnomalyPlacerItem.useOn: the preview sits where the anomaly would
+            // actually be placed (the neighbour on the clicked face's side), not inside the clicked block.
+            previewPos = new BlockPlaceContext(player, InteractionHand.MAIN_HAND, player.getMainHandItem(), blockHit).getClickedPos();
         }
 
         for (SyncAnomaliesPacket.Entry entry : entries) {

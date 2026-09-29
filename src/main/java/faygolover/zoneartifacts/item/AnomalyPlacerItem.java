@@ -13,6 +13,7 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 
@@ -60,7 +61,10 @@ public class AnomalyPlacerItem extends Item {
     @Override
     public InteractionResult useOn(UseOnContext context) {
         Level level = context.getLevel();
-        BlockPos pos = context.getClickedPos();
+        // Placed like an ordinary block: into the neighbour on the clicked face's side, or into
+        // the clicked block itself if that one is replaceable (grass, a snow layer...).
+        // BlockPlaceContext already resolves exactly that, the same way vanilla block placement does.
+        BlockPos pos = new BlockPlaceContext(context).getClickedPos();
         Player player = context.getPlayer();
 
         if (level instanceof ServerLevel serverLevel) {

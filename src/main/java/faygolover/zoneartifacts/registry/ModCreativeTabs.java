@@ -19,7 +19,10 @@ public class ModCreativeTabs {
             () -> CreativeModeTab.builder()
                     .title(Component.translatable("itemGroup.fl_zone_arts.anomalies"))
                     .icon(() -> new ItemStack(ModItems.ELECTRA_PLACER.get()))
-                    .displayItems((parameters, output) -> output.accept(ModItems.ELECTRA_PLACER.get()))
+                    .displayItems((parameters, output) -> {
+                        output.accept(ModItems.ELECTRA_PLACER.get());
+                        output.accept(ModItems.TESLA_PLACER.get());
+                    })
                     .build());
 
     private ModCreativeTabs() {

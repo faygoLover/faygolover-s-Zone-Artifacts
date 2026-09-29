@@ -3,6 +3,7 @@ package faygolover.zoneartifacts.registry;
 import faygolover.zoneartifacts.ZoneArtifacts;
 import faygolover.zoneartifacts.anomaly.AnomalyTypeIds;
 import faygolover.zoneartifacts.item.AnomalyPlacerItem;
+import faygolover.zoneartifacts.item.TeslaRoutePlacerItem;
 import net.minecraft.world.item.Item;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
@@ -14,6 +15,9 @@ public class ModItems {
 
     public static final RegistryObject<Item> ELECTRA_PLACER = ITEMS.register("electra_placer",
             () -> new AnomalyPlacerItem(AnomalyTypeIds.ELECTRA, new Item.Properties().stacksTo(1)));
+
+    public static final RegistryObject<Item> TESLA_PLACER = ITEMS.register("tesla_placer",
+            () -> new TeslaRoutePlacerItem(new Item.Properties().stacksTo(1)));
 
     private ModItems() {
     }

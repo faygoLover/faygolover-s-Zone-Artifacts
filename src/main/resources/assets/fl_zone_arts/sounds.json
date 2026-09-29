@@ -1,22 +1,38 @@
 {
   "electra_idle": {
     "subtitle": "subtitles.fl_zone_arts.electra_idle",
-    "sounds": ["fl_zone_arts:electra_idle"]
+    "sounds": [
+      "fl_zone_arts:electra_idle"
+    ]
   },
   "electra_blast_nut": {
     "subtitle": "subtitles.fl_zone_arts.electra_blast",
-    "sounds": ["fl_zone_arts:electra_blast_nut"]
+    "sounds": [
+      "fl_zone_arts:electra_blast_nut"
+    ]
   },
   "electra_blast_living": {
     "subtitle": "subtitles.fl_zone_arts.electra_blast",
-    "sounds": ["fl_zone_arts:electra_blast_living"]
+    "sounds": [
+      "fl_zone_arts:electra_blast_living"
+    ]
   },
   "electra_hit": {
     "subtitle": "subtitles.fl_zone_arts.electra_hit",
-    "sounds": ["fl_zone_arts:electra_hit"]
+    "sounds": [
+      "fl_zone_arts:electra_hit"
+    ]
   },
   "electra_hit1": {
     "subtitle": "subtitles.fl_zone_arts.electra_hit",
-    "sounds": ["fl_zone_arts:electra_hit1"]
+    "sounds": [
+      "fl_zone_arts:electra_hit1"
+    ]
+  },
+  "tesla_idle": {
+    "subtitle": "subtitles.fl_zone_arts.tesla_idle",
+    "sounds": [
+      "fl_zone_arts:tesla_idle"
+    ]
   }
 }
