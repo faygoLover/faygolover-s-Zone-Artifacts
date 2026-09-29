@@ -2,6 +2,9 @@ package faygolover.zoneartifacts.client;
 
 import faygolover.zoneartifacts.ZoneArtifacts;
 import faygolover.zoneartifacts.item.AnomalyPlacerItem;
+import faygolover.zoneartifacts.network.ModNetwork;
+import faygolover.zoneartifacts.network.RemoveAnomalyPacket;
+import faygolover.zoneartifacts.network.SyncAnomaliesPacket;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.api.distmarker.Dist;
@@ -9,29 +12,40 @@ import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
-/**
- * Client-side half of {@code AnomalyInteractionHandler}: suppresses the block-breaking
- * animation/hit-particles a left-click would otherwise start playing locally — client-side input
- * prediction fires {@code PlayerInteractEvent.LeftClickBlock} too, separately from the server's
- * own copy of the event — when the crosshair is really aiming at an anomaly's zone rather than
- * the block underneath it. The real level-cycle action is still decided authoritatively on the
- * server (see {@code AnomalyInteractionHandler}), which re-resolves the same target independently;
- * this class only ever suppresses a visual glitch, it never changes real state itself.
- */
-@Mod.EventBusSubscriber(modid = ZoneArtifacts.MODID, value = Dist.CLIENT)
-public final class ClientAnomalyInputHandler {
+import java.util.Optional;
 
-    private ClientAnomalyInputHandler() {
-    }
+/**
+ * Left-click, while holding a placer item, anywhere inside an already-placed anomaly of the same
+ * type removes it (like clicking a light block). This has to run client-side: a left-click at a
+ * point that isn't a real block (the common case for a size-2/3 zone floating off the block grid,
+ * or one that doesn't touch any solid surface at all) either never reaches the server as its own
+ * event, or — for {@code LeftClickEmpty} specifically — is a client-only Forge event to begin
+ * with. The actual removal still happens server-side (see {@code RemoveAnomalyPacket}), which
+ * re-resolves the target itself rather than trusting this client's aim.
+ */
+@Mod.EventBusSubscriber(modid = ZoneArtifacts.MODID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.FORGE)
+public class ClientAnomalyInputHandler {
 
     @SubscribeEvent
     public static void onLeftClickBlock(PlayerInteractEvent.LeftClickBlock event) {
-        Player player = event.getEntity();
-        if (!player.level().isClientSide) return;
+        tryRemove(event.getEntity(), event);
+    }
 
-        ResourceLocation typeId = AnomalyPlacerItem.typeIdOf(player.getMainHandItem());
+    @SubscribeEvent
+    public static void onLeftClickEmpty(PlayerInteractEvent.LeftClickEmpty event) {
+        tryRemove(event.getEntity(), event);
+    }
+
+    private static void tryRemove(Player player, PlayerInteractEvent event) {
+        ResourceLocation typeId = AnomalyPlacerItem.heldTypeId(player);
         if (typeId == null) return;
 
-        AnomalyClientTargeting.pick(typeId).ifPresent(entry -> event.setCanceled(true));
+        Optional<SyncAnomaliesPacket.Entry> hit = AnomalyClientTargeting.pick(player, typeId);
+        hit.ifPresent(entry -> {
+            ModNetwork.CHANNEL.sendToServer(new RemoveAnomalyPacket(entry.typeId(), entry.pos()));
+            if (event.isCancelable()) {
+                event.setCanceled(true);
+            }
+        });
     }
 }

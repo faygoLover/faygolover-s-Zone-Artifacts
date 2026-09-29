@@ -15,11 +15,11 @@
   },
   "effect": {
     "damage_type": "fl_zone_arts:anomaly_shock",
-    "damage_by_level": [4.0, 6.0, 8.0]
+    "damage_by_level": [3.0, 3.0, 3.0]
   },
   "ambient": {
     "sound": "fl_zone_arts:electra_idle",
-    "sound_volume": 1.0,
+    "sound_volume": 0.4,
     "sound_pitch": 1.0
   },
   "arc": {
@@ -32,10 +32,10 @@
   "trigger_effect": {
     "living_sound": "fl_zone_arts:electra_blast_living",
     "projectile_sound": "fl_zone_arts:electra_blast_nut",
-    "sound_volume": 1.0,
+    "sound_volume": 0.6,
     "sound_pitch": 1.0,
     "hit_sounds": ["fl_zone_arts:electra_hit", "fl_zone_arts:electra_hit1"],
-    "hit_sound_volume": 1.0,
+    "hit_sound_volume": 0.8,
     "hit_sound_pitch": 1.0
   }
 }

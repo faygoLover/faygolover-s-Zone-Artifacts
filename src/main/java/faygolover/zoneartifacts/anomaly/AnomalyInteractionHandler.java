@@ -3,54 +3,63 @@ package faygolover.zoneartifacts.anomaly;
 import faygolover.zoneartifacts.ZoneArtifacts;
 import faygolover.zoneartifacts.item.AnomalyPlacerItem;
 import faygolover.zoneartifacts.network.AnomalySyncHandler;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.Level;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
+import java.util.Optional;
+
 /**
- * Left-click-while-holding-a-placer interaction with an already-placed anomaly: cycles its level,
- * the same way a vanilla light block cycles its light level on repeated clicks. Right-click
- * (deletion, and placing a brand new anomaly) lives directly in {@link AnomalyPlacerItem} instead,
- * since vanilla calls an item's own {@code useOn}/{@code use} methods for that — but left-click has
- * no equivalent per-item hook, so it has to be caught here as a generic interaction event.
+ * Right-click, while holding a placer item, anywhere inside an already-placed anomaly of the same
+ * type cycles its level (like clicking a light block) — aiming doesn't need to land on the anchor
+ * block exactly. This runs fully server-side: {@code RightClickBlock} and {@code RightClickItem}
+ * both reach the server reliably regardless of what the client's own block raytrace found, so
+ * unlike the left-click/remove case (see {@code ClientAnomalyInputHandler}) no client packet is
+ * needed here — {@link AnomalyTargeting} re-derives the target straight from the real, server-side
+ * {@link AnomalySavedData}.
  * <p>
- * Targeting goes through {@link AnomalyTargeting}, not the vanilla block hit result, so this
- * fires correctly anywhere inside an anomaly's zone (including levels whose zone extends past the
- * single anchor block that was originally clicked to place it), not only when the exact anchor
- * block happens to be under the crosshair.
+ * If the raytrace finds nothing, the event is left alone and falls through to normal vanilla
+ * handling — {@link AnomalyPlacerItem#useOn} places a new anomaly on right-click as before.
  */
 @Mod.EventBusSubscriber(modid = ZoneArtifacts.MODID)
-public final class AnomalyInteractionHandler {
+public class AnomalyInteractionHandler {
 
-    private AnomalyInteractionHandler() {
+    @SubscribeEvent
+    public static void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
+        tryCycle(event.getEntity(), event);
     }
 
     @SubscribeEvent
-    public static void onLeftClickBlock(PlayerInteractEvent.LeftClickBlock event) {
-        Level level = event.getLevel();
-        if (level.isClientSide || !(level instanceof ServerLevel serverLevel)) return;
+    public static void onRightClickItem(PlayerInteractEvent.RightClickItem event) {
+        tryCycle(event.getEntity(), event);
+    }
 
-        Player player = event.getEntity();
-        ResourceLocation typeId = AnomalyPlacerItem.typeIdOf(player.getMainHandItem());
+    private static void tryCycle(Player player, PlayerInteractEvent event) {
+        if (!(player.level() instanceof ServerLevel serverLevel)) return;
+        ResourceLocation typeId = AnomalyPlacerItem.heldTypeId(player);
         if (typeId == null) return;
 
-        AnomalyTargeting.pick(serverLevel, player, typeId).ifPresent(instance -> {
-            event.setCanceled(true);
-            cycleLevel(serverLevel, instance);
+        AnomalyType type = AnomalyTypeManager.get(typeId);
+        if (type == null) return;
+
+        Optional<AnomalyInstance> hit = AnomalyTargeting.pick(serverLevel, player, typeId);
+        hit.ifPresent(instance -> {
+            int nextLevel = instance.level() % type.maxLevel() + 1;
+            instance.setLevel(nextLevel);
+            AnomalySavedData.get(serverLevel).setDirty();
+            notify(player, typeId + " at " + instance.pos().toShortString() + " -> level " + nextLevel);
+            AnomalySyncHandler.broadcast(serverLevel);
+            if (event.isCancelable()) {
+                event.setCanceled(true);
+            }
         });
     }
 
-    private static void cycleLevel(ServerLevel level, AnomalyInstance instance) {
-        AnomalyType type = AnomalyTypeManager.get(instance.typeId());
-        if (type == null) return;
-
-        int nextLevel = instance.level() % type.maxLevel() + 1;
-        instance.setLevel(nextLevel);
-        AnomalySavedData.get(level).setDirty();
-        AnomalySyncHandler.broadcastFullResync(level);
+    private static void notify(Player player, String message) {
+        player.displayClientMessage(Component.literal("fl_zone_arts: " + message), true);
     }
 }

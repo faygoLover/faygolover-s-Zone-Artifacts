@@ -1,26 +1,22 @@
 {
   "electra_idle": {
-    "category": "ambient",
+    "subtitle": "subtitles.fl_zone_arts.electra_idle",
     "sounds": ["fl_zone_arts:electra_idle"]
   },
   "electra_blast_nut": {
-    "category": "hostile",
+    "subtitle": "subtitles.fl_zone_arts.electra_blast",
     "sounds": ["fl_zone_arts:electra_blast_nut"]
   },
   "electra_blast_living": {
-    "category": "hostile",
+    "subtitle": "subtitles.fl_zone_arts.electra_blast",
     "sounds": ["fl_zone_arts:electra_blast_living"]
   },
   "electra_hit": {
-    "category": "hostile",
+    "subtitle": "subtitles.fl_zone_arts.electra_hit",
     "sounds": ["fl_zone_arts:electra_hit"]
   },
   "electra_hit1": {
-    "category": "hostile",
+    "subtitle": "subtitles.fl_zone_arts.electra_hit",
     "sounds": ["fl_zone_arts:electra_hit1"]
-  },
-  "tesla_idle": {
-    "category": "ambient",
-    "sounds": ["fl_zone_arts:tesla_idle"]
   }
 }

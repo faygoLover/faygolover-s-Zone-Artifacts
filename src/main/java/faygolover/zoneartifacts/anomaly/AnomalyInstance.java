@@ -6,7 +6,7 @@ import net.minecraft.resources.ResourceLocation;
 
 /**
  * One anomaly placed in the world: its type, position and level are persisted;
- * the cooldown timer is runtime-only and simply restarts (at 0, i.e. "ready") on world (re)load.
+ * cooldown/ambient timers are runtime-only and simply restart on world (re)load.
  */
 public class AnomalyInstance {
 
