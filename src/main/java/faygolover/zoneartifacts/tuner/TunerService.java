@@ -60,6 +60,12 @@ public final class TunerService {
         Component name = Component.translatable(AnomalyDefaults.nameKey(typeId));
         Component setting = Component.translatable(AnomalyDefaults.settingKey(typeId, kind));
         double step = kind.step(sneaking) * (increase ? 1 : -1);
+        if (!AnomalyDefaults.tunable(typeId, kind)) {
+            // e.g. speed on an Electra, cooldown on the always-on Podushka.
+            player.displayClientMessage(Component.translatable("message.fl_zone_arts.tuner.not_applicable",
+                    name, setting), true);
+            return;
+        }
         String value;
         String standard;
         switch (kind) {
@@ -68,11 +74,11 @@ public final class TunerService {
                 value = fmt1(instance.size());
                 standard = fmt1(AnomalyDefaults.SIZE);
             }
-            case SPEED, TARGETING -> {
-                // Zone anomalies stand still and home in on nobody.
-                player.displayClientMessage(Component.translatable("message.fl_zone_arts.tuner.not_applicable",
-                        name, setting), true);
-                return;
+            case SPEED -> {
+                // The gravitational anomalies' force (Podushka: bounce height).
+                instance.setSpeed(round(clamp(instance.speed() + step, 0.1, ModCommonConfig.MAX_SPEED_MULTIPLIER.get()), 10));
+                value = "x" + fmt1(instance.speed());
+                standard = "x1.0";
             }
             case COOLDOWN -> {
                 double cooldownStep = AnomalyDefaults.cooldownStep(typeId, sneaking) * (increase ? 1 : -1);

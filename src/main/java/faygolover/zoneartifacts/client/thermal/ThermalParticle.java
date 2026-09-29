@@ -24,7 +24,9 @@ public class ThermalParticle extends TextureSheetParticle {
         /** Small dark wisp: grows a little and thins out as it rises. */
         HEAT_SMOKE,
         /** Pale cold haze: large, faint, creeps sideways and slightly down. */
-        FROST_MIST
+        FROST_MIST,
+        /** Gravitational anomalies: short-lived dusty speck, flies exactly where it's sent. */
+        DUST
     }
 
     private final Kind kind;
@@ -63,6 +65,14 @@ public class ThermalParticle extends TextureSheetParticle {
                 setColor(shade, shade * 0.95f, shade * 0.9f);
                 setSpriteFromAge(sprites);
             }
+            case DUST -> {
+                this.lifetime = 22 + random.nextInt(18);
+                this.baseSize = 0.04f + random.nextFloat() * 0.06f;
+                this.baseAlpha = 0.55f;
+                float shade = 0.8f + random.nextFloat() * 0.25f;
+                setColor(0.6f * shade, 0.54f * shade, 0.44f * shade);
+                setSpriteFromAge(sprites);
+            }
             default -> {
                 this.lifetime = 60 + random.nextInt(70);
                 this.baseSize = 0.16f + random.nextFloat() * 0.16f;
@@ -89,13 +99,14 @@ public class ThermalParticle extends TextureSheetParticle {
         zd *= 0.99;
 
         float t = age / (float) lifetime;
-        float fade = Math.min(1.0f, age / 12.0f) * Math.min(1.0f, (1.0f - t) * 4.0f);
+        float fadeIn = kind == Kind.DUST ? 4.0f : 12.0f;
+        float fade = Math.min(1.0f, age / fadeIn) * Math.min(1.0f, (1.0f - t) * 4.0f);
         switch (kind) {
             case EMBER -> {
                 float flicker = 0.75f + 0.25f * Mth.sin(age * 0.45f + phase);
                 alpha = baseAlpha * fade * flicker;
             }
-            case HEAT_SMOKE -> {
+            case HEAT_SMOKE, DUST -> {
                 setSpriteFromAge(sprites);
                 alpha = baseAlpha * fade * (1.0f - t * 0.5f);
             }
@@ -109,6 +120,7 @@ public class ThermalParticle extends TextureSheetParticle {
         return switch (kind) {
             case EMBER -> baseSize * (1.0f - t * 0.4f);
             case HEAT_SMOKE -> baseSize * (1.0f + t * 1.5f);
+            case DUST -> baseSize * (1.0f + t * 0.3f);
             default -> baseSize * (1.0f + t * 0.8f);
         };
     }

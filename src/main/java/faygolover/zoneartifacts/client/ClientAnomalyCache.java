@@ -36,7 +36,7 @@ public final class ClientAnomalyCache {
             if (entry.typeId().equals(typeId) && entry.pos().equals(pos)) {
                 if (entry.onCooldown() == onCooldown && entry.active() == active) return;
                 List<SyncAnomaliesPacket.Entry> updated = new ArrayList<>(entries);
-                updated.set(i, new SyncAnomaliesPacket.Entry(entry.typeId(), entry.pos(), entry.size(), entry.intensity(), onCooldown, active));
+                updated.set(i, new SyncAnomaliesPacket.Entry(entry.typeId(), entry.pos(), entry.size(), entry.intensity(), onCooldown, active, entry.speed()));
                 entries = updated;
                 return;
             }

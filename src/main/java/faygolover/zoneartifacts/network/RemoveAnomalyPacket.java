@@ -1,6 +1,7 @@
 package faygolover.zoneartifacts.network;
 
 import faygolover.zoneartifacts.anomaly.AnomalyDefaults;
+import faygolover.zoneartifacts.anomaly.GravityEngine;
 import faygolover.zoneartifacts.anomaly.AnomalyInstance;
 import faygolover.zoneartifacts.anomaly.AnomalySavedData;
 import faygolover.zoneartifacts.item.AnomalyPlacerItem;
@@ -58,6 +59,7 @@ public class RemoveAnomalyPacket {
 
             AnomalySavedData data = AnomalySavedData.get(serverLevel);
             findAt(data, packet.pos, packet.typeId).ifPresent(instance -> {
+                GravityEngine.forget(serverLevel, instance);
                 data.remove(instance);
                 player.displayClientMessage(Component.translatable("message.fl_zone_arts.anomaly.removed",
                         Component.translatable(AnomalyDefaults.nameKey(instance.typeId())), instance.pos().toShortString()), true);

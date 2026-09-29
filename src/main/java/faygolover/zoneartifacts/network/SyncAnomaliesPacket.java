@@ -38,7 +38,7 @@ public class SyncAnomaliesPacket {
         List<Entry> entries = new ArrayList<>(instances.size());
         for (AnomalyInstance instance : instances) {
             entries.add(new Entry(instance.typeId(), instance.pos(), (float) instance.size(), instance.intensity(),
-                    instance.cooldownTicks() > 0, instance.active()));
+                    instance.cooldownTicks() > 0, instance.active(), (float) instance.speed()));
         }
         return new SyncAnomaliesPacket(dimension, entries);
     }
@@ -53,6 +53,7 @@ public class SyncAnomaliesPacket {
             buf.writeVarInt(entry.intensity());
             buf.writeBoolean(entry.onCooldown());
             buf.writeBoolean(entry.active());
+            buf.writeFloat(entry.speed());
         }
     }
 
@@ -67,7 +68,8 @@ public class SyncAnomaliesPacket {
             int intensity = buf.readVarInt();
             boolean onCooldown = buf.readBoolean();
             boolean active = buf.readBoolean();
-            entries.add(new Entry(typeId, pos, size, intensity, onCooldown, active));
+            float speed = buf.readFloat();
+            entries.add(new Entry(typeId, pos, size, intensity, onCooldown, active, speed));
         }
         return new SyncAnomaliesPacket(dimension, entries);
     }
@@ -85,7 +87,9 @@ public class SyncAnomaliesPacket {
      *  this flag is usually kept current by the much lighter {@link SyncAnomalyCooldownPacket}
      *  rather than a full resend of this packet — see that class's javadoc.
      *  {@code active} is used by the thermal anomalies (Zharka, Iney): someone is inside right now,
-     *  so the visuals and sound ramp up. Always false for Electra. */
-    public record Entry(ResourceLocation typeId, BlockPos pos, float size, int intensity, boolean onCooldown, boolean active) {
+     *  so the visuals and sound ramp up. Always false for Electra. {@code speed}: the gravitational
+     *  anomalies' force multiplier (the client computes the forces on its own player). */
+    public record Entry(ResourceLocation typeId, BlockPos pos, float size, int intensity, boolean onCooldown, boolean active,
+                        float speed) {
     }
 }

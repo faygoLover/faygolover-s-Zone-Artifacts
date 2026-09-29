@@ -24,6 +24,10 @@ public final class ModParticles {
     public static final RegistryObject<SimpleParticleType> HEAT_SMOKE = PARTICLES.register("heat_smoke", () -> new SimpleParticleType(false));
     /** Iney: pale cold mist. */
     public static final RegistryObject<SimpleParticleType> FROST_MIST = PARTICLES.register("frost_mist", () -> new SimpleParticleType(false));
+    /** Gravitational anomalies: dust drawn in, whirled and blown out. */
+    public static final RegistryObject<SimpleParticleType> GRAV_DUST = PARTICLES.register("grav_dust", () -> new SimpleParticleType(false));
+    /** Voronka / Karusel kills: drops of blood. */
+    public static final RegistryObject<SimpleParticleType> BLOOD = PARTICLES.register("blood", () -> new SimpleParticleType(false));
 
     private ModParticles() {
     }

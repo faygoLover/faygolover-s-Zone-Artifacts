@@ -24,6 +24,10 @@ public final class AnomalyDefaults {
         if (AnomalyTypeIds.INEY.equals(typeId)) return ModCommonConfig.INEY_INTERVAL_SECONDS.get();
         if (AnomalyTypeIds.RAZLOM.equals(typeId)) return ModCommonConfig.RAZLOM_COOLDOWN_SECONDS.get().doubleValue();
         if (AnomalyTypeIds.COLD_RAZLOM.equals(typeId)) return ModCommonConfig.COLD_RAZLOM_COOLDOWN_SECONDS.get().doubleValue();
+        if (AnomalyTypeIds.PLESH.equals(typeId)) return ModCommonConfig.PLESH_COOLDOWN_SECONDS.get().doubleValue();
+        if (AnomalyTypeIds.VORONKA.equals(typeId)) return ModCommonConfig.VORONKA_COOLDOWN_SECONDS.get().doubleValue();
+        if (AnomalyTypeIds.KARUSEL.equals(typeId)) return ModCommonConfig.KARUSEL_COOLDOWN_SECONDS.get().doubleValue();
+        if (AnomalyTypeIds.PODUSHKA.equals(typeId)) return 1.0;
         return ModCommonConfig.ELECTRA_COOLDOWN_SECONDS.get().doubleValue();
     }
 
@@ -48,6 +52,10 @@ public final class AnomalyDefaults {
         if (AnomalyTypeIds.INEY.equals(typeId)) return ModCommonConfig.INEY_DAMAGE.get().floatValue();
         if (AnomalyTypeIds.RAZLOM.equals(typeId)) return ModCommonConfig.RAZLOM_DAMAGE.get().floatValue();
         if (AnomalyTypeIds.COLD_RAZLOM.equals(typeId)) return ModCommonConfig.COLD_RAZLOM_DAMAGE.get().floatValue();
+        if (AnomalyTypeIds.PLESH.equals(typeId)) return ModCommonConfig.PLESH_DAMAGE.get().floatValue();
+        if (AnomalyTypeIds.VORONKA.equals(typeId)) return ModCommonConfig.VORONKA_DAMAGE.get().floatValue();
+        if (AnomalyTypeIds.KARUSEL.equals(typeId)) return ModCommonConfig.KARUSEL_DAMAGE.get().floatValue();
+        if (AnomalyTypeIds.PODUSHKA.equals(typeId)) return 0.0f;
         return ModCommonConfig.ELECTRA_DAMAGE.get().floatValue();
     }
 
@@ -56,6 +64,10 @@ public final class AnomalyDefaults {
         if (AnomalyTypeIds.INEY.equals(typeId)) return ModCommonConfig.INEY_INTENSITY.get();
         if (AnomalyTypeIds.RAZLOM.equals(typeId)) return ModCommonConfig.RAZLOM_INTENSITY.get();
         if (AnomalyTypeIds.COLD_RAZLOM.equals(typeId)) return ModCommonConfig.COLD_RAZLOM_INTENSITY.get();
+        if (AnomalyTypeIds.PLESH.equals(typeId)) return ModCommonConfig.PLESH_INTENSITY.get();
+        if (AnomalyTypeIds.VORONKA.equals(typeId)) return ModCommonConfig.VORONKA_INTENSITY.get();
+        if (AnomalyTypeIds.KARUSEL.equals(typeId)) return ModCommonConfig.KARUSEL_INTENSITY.get();
+        if (AnomalyTypeIds.PODUSHKA.equals(typeId)) return ModCommonConfig.PODUSHKA_INTENSITY.get();
         return ModCommonConfig.ELECTRA_INTENSITY.get();
     }
 
@@ -64,10 +76,24 @@ public final class AnomalyDefaults {
         return "anomaly.fl_zone_arts." + typeId.getPath();
     }
 
+    /** Which tuners make sense for a zone anomaly: speed only for the gravitational ones (their
+     *  force), cooldown and damage not for the harmless, always-on Podushka; targeting never. */
+    public static boolean tunable(ResourceLocation typeId, TunerKind kind) {
+        return switch (kind) {
+            case SPEED -> AnomalyTypeIds.isGravity(typeId);
+            case COOLDOWN, DAMAGE -> !AnomalyTypeIds.PODUSHKA.equals(typeId);
+            case TARGETING -> false;
+            default -> true;
+        };
+    }
+
     /** Translation key of what a tuner changes on this anomaly — the cooldown tuner means
      *  "damage interval" on the thermal ones. */
     public static String settingKey(ResourceLocation typeId, TunerKind kind) {
         if (kind == TunerKind.COOLDOWN && AnomalyTypeIds.isThermal(typeId)) return "tuner.fl_zone_arts.damage_interval";
+        if (kind == TunerKind.SPEED && AnomalyTypeIds.isGravity(typeId)) {
+            return AnomalyTypeIds.PODUSHKA.equals(typeId) ? "tuner.fl_zone_arts.bounce_height" : "tuner.fl_zone_arts.force";
+        }
         return kind.translationKey();
     }
 }

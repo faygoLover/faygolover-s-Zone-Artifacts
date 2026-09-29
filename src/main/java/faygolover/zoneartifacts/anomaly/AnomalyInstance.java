@@ -6,9 +6,10 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * One zone anomaly placed in the world (Electra, Zharka, Iney), with its own settings changed with
- * the tuners: size in blocks, cooldown in seconds (for Zharka and Iney: the damage interval),
- * damage per hit and visual intensity. Timers and the "someone is inside" flag are runtime-only.
+ * One zone anomaly placed in the world, with its own settings changed with the tuners: size in
+ * blocks, cooldown in seconds (for Zharka and Iney: the damage interval), damage per hit, visual
+ * intensity and — for the gravitational ones — force ({@link #speed()}, x1.0 = standard).
+ * Timers and the "someone is inside" flag are runtime-only.
  */
 public class AnomalyInstance {
 
@@ -18,8 +19,13 @@ public class AnomalyInstance {
     private double cooldownSeconds;
     private float damage;
     private int intensity;
+    /** Force multiplier of the gravitational anomalies (Plesh: throw, Voronka/Karusel: pull,
+     *  Podushka: launch height). 1.0 for everything else. */
+    private double speed = 1.0;
 
     private transient int cooldownTicks;
+    /** Gravity: random seed of the current phase (orbits, throw directions), sent to clients. */
+    private transient int phaseSeed;
 
     // Thermal (passive-field) runtime state, not saved.
     private transient boolean active;
@@ -154,6 +160,22 @@ public class AnomalyInstance {
         this.jetWander = wander;
     }
 
+    public double speed() {
+        return speed;
+    }
+
+    public void setSpeed(double speed) {
+        this.speed = speed;
+    }
+
+    public int phaseSeed() {
+        return phaseSeed;
+    }
+
+    public void setPhaseSeed(int seed) {
+        this.phaseSeed = seed;
+    }
+
     public CompoundTag save() {
         CompoundTag tag = new CompoundTag();
         tag.putString("type", typeId.toString());
@@ -162,6 +184,7 @@ public class AnomalyInstance {
         tag.putInt("z", pos.getZ());
         tag.putDouble("size", size);
         tag.putDouble("cooldown_seconds", cooldownSeconds);
+        tag.putDouble("speed", speed);
         tag.putFloat("damage", damage);
         tag.putInt("intensity", intensity);
         return tag;
@@ -177,6 +200,8 @@ public class AnomalyInstance {
         double cooldown = tag.contains("cooldown_seconds") ? tag.getDouble("cooldown_seconds") : AnomalyDefaults.cooldownSeconds(typeId);
         float damage = tag.contains("damage") ? tag.getFloat("damage") : AnomalyDefaults.damage(typeId);
         int intensity = tag.contains("intensity") ? tag.getInt("intensity") : AnomalyDefaults.intensity(typeId);
-        return new AnomalyInstance(typeId, pos, size, cooldown, damage, intensity);
+        AnomalyInstance instance = new AnomalyInstance(typeId, pos, size, cooldown, damage, intensity);
+        if (tag.contains("speed")) instance.speed = tag.getDouble("speed");
+        return instance;
     }
 }

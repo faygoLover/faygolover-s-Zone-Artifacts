@@ -1,6 +1,7 @@
 package faygolover.zoneartifacts.client.thermal;
 
 import faygolover.zoneartifacts.ZoneArtifacts;
+import faygolover.zoneartifacts.client.gravity.BloodParticle;
 import faygolover.zoneartifacts.registry.ModParticles;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RegisterParticleProvidersEvent;
@@ -19,5 +20,7 @@ public final class ThermalClientSetup {
         event.registerSpriteSet(ModParticles.EMBER.get(), sprites -> new ThermalParticle.Provider(sprites, ThermalParticle.Kind.EMBER));
         event.registerSpriteSet(ModParticles.HEAT_SMOKE.get(), sprites -> new ThermalParticle.Provider(sprites, ThermalParticle.Kind.HEAT_SMOKE));
         event.registerSpriteSet(ModParticles.FROST_MIST.get(), sprites -> new ThermalParticle.Provider(sprites, ThermalParticle.Kind.FROST_MIST));
+        event.registerSpriteSet(ModParticles.GRAV_DUST.get(), sprites -> new ThermalParticle.Provider(sprites, ThermalParticle.Kind.DUST));
+        event.registerSpriteSet(ModParticles.BLOOD.get(), BloodParticle.Provider::new);
     }
 }

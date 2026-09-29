@@ -253,7 +253,7 @@ public final class RazlomEngine {
      *  arrow stuck in the ground doesn't keep setting it off). */
     private static boolean targetable(Entity entity) {
         if (!entity.isAlive() || entity.isSpectator()) return false;
-        if (entity instanceof Projectile) return entity.getDeltaMovement().lengthSqr() > 1.0E-4;
+        if (entity instanceof Projectile) return Gravity.flying(entity);
         if (!(entity instanceof LivingEntity)) return false;
         return !(entity instanceof Player player && player.isCreative());
     }

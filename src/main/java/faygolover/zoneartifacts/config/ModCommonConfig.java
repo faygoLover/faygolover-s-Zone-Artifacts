@@ -83,6 +83,26 @@ public final class ModCommonConfig {
     public static final ForgeConfigSpec.DoubleValue RAZLOM_BLOCK_IGNITE_CHANCE;
     public static final ForgeConfigSpec.DoubleValue RAZLOM_AIM_SPEED;
 
+    // gravity
+    public static final ForgeConfigSpec.IntValue PLESH_COOLDOWN_SECONDS;
+    public static final ForgeConfigSpec.DoubleValue PLESH_DAMAGE;
+    public static final ForgeConfigSpec.IntValue PLESH_INTENSITY;
+    public static final ForgeConfigSpec.DoubleValue PLESH_PULL_SECONDS;
+    public static final ForgeConfigSpec.DoubleValue PLESH_THROW_SPEED;
+    public static final ForgeConfigSpec.DoubleValue PLESH_FALL_DAMAGE_MULTIPLIER;
+    public static final ForgeConfigSpec.IntValue VORONKA_COOLDOWN_SECONDS;
+    public static final ForgeConfigSpec.DoubleValue VORONKA_DAMAGE;
+    public static final ForgeConfigSpec.IntValue VORONKA_INTENSITY;
+    public static final ForgeConfigSpec.DoubleValue VORONKA_PULL_SECONDS;
+    public static final ForgeConfigSpec.DoubleValue VORONKA_CORE_RADIUS;
+    public static final ForgeConfigSpec.IntValue KARUSEL_COOLDOWN_SECONDS;
+    public static final ForgeConfigSpec.DoubleValue KARUSEL_DAMAGE;
+    public static final ForgeConfigSpec.IntValue KARUSEL_INTENSITY;
+    public static final ForgeConfigSpec.DoubleValue KARUSEL_SPIN_SECONDS;
+    public static final ForgeConfigSpec.DoubleValue KARUSEL_CORE_RADIUS;
+    public static final ForgeConfigSpec.IntValue PODUSHKA_INTENSITY;
+    public static final ForgeConfigSpec.DoubleValue PODUSHKA_HEIGHT;
+
     // effects
     public static final ForgeConfigSpec.DoubleValue ELECTRIFY_SECONDS;
 
@@ -216,6 +236,50 @@ public final class ModCommonConfig {
         RAZLOM_BLOCK_IGNITE_CHANCE = b.comment("Chance per jet hit to set a block on fire: next to the target when it hits,",
                         "or the block in the way when something blocks it. 0 = never.")
                 .defineInRange("blockIgniteChance", 0.04, 0.0, 1.0);
+        b.pop();
+
+        b.comment("Plesh (mosquito bald spot): pulls everything within twice its zone's reach to its center for",
+                "pullSeconds (what's already caught circles on a small orbit), then flings it all up and away.",
+                "The speed tuner scales the throw.").push("plesh");
+        PLESH_COOLDOWN_SECONDS = b.defineInRange("cooldownSeconds", 6, 1, 3600);
+        PLESH_DAMAGE = b.comment("Damage for slamming into a wall after the throw, at full speed, half-hearts.")
+                .defineInRange("damage", 4.0, 0.0, 1000.0);
+        PLESH_INTENSITY = b.defineInRange("intensity", 3, 1, 50);
+        PLESH_PULL_SECONDS = b.defineInRange("pullSeconds", 3.0, 0.5, 60.0);
+        PLESH_THROW_SPEED = b.comment("Throw speed at x1.0, blocks per tick (1.6 flies roughly 10-12 blocks).")
+                .defineInRange("throwSpeed", 1.6, 0.1, 10.0);
+        PLESH_FALL_DAMAGE_MULTIPLIER = b.comment("Fall damage after being thrown is multiplied by this.")
+                .defineInRange("fallDamageMultiplier", 0.5, 0.0, 1.0);
+        b.pop();
+
+        b.comment("Voronka (vortex): pulls everything to its center for pullSeconds, then tears space open:",
+                "damage falling off with the distance from the center, loot caught in the core destroyed,",
+                "anything killed bursts apart. The speed tuner scales the pull.").push("voronka");
+        VORONKA_COOLDOWN_SECONDS = b.defineInRange("cooldownSeconds", 6, 1, 3600);
+        VORONKA_DAMAGE = b.comment("Damage at the center (30 % at the edge), half-hearts.")
+                .defineInRange("damage", 12.0, 0.0, 1000.0);
+        VORONKA_INTENSITY = b.defineInRange("intensity", 3, 1, 50);
+        VORONKA_PULL_SECONDS = b.defineInRange("pullSeconds", 3.0, 0.5, 60.0);
+        VORONKA_CORE_RADIUS = b.comment("Items within this many blocks of the center are destroyed.")
+                .defineInRange("coreRadius", 1.0, 0.1, 16.0);
+        b.pop();
+
+        b.comment("Karusel (carousel): a whirlwind — pulls sideways to its axis and spins, no vertical pull.",
+                "After spinSeconds everyone near the axis is hurt. Running flat out gets you away; jumping doesn't.",
+                "The speed tuner scales the pull.").push("karusel");
+        KARUSEL_COOLDOWN_SECONDS = b.defineInRange("cooldownSeconds", 6, 1, 3600);
+        KARUSEL_DAMAGE = b.defineInRange("damage", 12.0, 0.0, 1000.0);
+        KARUSEL_INTENSITY = b.defineInRange("intensity", 3, 1, 50);
+        KARUSEL_SPIN_SECONDS = b.defineInRange("spinSeconds", 5.0, 0.5, 60.0);
+        KARUSEL_CORE_RADIUS = b.comment("Only those within this many blocks of the axis get hurt.")
+                .defineInRange("coreRadius", 0.75, 0.1, 16.0);
+        b.pop();
+
+        b.comment("Podushka (cushion): harmless. Brakes a fall, then bounces up above its top; sneaking inside",
+                "sinks gently instead. The speed tuner scales the height.").push("podushka");
+        PODUSHKA_INTENSITY = b.defineInRange("intensity", 3, 1, 50);
+        PODUSHKA_HEIGHT = b.comment("Bounce height above the cushion's top at x1.0, blocks.")
+                .defineInRange("height", 3.0, 0.5, 64.0);
         b.pop();
 
         b.push("effects");

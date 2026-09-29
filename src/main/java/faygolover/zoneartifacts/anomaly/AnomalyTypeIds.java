@@ -12,8 +12,17 @@ public final class AnomalyTypeIds {
     public static final ResourceLocation INEY = new ResourceLocation(ZoneArtifacts.MODID, "iney");
     public static final ResourceLocation RAZLOM = new ResourceLocation(ZoneArtifacts.MODID, "razlom");
     public static final ResourceLocation COLD_RAZLOM = new ResourceLocation(ZoneArtifacts.MODID, "cold_razlom");
+    public static final ResourceLocation PLESH = new ResourceLocation(ZoneArtifacts.MODID, "plesh");
+    public static final ResourceLocation VORONKA = new ResourceLocation(ZoneArtifacts.MODID, "voronka");
+    public static final ResourceLocation KARUSEL = new ResourceLocation(ZoneArtifacts.MODID, "karusel");
+    public static final ResourceLocation PODUSHKA = new ResourceLocation(ZoneArtifacts.MODID, "podushka");
 
     private AnomalyTypeIds() {
+    }
+
+    /** Gravitational anomalies (Plesh, Voronka, Karusel, Podushka) — one engine, one client. */
+    public static boolean isGravity(ResourceLocation typeId) {
+        return PLESH.equals(typeId) || VORONKA.equals(typeId) || KARUSEL.equals(typeId) || PODUSHKA.equals(typeId);
     }
 
     /** The Razlom and its soul-fire twin share one engine and one client. */

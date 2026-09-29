@@ -45,6 +45,8 @@ public class AnomalyEngine {
                 ThermalEngine.tick(serverLevel, instance);
             } else if (AnomalyTypeIds.isRazlom(instance.typeId())) {
                 RazlomEngine.tick(serverLevel, instance);
+            } else if (AnomalyTypeIds.isGravity(instance.typeId())) {
+                GravityEngine.tick(serverLevel, instance);
             }
         }
     }

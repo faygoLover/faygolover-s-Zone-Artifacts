@@ -31,6 +31,18 @@ public class ModItems {
     public static final RegistryObject<Item> COLD_RAZLOM_PLACER = ITEMS.register("cold_razlom_placer",
             () -> new AnomalyPlacerItem(AnomalyTypeIds.COLD_RAZLOM, new Item.Properties().stacksTo(1)));
 
+    public static final RegistryObject<Item> PLESH_PLACER = ITEMS.register("plesh_placer",
+            () -> new AnomalyPlacerItem(AnomalyTypeIds.PLESH, new Item.Properties().stacksTo(1)));
+
+    public static final RegistryObject<Item> VORONKA_PLACER = ITEMS.register("voronka_placer",
+            () -> new AnomalyPlacerItem(AnomalyTypeIds.VORONKA, new Item.Properties().stacksTo(1)));
+
+    public static final RegistryObject<Item> KARUSEL_PLACER = ITEMS.register("karusel_placer",
+            () -> new AnomalyPlacerItem(AnomalyTypeIds.KARUSEL, new Item.Properties().stacksTo(1)));
+
+    public static final RegistryObject<Item> PODUSHKA_PLACER = ITEMS.register("podushka_placer",
+            () -> new AnomalyPlacerItem(AnomalyTypeIds.PODUSHKA, new Item.Properties().stacksTo(1)));
+
     public static final RegistryObject<Item> TESLA_PLACER = ITEMS.register("tesla_placer",
             () -> new TeslaRoutePlacerItem(RouteKind.TESLA, new Item.Properties().stacksTo(1)));
 

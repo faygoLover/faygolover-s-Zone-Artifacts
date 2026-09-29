@@ -16,7 +16,6 @@ import faygolover.zoneartifacts.config.ModClientConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
@@ -141,8 +140,8 @@ public final class RazlomRenderer {
         poseStack.translate(-cam.x, -cam.y, -cam.z);
         Matrix4f matrix = poseStack.last().pose();
         MultiBufferSource.BufferSource bufferSource = mc.renderBuffers().bufferSource();
-        // Pass 1 — flames and jets (vanilla lightning type).
-        VertexConsumer buffer = bufferSource.getBuffer(RenderType.lightning());
+        // Pass 1 — flames and jets (glow type too: overlapping streams never fight over depth).
+        VertexConsumer buffer = bufferSource.getBuffer(GlowRenderType.GLOW);
         for (RazlomClientHandler.State state : RazlomClientHandler.states()) {
             Palette pal = palette(state);
             boolean jetting = state.jetActive(now);
@@ -174,7 +173,7 @@ public final class RazlomRenderer {
                 FireDraw.ribbon(matrix, buffer, points, widths, colors, cam);
             }
         }
-        bufferSource.endBatch(RenderType.lightning());
+        bufferSource.endBatch(GlowRenderType.GLOW);
 
         // Pass 2 — glowing seams and the flame's glow, without depth writes (GlowRenderType):
         // no z-fighting between glow layers, or between the seams and the ground.

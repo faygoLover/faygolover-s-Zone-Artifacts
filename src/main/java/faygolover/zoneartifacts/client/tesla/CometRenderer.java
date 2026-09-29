@@ -10,7 +10,6 @@ import faygolover.zoneartifacts.tesla.Tesla;
 import faygolover.zoneartifacts.tesla.TeslaEntity;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.resources.ResourceLocation;
@@ -105,7 +104,9 @@ public class CometRenderer extends EntityRenderer<CometEntity> {
         Vec3 cam = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition().subtract(lerpPos);
         Vec3 center = new Vec3(0.0, entity.getBbHeight() / 2.0, 0.0);
         Matrix4f matrix = poseStack.last().pose();
-        VertexConsumer buffer = buffers.getBuffer(RenderType.lightning());
+        // Everything fiery in the glow type (additive, no depth writes): overlapping ribbons and the
+        // halo never fight over depth, and dim ribbons in front no longer cut dark gaps into the glow.
+        VertexConsumer buffer = buffers.getBuffer(GlowRenderType.GLOW);
 
         long now = entity.level().getGameTime();
         float time = (now % 72000L) + partialTick;
@@ -188,7 +189,6 @@ public class CometRenderer extends EntityRenderer<CometEntity> {
         // ---- the glowing core: its own pass without depth writes (additive, so the order doesn't
         // matter). Its layers used to fight over the same depth (the rippling halo), and the
         // halo's disc hid the arches behind the ball.
-        buffer = buffers.getBuffer(GlowRenderType.GLOW);
         float pulse = 1.0f + 0.07f * Mth.sin(time * 0.7f + ball.phase);
         FireDraw.glow(matrix, buffer, center, 0.8 * scale * pulse, cam, FireDraw.fade(FireDraw.mix(cDeep, body, 0.5f), 0.45f), 20);
         FireDraw.glow(matrix, buffer, center, 0.48 * scale * pulse, cam, FireDraw.fade(body, 0.75f), 18);

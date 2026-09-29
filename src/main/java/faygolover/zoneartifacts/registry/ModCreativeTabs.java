@@ -25,6 +25,10 @@ public class ModCreativeTabs {
                         output.accept(ModItems.INEY_PLACER.get());
                         output.accept(ModItems.RAZLOM_PLACER.get());
                         output.accept(ModItems.COLD_RAZLOM_PLACER.get());
+                        output.accept(ModItems.PLESH_PLACER.get());
+                        output.accept(ModItems.VORONKA_PLACER.get());
+                        output.accept(ModItems.KARUSEL_PLACER.get());
+                        output.accept(ModItems.PODUSHKA_PLACER.get());
                         output.accept(ModItems.TESLA_PLACER.get());
                         output.accept(ModItems.COMET_PLACER.get());
                         output.accept(ModItems.COLD_COMET_PLACER.get());
