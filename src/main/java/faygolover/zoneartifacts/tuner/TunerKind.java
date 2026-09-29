@@ -9,12 +9,16 @@ public enum TunerKind {
     SIZE("size", 0.1, 1.0),
     /** Speed multiplier, x0.0 .. maxSpeedMultiplier. Only anomalies that move (the Tesla). */
     SPEED("speed", 0.1, 1.0),
-    /** Seconds, 1 .. maxCooldownSeconds. Electra: cooldown; Tesla: respawn delay. */
+    /** Seconds, 1 .. maxCooldownSeconds. Electra: cooldown; Tesla: respawn delay. Zharka / Iney:
+     *  damage interval, from 0.1 s in steps of 0.1 / 1.0 (see AnomalyDefaults.cooldownStep). */
     COOLDOWN("cooldown", 1.0, 5.0),
     /** Visual intensity (number of arcs/loops), 1 .. maxIntensity. */
     INTENSITY("intensity", 1.0, 5.0),
     /** Damage per hit in half-hearts, 0 .. maxDamage. */
-    DAMAGE("damage", 0.5, 2.0);
+    DAMAGE("damage", 0.5, 2.0),
+    /** Targeting distance in blocks, 0 .. maxTargetingDistance. Only homing anomalies (the Tesla:
+     *  radius in which it chases a flagged player). Must stay last: sent over the network by ordinal. */
+    TARGETING("targeting", 1.0, 5.0);
 
     private final String key;
     private final double step;

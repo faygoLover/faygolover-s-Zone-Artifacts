@@ -79,7 +79,7 @@ public class AnomalyEngine {
 
         if (!hitLiving.isEmpty() || !hitProjectiles.isEmpty()) {
             playTriggerEffect(level, instance, aabb, hitLiving, hitProjectiles);
-            instance.setCooldownTicks(Math.max(1, instance.cooldownSeconds()) * 20);
+            instance.setCooldownTicks(AnomalyDefaults.ticks(instance.cooldownSeconds()));
             AnomalySyncHandler.broadcastCooldown(level, instance, true);
         }
     }

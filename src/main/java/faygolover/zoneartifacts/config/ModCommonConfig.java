@@ -20,6 +20,7 @@ public final class ModCommonConfig {
     public static final ForgeConfigSpec.IntValue MAX_COOLDOWN_SECONDS;
     public static final ForgeConfigSpec.IntValue MAX_INTENSITY;
     public static final ForgeConfigSpec.DoubleValue MAX_DAMAGE;
+    public static final ForgeConfigSpec.DoubleValue MAX_CHASE_RADIUS;
 
     // electra
     public static final ForgeConfigSpec.IntValue ELECTRA_COOLDOWN_SECONDS;
@@ -27,13 +28,13 @@ public final class ModCommonConfig {
     public static final ForgeConfigSpec.IntValue ELECTRA_INTENSITY;
 
     // zharka / iney
-    public static final ForgeConfigSpec.IntValue ZHARKA_INTERVAL_SECONDS;
+    public static final ForgeConfigSpec.DoubleValue ZHARKA_INTERVAL_SECONDS;
     public static final ForgeConfigSpec.DoubleValue ZHARKA_DAMAGE;
     public static final ForgeConfigSpec.IntValue ZHARKA_INTENSITY;
     public static final ForgeConfigSpec.DoubleValue ZHARKA_IGNITE_CHANCE;
     public static final ForgeConfigSpec.IntValue ZHARKA_IGNITE_SECONDS;
     public static final ForgeConfigSpec.BooleanValue ZHARKA_ALTERS_BLOCKS;
-    public static final ForgeConfigSpec.IntValue INEY_INTERVAL_SECONDS;
+    public static final ForgeConfigSpec.DoubleValue INEY_INTERVAL_SECONDS;
     public static final ForgeConfigSpec.DoubleValue INEY_DAMAGE;
     public static final ForgeConfigSpec.IntValue INEY_INTENSITY;
     public static final ForgeConfigSpec.IntValue INEY_FREEZE_PER_TICK;
@@ -53,7 +54,8 @@ public final class ModCommonConfig {
     static {
         ForgeConfigSpec.Builder b = new ForgeConfigSpec.Builder();
 
-        b.comment("Upper limits of the tuners (the lower limits are fixed: size 1, speed x0, cooldown 1 s, intensity 1, damage 0).")
+        b.comment("Upper limits of the tuners (the lower limits are fixed: size 1, speed x0, cooldown 1 s",
+                        "(Zharka/Iney damage interval 0.1 s), intensity 1, damage 0, targeting distance 0).")
                 .push("limits");
         MAX_SIZE = b.comment("Max anomaly size in blocks (size 1 = one block).")
                 .defineInRange("maxSize", 10.0, 1.0, 64.0);
@@ -65,6 +67,8 @@ public final class ModCommonConfig {
                 .defineInRange("maxIntensity", 10, 1, 50);
         MAX_DAMAGE = b.comment("Max damage per hit, in half-hearts (2 = one heart).")
                 .defineInRange("maxDamage", 40.0, 0.0, 1000.0);
+        MAX_CHASE_RADIUS = b.comment("Max targeting distance of homing anomalies (the Tesla's chase radius), blocks.")
+                .defineInRange("maxTargetingDistance", 64.0, 0.0, 256.0);
         b.pop();
 
         b.comment("Defaults for a newly placed Electra. Its size always starts at 1.").push("electra");
@@ -75,7 +79,8 @@ public final class ModCommonConfig {
 
         b.comment("Defaults for a newly placed Zharka (heat). Its 'cooldown' is the damage interval:",
                 "while anyone is inside, everyone inside takes damage once per interval.").push("zharka");
-        ZHARKA_INTERVAL_SECONDS = b.defineInRange("intervalSeconds", 1, 1, 3600);
+        ZHARKA_INTERVAL_SECONDS = b.comment("Seconds, may be below 1 (min 0.1): hits more often, set the damage lower then.")
+                .defineInRange("intervalSeconds", 1.0, 0.1, 3600.0);
         ZHARKA_DAMAGE = b.defineInRange("damage", 2.0, 0.0, 1000.0);
         ZHARKA_INTENSITY = b.defineInRange("intensity", 3, 1, 50);
         ZHARKA_IGNITE_CHANCE = b.comment("Chance (0..1) that a damage pulse also sets the victim on fire.")
@@ -87,7 +92,8 @@ public final class ModCommonConfig {
         b.pop();
 
         b.comment("Defaults for a newly placed Iney (frost). Its 'cooldown' is the damage interval.").push("iney");
-        INEY_INTERVAL_SECONDS = b.defineInRange("intervalSeconds", 1, 1, 3600);
+        INEY_INTERVAL_SECONDS = b.comment("Seconds, may be below 1 (min 0.1).")
+                .defineInRange("intervalSeconds", 1.0, 0.1, 3600.0);
         INEY_DAMAGE = b.defineInRange("damage", 1.0, 0.0, 1000.0);
         INEY_INTENSITY = b.defineInRange("intensity", 3, 1, 50);
         INEY_FREEZE_PER_TICK = b.comment("Vanilla freezing ticks added per tick inside (vanilla thaws 2 per tick,",
@@ -109,7 +115,8 @@ public final class ModCommonConfig {
                 .defineInRange("respawnSeconds", 4, 1, 3600);
         TESLA_DAMAGE = b.defineInRange("damage", 3.0, 0.0, 1000.0);
         TESLA_INTENSITY = b.defineInRange("intensity", 3, 1, 50);
-        TESLA_CHASE_RADIUS = b.comment("Radius in which a player flagged artifact_equipped is chased, blocks.")
+        TESLA_CHASE_RADIUS = b.comment("Default targeting distance of a new route: radius in which a player flagged",
+                        "artifact_equipped is chased, blocks. Changed per route with the targeting tuner.")
                 .defineInRange("chaseRadius", 10.0, 0.0, 128.0);
         b.pop();
 

@@ -38,15 +38,16 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Client side of Zharka and Iney: the activity ramp (0..1, up in 0.5 s, down in 3 s, driven by the
+ * Client side of Zharka and Iney: the activity ramp (0..1, up in 0.2 s, down in 3 s, driven by the
  * synced {@code active} flag), the cached block faces inside each zone, particles and sounds.
  * The frost crystals on Iney's faces are drawn by {@link IneyFrostRenderer} from the same state.
  * <ul>
  *     <li><b>Zharka</b> — long-lived sparks and fewer smoke wisps, mostly lifting off block faces,
  *     rarely in the air; idle they barely drift up, active there are more and they rise fast.
  *     A looping fire hum whose volume follows the activity.</li>
- *     <li><b>Iney</b> — pale mist creeping over the faces and a few snowflakes; more of both when
- *     active. Now and then a faint icy crackle (vanilla-backed placeholder), more often when active.</li>
+ *     <li><b>Iney</b> — pale mist creeping over the faces; idle it stays on the surfaces and hardly
+ *     any snow falls, active the mist also fills the air and snowflakes come down. An icy loop whose
+ *     volume follows the activity, and an {@code iney_enter} chime the moment it activates.</li>
  * </ul>
  * Particle counts scale with the effective intensity (the anomaly's own, capped by the player's
  * {@code maxEffectIntensity}) and the zone's size.
@@ -58,7 +59,7 @@ public final class ThermalClientHandler {
     public static final double VISIBLE_RADIUS = 40.0;
 
     private static final int FACE_REFRESH_TICKS = 40;
-    /** Share of particles spawned in the open air instead of on a face. */
+    /** Share of Zharka's particles spawned in the open air instead of on a face. */
     private static final float AIR_SHARE = 0.15f;
 
     private static final Map<Key, State> STATES = new HashMap<>();
@@ -78,6 +79,8 @@ public final class ThermalClientHandler {
     public static final class State {
         private SyncAnomaliesPacket.Entry entry;
         private float activity;
+        @Nullable
+        private Boolean lastActive;
         private float previousActivity;
         private List<Face> faces = List.of();
         private float scannedSize = -1.0f;
@@ -162,10 +165,14 @@ public final class ThermalClientHandler {
                 state.facesVersion++;
             }
 
+            // Activation moment (not when an already active anomaly merely comes into range).
+            boolean activated = state.lastActive != null && !state.lastActive && entry.active();
+            state.lastActive = entry.active();
+
             if (state.isZharka()) {
                 tickZharka(mc, level, key, state, zone);
             } else {
-                tickIney(level, state, zone);
+                tickIney(mc, level, key, state, zone, activated);
             }
         }
 
@@ -197,7 +204,7 @@ public final class ThermalClientHandler {
 
         int embers = roll(rate);
         for (int i = 0; i < embers; i++) {
-            Vec3 p = spawnPoint(state, zone, 0.03);
+            Vec3 p = spawnPoint(state, zone, 0.03, AIR_SHARE);
             double up = Mth.lerp(a, 0.004, 0.035) + RANDOM.nextDouble() * Mth.lerp(a, 0.004, 0.02);
             double side = Mth.lerp(a, 0.002, 0.008);
             level.addParticle(ModParticles.EMBER.get(), p.x, p.y, p.z,
@@ -206,52 +213,57 @@ public final class ThermalClientHandler {
 
         int smokes = roll(rate * 0.3);
         for (int i = 0; i < smokes; i++) {
-            Vec3 p = spawnPoint(state, zone, 0.06);
+            Vec3 p = spawnPoint(state, zone, 0.06, AIR_SHARE);
             double up = Mth.lerp(a, 0.003, 0.025) + RANDOM.nextDouble() * Mth.lerp(a, 0.003, 0.012);
             double side = Mth.lerp(a, 0.0015, 0.006);
             level.addParticle(ModParticles.HEAT_SMOKE.get(), p.x, p.y, p.z,
                     (RANDOM.nextDouble() - 0.5) * 2 * side, up, (RANDOM.nextDouble() - 0.5) * 2 * side);
         }
 
-        // Looping hum; its volume follows the activity (see ThermalLoopSound).
-        if (state.loop == null || state.loop.isStopped()) {
-            SoundEvent sound = ForgeRegistries.SOUND_EVENTS.getValue(Thermal.ZHARKA_IDLE_SOUND);
-            if (sound != null) {
-                Vec3 c = zone.getCenter();
-                state.loop = new ThermalLoopSound(key, sound, c, Thermal.ZHARKA_IDLE_VOLUME, Thermal.ZHARKA_ACTIVE_VOLUME);
-                mc.getSoundManager().play(state.loop);
-            }
-        }
+        ensureLoop(mc, key, state, zone, Thermal.ZHARKA_IDLE_SOUND, Thermal.ZHARKA_IDLE_VOLUME, Thermal.ZHARKA_ACTIVE_VOLUME);
+    }
+
+    /** Starts the anomaly's looping sound if it isn't playing; its volume then follows the
+     *  activity by itself (see {@link ThermalLoopSound}). */
+    private static void ensureLoop(Minecraft mc, Key key, State state, AABB zone, ResourceLocation soundId,
+                                   float idleVolume, float activeVolume) {
+        if (state.loop != null && !state.loop.isStopped()) return;
+        SoundEvent sound = ForgeRegistries.SOUND_EVENTS.getValue(soundId);
+        if (sound == null) return;
+        state.loop = new ThermalLoopSound(key, sound, zone.getCenter(), idleVolume, activeVolume);
+        mc.getSoundManager().play(state.loop);
     }
 
     // ---- Iney ---------------------------------------------------------------------------
 
-    private static void tickIney(ClientLevel level, State state, AABB zone) {
+    private static void tickIney(Minecraft mc, ClientLevel level, Key key, State state, AABB zone, boolean activated) {
         float a = state.activity;
         double base = baseRate(state.entry);
 
+        // Idle: mist only on the surfaces (frost on the floor). Active: it fills the air too.
         int mists = roll(base * 0.03 * (1.0 + 2.0 * a));
         for (int i = 0; i < mists; i++) {
-            Vec3 p = spawnPoint(state, zone, 0.08);
+            Vec3 p = spawnPoint(state, zone, 0.08, AIR_SHARE * a);
+            if (p == null) continue;
             double side = Mth.lerp(a, 0.003, 0.012);
             level.addParticle(ModParticles.FROST_MIST.get(), p.x, p.y, p.z,
                     (RANDOM.nextDouble() - 0.5) * 2 * side, (RANDOM.nextDouble() - 0.6) * 0.004, (RANDOM.nextDouble() - 0.5) * 2 * side);
         }
 
-        int flakes = roll(base * 0.015 * (1.0 + 4.0 * a));
+        // Hardly any snow while idle (one flake every ~15 s at intensity 3), a flurry when active.
+        int flakes = roll(base * 0.015 * (0.08 + 4.0 * a));
         for (int i = 0; i < flakes; i++) {
             Vec3 p = randomInside(zone);
             level.addParticle(ParticleTypes.SNOWFLAKE, p.x, p.y, p.z, 0.0, -0.01, 0.0);
         }
 
-        // Occasional icy crackle from a random spot of the zone.
-        float chance = Mth.lerp(a, 1.0f / 120.0f, 1.0f / 30.0f);
-        if (RANDOM.nextFloat() < chance) {
-            SoundEvent sound = ForgeRegistries.SOUND_EVENTS.getValue(Thermal.INEY_IDLE_SOUND);
-            if (sound != null) {
-                Vec3 p = spawnPoint(state, zone, 0.0);
-                float volume = Mth.lerp(a, Thermal.INEY_IDLE_VOLUME, Thermal.INEY_ACTIVE_VOLUME);
-                level.playLocalSound(p.x, p.y, p.z, sound, SoundSource.AMBIENT, volume, 0.8f + RANDOM.nextFloat() * 0.5f, false);
+        ensureLoop(mc, key, state, zone, Thermal.INEY_IDLE_SOUND, Thermal.INEY_IDLE_VOLUME, Thermal.INEY_ACTIVE_VOLUME);
+
+        if (activated) {
+            SoundEvent enter = ForgeRegistries.SOUND_EVENTS.getValue(Thermal.INEY_ENTER_SOUND);
+            if (enter != null) {
+                Vec3 c = zone.getCenter();
+                level.playLocalSound(c.x, c.y, c.z, enter, SoundSource.AMBIENT, Thermal.INEY_ENTER_VOLUME, 1.0f, false);
             }
         }
     }
@@ -272,10 +284,13 @@ public final class ThermalClientHandler {
     }
 
     /** Mostly a random point on one of the zone's block faces, lifted {@code lift} off it;
-     *  sometimes (or when there are no faces) a random point in the air of the zone. */
-    private static Vec3 spawnPoint(State state, AABB zone, double lift) {
+     *  with chance {@code airShare} a random point in the air of the zone. With no faces: the air,
+     *  unless {@code airShare} is 0 — then null (nothing to spawn on). */
+    @Nullable
+    private static Vec3 spawnPoint(State state, AABB zone, double lift, float airShare) {
         List<Face> faces = state.faces;
-        if (faces.isEmpty() || RANDOM.nextFloat() < AIR_SHARE) return randomInside(zone);
+        if (faces.isEmpty()) return airShare > 0 ? randomInside(zone) : null;
+        if (RANDOM.nextFloat() < airShare) return randomInside(zone);
         Face face = faces.get(RANDOM.nextInt(faces.size()));
         Vec3 p = pointOnFace(face, (RANDOM.nextDouble() - 0.5) * 0.9, (RANDOM.nextDouble() - 0.5) * 0.9, lift);
         return zone.inflate(0.1).contains(p) ? p : randomInside(zone);

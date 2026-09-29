@@ -44,24 +44,13 @@
   "iney_idle": {
     "subtitle": "subtitles.fl_zone_arts.iney_idle",
     "sounds": [
-      {
-        "name": "block.amethyst_block.chime",
-        "type": "event",
-        "volume": 0.6,
-        "pitch": 1.3
-      },
-      {
-        "name": "block.powder_snow.step",
-        "type": "event",
-        "volume": 0.8,
-        "pitch": 0.8
-      },
-      {
-        "name": "block.glass.step",
-        "type": "event",
-        "volume": 0.4,
-        "pitch": 1.6
-      }
+      "fl_zone_arts:iney_idle"
+    ]
+  },
+  "iney_enter": {
+    "subtitle": "subtitles.fl_zone_arts.iney_enter",
+    "sounds": [
+      "fl_zone_arts:iney_enter"
     ]
   }
 }

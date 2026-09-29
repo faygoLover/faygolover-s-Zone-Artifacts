@@ -18,10 +18,26 @@ public final class AnomalyDefaults {
     }
 
     /** Electra: cooldown after firing. Zharka / Iney: interval between damage pulses. */
-    public static int cooldownSeconds(ResourceLocation typeId) {
+    public static double cooldownSeconds(ResourceLocation typeId) {
         if (AnomalyTypeIds.ZHARKA.equals(typeId)) return ModCommonConfig.ZHARKA_INTERVAL_SECONDS.get();
         if (AnomalyTypeIds.INEY.equals(typeId)) return ModCommonConfig.INEY_INTERVAL_SECONDS.get();
-        return ModCommonConfig.ELECTRA_COOLDOWN_SECONDS.get();
+        return ModCommonConfig.ELECTRA_COOLDOWN_SECONDS.get().doubleValue();
+    }
+
+    /** Smallest cooldown the tuner allows: Zharka / Iney may hit several times a second. */
+    public static double minCooldownSeconds(ResourceLocation typeId) {
+        return AnomalyTypeIds.isThermal(typeId) ? 0.1 : 1.0;
+    }
+
+    /** Cooldown tuner step: tenths of a second for Zharka / Iney, whole seconds otherwise. */
+    public static double cooldownStep(ResourceLocation typeId, boolean sneaking) {
+        if (AnomalyTypeIds.isThermal(typeId)) return sneaking ? 1.0 : 0.1;
+        return TunerKind.COOLDOWN.step(sneaking);
+    }
+
+    /** Seconds to ticks, at least one tick. */
+    public static int ticks(double seconds) {
+        return Math.max(1, (int) Math.round(seconds * 20.0));
     }
 
     public static float damage(ResourceLocation typeId) {

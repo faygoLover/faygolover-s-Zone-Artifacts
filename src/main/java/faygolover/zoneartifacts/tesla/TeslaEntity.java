@@ -274,7 +274,7 @@ public class TeslaEntity extends Entity {
     }
 
     private void updateChaseTarget(ServerLevel level, TeslaRoute route) {
-        double radius = ModCommonConfig.TESLA_CHASE_RADIUS.get();
+        double radius = route.chaseRadius();
         Vec3 c = center();
 
         if (getState() == State.CHASE) {

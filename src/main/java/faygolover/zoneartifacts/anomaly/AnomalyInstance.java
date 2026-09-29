@@ -14,7 +14,7 @@ public class AnomalyInstance {
     private final ResourceLocation typeId;
     private final BlockPos pos;
     private double size;
-    private int cooldownSeconds;
+    private double cooldownSeconds;
     private float damage;
     private int intensity;
 
@@ -25,7 +25,7 @@ public class AnomalyInstance {
     private transient int pulseTicks;
     private transient int blockTicks;
 
-    public AnomalyInstance(ResourceLocation typeId, BlockPos pos, double size, int cooldownSeconds, float damage, int intensity) {
+    public AnomalyInstance(ResourceLocation typeId, BlockPos pos, double size, double cooldownSeconds, float damage, int intensity) {
         this.typeId = typeId;
         this.pos = pos;
         this.size = size;
@@ -56,11 +56,12 @@ public class AnomalyInstance {
         this.size = size;
     }
 
-    public int cooldownSeconds() {
+    /** Seconds; Electra keeps whole seconds, Zharka / Iney allow tenths (down to 0.1). */
+    public double cooldownSeconds() {
         return cooldownSeconds;
     }
 
-    public void setCooldownSeconds(int seconds) {
+    public void setCooldownSeconds(double seconds) {
         this.cooldownSeconds = seconds;
     }
 
@@ -120,7 +121,7 @@ public class AnomalyInstance {
         tag.putInt("y", pos.getY());
         tag.putInt("z", pos.getZ());
         tag.putDouble("size", size);
-        tag.putInt("cooldown_seconds", cooldownSeconds);
+        tag.putDouble("cooldown_seconds", cooldownSeconds);
         tag.putFloat("damage", damage);
         tag.putInt("intensity", intensity);
         return tag;
@@ -133,7 +134,7 @@ public class AnomalyInstance {
         // Anomalies saved before 0.1.3.0 only had a level 1..3, whose sizes were 1/2/3 blocks,
         // and took everything else from the (now removed) datapack — so fill in today's defaults.
         double size = tag.contains("size") ? tag.getDouble("size") : Math.max(1, tag.getInt("level"));
-        int cooldown = tag.contains("cooldown_seconds") ? tag.getInt("cooldown_seconds") : AnomalyDefaults.cooldownSeconds(typeId);
+        double cooldown = tag.contains("cooldown_seconds") ? tag.getDouble("cooldown_seconds") : AnomalyDefaults.cooldownSeconds(typeId);
         float damage = tag.contains("damage") ? tag.getFloat("damage") : AnomalyDefaults.damage(typeId);
         int intensity = tag.contains("intensity") ? tag.getInt("intensity") : AnomalyDefaults.intensity(typeId);
         return new AnomalyInstance(typeId, pos, size, cooldown, damage, intensity);

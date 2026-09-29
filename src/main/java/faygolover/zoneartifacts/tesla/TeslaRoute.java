@@ -32,6 +32,7 @@ public final class TeslaRoute {
     private int respawnSeconds;
     private float damage;
     private int intensity;
+    private double chaseRadius;
 
     /** A new route with the defaults from the common config. */
     public TeslaRoute(int id, List<BlockPos> waypoints) {
@@ -40,6 +41,7 @@ public final class TeslaRoute {
         this.respawnSeconds = ModCommonConfig.TESLA_RESPAWN_SECONDS.get();
         this.damage = ModCommonConfig.TESLA_DAMAGE.get().floatValue();
         this.intensity = ModCommonConfig.TESLA_INTENSITY.get();
+        this.chaseRadius = ModCommonConfig.TESLA_CHASE_RADIUS.get();
     }
 
     public int id() {
@@ -108,6 +110,15 @@ public final class TeslaRoute {
         this.intensity = intensity;
     }
 
+    /** Targeting distance: how close a flagged player must be for the Tesla to chase them. 0 = never. */
+    public double chaseRadius() {
+        return chaseRadius;
+    }
+
+    public void setChaseRadius(double radius) {
+        this.chaseRadius = radius;
+    }
+
     public CompoundTag save() {
         CompoundTag tag = new CompoundTag();
         tag.putInt("id", id);
@@ -123,6 +134,7 @@ public final class TeslaRoute {
         tag.putInt("respawn_seconds", respawnSeconds);
         tag.putFloat("damage", damage);
         tag.putInt("intensity", intensity);
+        tag.putDouble("chase_radius", chaseRadius);
         return tag;
     }
 
@@ -141,6 +153,7 @@ public final class TeslaRoute {
         if (tag.contains("respawn_seconds")) route.respawnSeconds = tag.getInt("respawn_seconds");
         if (tag.contains("damage")) route.damage = tag.getFloat("damage");
         if (tag.contains("intensity")) route.intensity = tag.getInt("intensity");
+        if (tag.contains("chase_radius")) route.chaseRadius = tag.getDouble("chase_radius");
         return route;
     }
 }

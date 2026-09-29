@@ -29,6 +29,7 @@ public class ModCreativeTabs {
                         output.accept(ModItems.COOLDOWN_TUNER.get());
                         output.accept(ModItems.EFFECT_TUNER.get());
                         output.accept(ModItems.DAMAGE_TUNER.get());
+                        output.accept(ModItems.TARGETING_TUNER.get());
                     })
                     .build());
 

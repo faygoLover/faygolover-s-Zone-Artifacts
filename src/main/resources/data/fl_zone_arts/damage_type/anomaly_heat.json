@@ -1,6 +1,6 @@
 {
   "message_id": "fl_zone_arts.anomaly_heat",
-  "scaling": "always",
+  "scaling": "never",
   "exhaustion": 0.1,
   "effects": "burning"
 }

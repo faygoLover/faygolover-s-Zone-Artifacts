@@ -35,7 +35,7 @@ import java.util.List;
  * <ul>
  *     <li><b>Active</b> while any living, non-spectator, non-creative entity is inside the zone.
  *     The flag is synced to clients on every flip (visual/sound ramp-up).</li>
- *     <li><b>Damage</b> on one shared timer: the first pulse 0.5 s after activation, then every
+ *     <li><b>Damage</b> on one shared timer: the first pulse 0.2 s after activation, then every
  *     {@link AnomalyInstance#cooldownSeconds()} — everyone inside is hit at once. The timer resets
  *     when the zone empties.</li>
  *     <li><b>Zharka</b>: fire damage ({@code anomaly_heat}, counts as fire: fire resistance helps),
@@ -62,7 +62,7 @@ public final class ThermalEngine {
             instance.setActive(active);
             AnomalySyncHandler.broadcastState(level, instance);
             if (active) {
-                int interval = Math.max(1, instance.cooldownSeconds()) * 20;
+                int interval = AnomalyDefaults.ticks(instance.cooldownSeconds());
                 instance.setPulseTicks(Math.max(0, interval - Thermal.FIRST_PULSE_DELAY_TICKS));
                 instance.setBlockTicks(0);
             }
@@ -87,7 +87,7 @@ public final class ThermalEngine {
         }
 
         // ---- shared damage pulse ------------------------------------------------------
-        int interval = Math.max(1, instance.cooldownSeconds()) * 20;
+        int interval = AnomalyDefaults.ticks(instance.cooldownSeconds());
         int pulse = instance.pulseTicks() + 1;
         if (pulse >= interval) {
             pulse = 0;
@@ -100,7 +100,7 @@ public final class ThermalEngine {
         if (blockTicks >= Thermal.BLOCK_INTERVAL_TICKS) {
             blockTicks = 0;
             boolean enabled = heat ? ModCommonConfig.ZHARKA_ALTERS_BLOCKS.get() : ModCommonConfig.INEY_ALTERS_BLOCKS.get();
-            if (enabled) alterBlocks(level, zone.inflate(ModCommonConfig.THERMAL_BLOCK_RADIUS.get()), heat);
+            if (enabled) alterBlocks(level, zone, zone.inflate(ModCommonConfig.THERMAL_BLOCK_RADIUS.get()), heat);
         }
         instance.setBlockTicks(blockTicks);
     }
@@ -114,6 +114,9 @@ public final class ThermalEngine {
     private static void pulse(ServerLevel level, AnomalyInstance instance, boolean heat, List<LivingEntity> inside) {
         for (LivingEntity entity : inside) {
             if (!entity.isAlive()) continue;
+            // Vanilla ignores most of a hit that lands within half a second of the previous one;
+            // the pulse interval is set on purpose (possibly 0.1 s with low damage), so every pulse counts.
+            entity.invulnerableTime = 0;
             AnomalyCombat.hurt(level, entity, heat ? Thermal.HEAT_DAMAGE_TYPE : Thermal.COLD_DAMAGE_TYPE, instance.damage());
             if (heat && !entity.fireImmune() && level.random.nextDouble() < ModCommonConfig.ZHARKA_IGNITE_CHANCE.get()) {
                 entity.setSecondsOnFire(ModCommonConfig.ZHARKA_IGNITE_SECONDS.get());
@@ -123,7 +126,7 @@ public final class ThermalEngine {
 
     // ==== block transforms ==========================================================
 
-    private static void alterBlocks(ServerLevel level, AABB box, boolean heat) {
+    private static void alterBlocks(ServerLevel level, AABB zone, AABB box, boolean heat) {
         RandomSource random = level.random;
         int minX = (int) Math.floor(box.minX), minY = (int) Math.floor(box.minY), minZ = (int) Math.floor(box.minZ);
         int sx = Math.max(1, (int) Math.ceil(box.maxX) - minX);
@@ -139,7 +142,7 @@ public final class ThermalEngine {
             BlockPos pos = cursor.immutable();
             BlockState state = level.getBlockState(pos);
             if (heat) heat(level, pos, state, random);
-            else cold(level, pos, state, random);
+            else cold(level, pos, state, random, zone);
         }
     }
 
@@ -215,7 +218,7 @@ public final class ThermalEngine {
 
     // ---- Iney: freezes water and lava, puts out fire, kills plants, snows -------------
 
-    private static void cold(ServerLevel level, BlockPos pos, BlockState state, RandomSource random) {
+    private static void cold(ServerLevel level, BlockPos pos, BlockState state, RandomSource random, AABB zone) {
         if (state.is(Blocks.WATER) && state.getFluidState().isSource()) {
             set(level, pos, Blocks.ICE.defaultBlockState());
             return;
@@ -255,13 +258,15 @@ public final class ThermalEngine {
             return;
         }
 
-        // Snow settles on top of solid ground and slowly piles up (up to 3 layers).
+        // Snow settles only inside the zone itself, on solid ground, and very slowly piles up
+        // (up to 3 layers).
+        if (!AnomalyGeometry.containsBlockCenter(zone, pos)) return;
         if (state.is(Blocks.SNOW)) {
             int layers = state.getValue(SnowLayerBlock.LAYERS);
-            if (layers < 3 && random.nextInt(4) == 0) set(level, pos, state.setValue(SnowLayerBlock.LAYERS, layers + 1));
+            if (layers < 3 && random.nextInt(Thermal.SNOW_GROW_ONE_IN) == 0) set(level, pos, state.setValue(SnowLayerBlock.LAYERS, layers + 1));
             return;
         }
-        if (state.isAir()) {
+        if (state.isAir() && random.nextInt(Thermal.SNOW_SETTLE_ONE_IN) == 0) {
             BlockState snow = Blocks.SNOW.defaultBlockState();
             if (snow.canSurvive(level, pos)) set(level, pos, snow);
         }

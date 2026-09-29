@@ -32,6 +32,7 @@ public class ModItems {
     public static final RegistryObject<Item> COOLDOWN_TUNER = tuner("cooldown_tuner", TunerKind.COOLDOWN);
     public static final RegistryObject<Item> EFFECT_TUNER = tuner("effect_tuner", TunerKind.INTENSITY);
     public static final RegistryObject<Item> DAMAGE_TUNER = tuner("damage_tuner", TunerKind.DAMAGE);
+    public static final RegistryObject<Item> TARGETING_TUNER = tuner("targeting_tuner", TunerKind.TARGETING);
 
     private static RegistryObject<Item> tuner(String name, TunerKind kind) {
         return ITEMS.register(name, () -> new AnomalyTunerItem(kind, new Item.Properties().stacksTo(1)));

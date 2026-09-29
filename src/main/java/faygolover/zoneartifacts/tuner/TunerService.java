@@ -67,15 +67,19 @@ public final class TunerService {
                 value = fmt1(instance.size());
                 standard = fmt1(AnomalyDefaults.SIZE);
             }
-            case SPEED -> {
+            case SPEED, TARGETING -> {
+                // Zone anomalies stand still and home in on nobody.
                 player.displayClientMessage(Component.translatable("message.fl_zone_arts.tuner.not_applicable",
                         name, setting), true);
                 return;
             }
             case COOLDOWN -> {
-                instance.setCooldownSeconds((int) clamp(instance.cooldownSeconds() + step, 1, ModCommonConfig.MAX_COOLDOWN_SECONDS.get()));
-                value = instance.cooldownSeconds() + " с";
-                standard = AnomalyDefaults.cooldownSeconds(typeId) + " с";
+                double cooldownStep = AnomalyDefaults.cooldownStep(typeId, sneaking) * (increase ? 1 : -1);
+                double newSeconds = clamp(instance.cooldownSeconds() + cooldownStep,
+                        AnomalyDefaults.minCooldownSeconds(typeId), ModCommonConfig.MAX_COOLDOWN_SECONDS.get());
+                instance.setCooldownSeconds(round(newSeconds, 10));
+                value = seconds(instance.cooldownSeconds());
+                standard = seconds(AnomalyDefaults.cooldownSeconds(typeId));
             }
             case INTENSITY -> {
                 instance.setIntensity((int) clamp(instance.intensity() + step, 1, ModCommonConfig.MAX_INTENSITY.get()));
@@ -136,6 +140,11 @@ public final class TunerService {
                 value = fmt1(route.damage());
                 standard = fmt1(ModCommonConfig.TESLA_DAMAGE.get());
             }
+            case TARGETING -> {
+                route.setChaseRadius(round(clamp(route.chaseRadius() + step, 0.0, ModCommonConfig.MAX_CHASE_RADIUS.get()), 10));
+                value = route.chaseRadius() <= 0 ? "0 (не преследует)" : fmt1(route.chaseRadius()) + " бл.";
+                standard = fmt1(ModCommonConfig.TESLA_CHASE_RADIUS.get()) + " бл.";
+            }
             default -> {
                 return;
             }
@@ -163,6 +172,11 @@ public final class TunerService {
     /** Rounds to 1/{@code per} (10 → tenths, 2 → halves) so repeated steps never drift. */
     private static double round(double value, int per) {
         return Math.round(value * per) / (double) per;
+    }
+
+    /** "5 с" for whole seconds, "0.3 с" for fractions. */
+    private static String seconds(double value) {
+        return (value == Math.rint(value) ? String.valueOf((long) value) : fmt1(value)) + " с";
     }
 
     private static String fmt1(double value) {

@@ -9,8 +9,8 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * A thermal anomaly's standing loop (Zharka's fire hum). Volume and pitch follow the anomaly's
- * activity every tick, so the sound swells within half a second when someone steps in and dies
+ * A thermal anomaly's standing loop (Zharka's fire hum, Iney's ice loop). Volume and pitch follow the anomaly's
+ * activity every tick, so the sound swells within 0.2 s when someone steps in and dies
  * down over three seconds after. Stops itself once the anomaly is gone or out of range.
  */
 public class ThermalLoopSound extends AbstractTickableSoundInstance {

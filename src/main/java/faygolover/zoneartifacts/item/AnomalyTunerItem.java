@@ -2,17 +2,20 @@ package faygolover.zoneartifacts.item;
 
 import faygolover.zoneartifacts.tuner.TunerKind;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 
 import javax.annotation.Nullable;
+import java.util.List;
 
 /**
  * A tuner: left-click on an anomaly lowers one of its settings, right-click raises it, sneaking
@@ -56,5 +59,11 @@ public class AnomalyTunerItem extends Item {
     @Override
     public boolean canAttackBlock(BlockState state, Level level, BlockPos pos, Player player) {
         return false;
+    }
+
+    @Override
+    public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+        ItemTooltips.addDescription(getDescriptionId(), tooltip);
+        ItemTooltips.addLines("tooltip.fl_zone_arts.tuner.controls", tooltip);
     }
 }
