@@ -127,7 +127,7 @@ public final class TeslaRouteService {
         if (tesla == null) {
             send(player, Component.translatable(KEY + "spawn_failed", route.id()), null);
         } else {
-            tesla.initOnRoute(route.id(), route.waypoints());
+            tesla.initOnRoute(route);
             level.addFreshEntity(tesla);
             route.setTeslaUuid(tesla.getUUID());
             route.setLastKnownTeslaPos(tesla.blockPosition());

@@ -22,6 +22,11 @@ public class ModCreativeTabs {
                     .displayItems((parameters, output) -> {
                         output.accept(ModItems.ELECTRA_PLACER.get());
                         output.accept(ModItems.TESLA_PLACER.get());
+                        output.accept(ModItems.SIZE_TUNER.get());
+                        output.accept(ModItems.SPEED_TUNER.get());
+                        output.accept(ModItems.COOLDOWN_TUNER.get());
+                        output.accept(ModItems.EFFECT_TUNER.get());
+                        output.accept(ModItems.DAMAGE_TUNER.get());
                     })
                     .build());
 

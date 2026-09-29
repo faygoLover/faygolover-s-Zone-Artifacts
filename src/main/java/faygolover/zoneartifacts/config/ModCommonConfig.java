@@ -1,0 +1,87 @@
+package faygolover.zoneartifacts.config;
+
+import net.minecraftforge.common.ForgeConfigSpec;
+
+/**
+ * {@code config/fl_zone_arts-common.toml} — global settings, read by the server.
+ * <p>
+ * Replaces the old anomaly datapacks: each anomaly now keeps its own settings, changed in game
+ * with the tuners, and this file only holds the <em>defaults</em> a newly placed anomaly starts
+ * with, plus the tuners' upper limits. Changing a default here does not touch anomalies already
+ * placed — they keep whatever they were tuned to.
+ */
+public final class ModCommonConfig {
+
+    public static final ForgeConfigSpec SPEC;
+
+    // limits
+    public static final ForgeConfigSpec.DoubleValue MAX_SIZE;
+    public static final ForgeConfigSpec.DoubleValue MAX_SPEED_MULTIPLIER;
+    public static final ForgeConfigSpec.IntValue MAX_COOLDOWN_SECONDS;
+    public static final ForgeConfigSpec.IntValue MAX_INTENSITY;
+    public static final ForgeConfigSpec.DoubleValue MAX_DAMAGE;
+
+    // electra
+    public static final ForgeConfigSpec.IntValue ELECTRA_COOLDOWN_SECONDS;
+    public static final ForgeConfigSpec.DoubleValue ELECTRA_DAMAGE;
+    public static final ForgeConfigSpec.IntValue ELECTRA_INTENSITY;
+
+    // tesla
+    public static final ForgeConfigSpec.DoubleValue TESLA_BASE_SPEED;
+    public static final ForgeConfigSpec.IntValue TESLA_RESPAWN_SECONDS;
+    public static final ForgeConfigSpec.DoubleValue TESLA_DAMAGE;
+    public static final ForgeConfigSpec.IntValue TESLA_INTENSITY;
+    public static final ForgeConfigSpec.DoubleValue TESLA_CHASE_RADIUS;
+
+    // effects
+    public static final ForgeConfigSpec.DoubleValue ELECTRIFY_SECONDS;
+
+    static {
+        ForgeConfigSpec.Builder b = new ForgeConfigSpec.Builder();
+
+        b.comment("Upper limits of the tuners (the lower limits are fixed: size 1, speed x0, cooldown 1 s, intensity 1, damage 0).")
+                .push("limits");
+        MAX_SIZE = b.comment("Max anomaly size in blocks (size 1 = one block).")
+                .defineInRange("maxSize", 10.0, 1.0, 64.0);
+        MAX_SPEED_MULTIPLIER = b.comment("Max speed multiplier for moving anomalies (1.0 = standard speed).")
+                .defineInRange("maxSpeedMultiplier", 10.0, 0.0, 100.0);
+        MAX_COOLDOWN_SECONDS = b.comment("Max cooldown in seconds (for the Tesla: its respawn delay).")
+                .defineInRange("maxCooldownSeconds", 60, 1, 3600);
+        MAX_INTENSITY = b.comment("Max visual intensity (number of arcs/loops the anomaly draws).")
+                .defineInRange("maxIntensity", 10, 1, 50);
+        MAX_DAMAGE = b.comment("Max damage per hit, in half-hearts (2 = one heart).")
+                .defineInRange("maxDamage", 40.0, 0.0, 1000.0);
+        b.pop();
+
+        b.comment("Defaults for a newly placed Electra. Its size always starts at 1.").push("electra");
+        ELECTRA_COOLDOWN_SECONDS = b.defineInRange("cooldownSeconds", 5, 1, 3600);
+        ELECTRA_DAMAGE = b.defineInRange("damage", 3.0, 0.0, 1000.0);
+        ELECTRA_INTENSITY = b.defineInRange("intensity", 3, 1, 50);
+        b.pop();
+
+        b.comment("Tesla settings. A new route starts with size 1 and speed x1.0.").push("tesla");
+        TESLA_BASE_SPEED = b.comment("Standard speed (x1.0) in blocks per tick.")
+                .defineInRange("baseSpeed", 0.12, 0.01, 2.0);
+        TESLA_RESPAWN_SECONDS = b.comment("Default respawn delay of a new route, seconds.")
+                .defineInRange("respawnSeconds", 4, 1, 3600);
+        TESLA_DAMAGE = b.defineInRange("damage", 3.0, 0.0, 1000.0);
+        TESLA_INTENSITY = b.defineInRange("intensity", 3, 1, 50);
+        TESLA_CHASE_RADIUS = b.comment("Radius in which a player flagged artifact_equipped is chased, blocks.")
+                .defineInRange("chaseRadius", 10.0, 0.0, 128.0);
+        b.pop();
+
+        b.push("effects");
+        ELECTRIFY_SECONDS = b.comment("How long the electrification visual lasts after an Electra or Tesla hit, seconds.")
+                .defineInRange("electrifySeconds", 1.0, 0.05, 60.0);
+        b.pop();
+
+        SPEC = b.build();
+    }
+
+    private ModCommonConfig() {
+    }
+
+    public static int electrifyTicks() {
+        return Math.max(1, (int) Math.round(ELECTRIFY_SECONDS.get() * 20.0));
+    }
+}

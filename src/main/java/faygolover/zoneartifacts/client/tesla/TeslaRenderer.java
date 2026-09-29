@@ -3,6 +3,8 @@ package faygolover.zoneartifacts.client.tesla;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import faygolover.zoneartifacts.ZoneArtifacts;
+import faygolover.zoneartifacts.config.ModClientConfig;
+import faygolover.zoneartifacts.tesla.Tesla;
 import faygolover.zoneartifacts.tesla.TeslaEntity;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -12,32 +14,47 @@ import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
 
 /**
- * The Tesla itself: a tight ball of lightning around a bright glowing core.
- * <p>
- * The ball is made of several <em>closed</em> loops — each a jagged ring through 5–7 points on a
- * shell around the center, the last point joined back to the first — tilted at random angles. No
- * loop has loose ends, so nothing sticks out as a "tail": it reads as one knot of discharges. Each
- * loop re-forms on its own short timer and its path crackles every tick, so the ball boils rather
- * than blinks. While spawning the whole thing grows from a point.
+ * The Tesla itself: a tight ball of lightning around a bright glowing core, {@code size} blocks
+ * across.
+ * <ul>
+ *     <li><b>Loops</b> — as many as the Tesla's intensity (capped by the player's
+ *     {@code maxEffectIntensity}): each a closed jagged ring through 5–7 points on a shell around
+ *     the center, tilted at random. No loose ends, so it reads as one knot of discharges. Each loop
+ *     re-forms on its own short timer and crackles every tick.</li>
+ *     <li><b>Grabbing arcs</b> — a few short discharges from the ball onto nearby block surfaces,
+ *     within twice the ball's radius, re-latching as it flies. Found by a handful of short raycasts
+ *     per tick (only while no arc is attached to that slot), so they cost next to nothing. Purely
+ *     visual.</li>
+ * </ul>
+ * While spawning the whole thing grows from a point.
  */
 public class TeslaRenderer extends EntityRenderer<TeslaEntity> {
 
     private static final ResourceLocation UNUSED_TEXTURE = new ResourceLocation(ZoneArtifacts.MODID, "textures/entity/tesla.png");
 
-    private static final int LOOP_COUNT = 5;
+    /** Shell radius at size 1 (the ball is 1 block across, i.e. radius 0.5). */
     private static final double SHELL_RADIUS = 0.42;
     private static final int MIN_LOOP_LIFE = 3;
     private static final int MAX_LOOP_LIFE = 8;
     private static final int SEGMENTS_PER_LINK = 3;
     private static final double JITTER = 0.28;
     private static final float LOOP_HALF_WIDTH = 0.022f;
+
+    private static final int MIN_GRAB_LIFE = 3;
+    private static final int MAX_GRAB_LIFE = 6;
+    private static final int GRAB_SEARCH_TRIES = 4;
 
     private static final Map<TeslaEntity, Ball> BALLS = new WeakHashMap<>();
 
@@ -57,64 +74,127 @@ public class TeslaRenderer extends EntityRenderer<TeslaEntity> {
         TeslaEntity.State state = entity.getState();
         if (!state.isVisible()) return;
 
-        float scale = 1.0f;
+        float grow = 1.0f;
         if (state == TeslaEntity.State.SPAWNING) {
-            float t = Mth.clamp(entity.clientStateAge(partialTick) / TeslaClientCache.spawnGrowTicks(), 0.0f, 1.0f);
-            scale = t * t * (3.0f - 2.0f * t);
+            float t = Mth.clamp(entity.clientStateAge(partialTick) / Tesla.SPAWN_GROW_TICKS, 0.0f, 1.0f);
+            grow = t * t * (3.0f - 2.0f * t);
         }
-        if (scale < 0.02f) return;
+        if (grow < 0.02f) return;
+
+        float size = entity.getSize();
+        double scale = grow * size;
+        float width = LOOP_HALF_WIDTH * (float) Math.sqrt(size) * grow;
+        int intensity = ModClientConfig.effective(entity.getIntensity());
 
         // The pose stack is already at the entity's interpolated position, so everything below
         // is in entity-local coordinates, camera included.
-        Vec3 camLocal = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition()
-                .subtract(entity.getPosition(partialTick));
+        Vec3 lerpPos = entity.getPosition(partialTick);
+        Vec3 camLocal = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition().subtract(lerpPos);
         Vec3 center = new Vec3(0.0, entity.getBbHeight() / 2.0, 0.0);
         Matrix4f matrix = poseStack.last().pose();
         VertexConsumer buffer = buffers.getBuffer(RenderType.lightning());
 
         long now = entity.level().getGameTime();
         Ball ball = BALLS.computeIfAbsent(entity, e -> new Ball());
-        ball.update(now);
+        ball.update(entity, now, intensity, state != TeslaEntity.State.SPAWNING);
 
-        // Loops first, glow last: the lightning render type writes depth, so a glow drawn first
-        // would hide the loops on the far side of the ball.
-        for (int l = 0; l < ball.loops.length; l++) {
-            Loop loop = ball.loops[l];
+        // Loops and grabbing arcs first, glow last: the lightning render type writes depth, so a
+        // glow drawn first would hide the loops on the far side of the ball.
+        for (Loop loop : ball.loops) {
             int n = loop.points.length;
             for (int i = 0; i < n; i++) {
                 Vec3 a = center.add(loop.points[i].scale(scale));
                 Vec3 b = center.add(loop.points[(i + 1) % n].scale(scale));
                 RandomSource rand = RandomSource.create(loop.seed ^ (i * 0x9E3779B97F4A7C15L) ^ (now * 0xBF58476D1CE4E5B9L));
                 Vec3[] path = LightningDraw.jittered(a, b, rand, SEGMENTS_PER_LINK, JITTER);
-                LightningDraw.ribbon(matrix, buffer, path, LOOP_HALF_WIDTH * scale, 175, 215, 255, 255, camLocal);
+                LightningDraw.ribbon(matrix, buffer, path, width, 175, 215, 255, 255, camLocal);
             }
+        }
+
+        for (Grab grab : ball.grabs) {
+            if (grab == null) continue;
+            Vec3 hitLocal = grab.hitWorld.subtract(lerpPos);
+            Vec3 dir = hitLocal.subtract(center);
+            double len = dir.length();
+            if (len < 1.0E-3) continue;
+            Vec3 from = center.add(dir.scale(SHELL_RADIUS * scale / len));
+            float life = Mth.clamp((float) (now - grab.startTick + partialTick) / (grab.expiresAt - grab.startTick), 0.0f, 1.0f);
+            int alpha = (int) (255 * (1.0f - life * life));
+            RandomSource rand = RandomSource.create(grab.seed ^ (now * 0xBF58476D1CE4E5B9L));
+            Vec3[] path = LightningDraw.jittered(from, hitLocal, rand, 4, 0.22);
+            LightningDraw.ribbon(matrix, buffer, path, width * 0.8f, 185, 222, 255, alpha, camLocal);
         }
 
         float pulse = 1.0f + 0.08f * Mth.sin((now + partialTick) * 0.9f);
         LightningDraw.glow(matrix, buffer, center, 0.55 * scale * pulse, camLocal, 110, 180, 255, 120, 18);
         Vec3 toCam = camLocal.subtract(center).normalize();
-        LightningDraw.glow(matrix, buffer, center.add(toCam.scale(0.02)), 0.17 * scale * pulse, camLocal, 255, 255, 255, 240, 14);
+        LightningDraw.glow(matrix, buffer, center.add(toCam.scale(0.02 * size)), 0.17 * scale * pulse, camLocal, 255, 255, 255, 240, 14);
     }
 
-    /** Per-Tesla client state: the loops currently forming the ball. */
+    /** Per-Tesla client state: the loops forming the ball and the arcs latched onto blocks. */
     private static final class Ball {
-        final Loop[] loops = new Loop[LOOP_COUNT];
+        final List<Loop> loops = new ArrayList<>();
+        Grab[] grabs = new Grab[0];
         final RandomSource random = RandomSource.create();
+        long lastUpdate = Long.MIN_VALUE;
 
-        void update(long now) {
-            for (int i = 0; i < loops.length; i++) {
-                if (loops[i] == null) {
-                    loops[i] = Loop.create(random, now);
-                    // Stagger first expiries so the loops never all re-form on the same tick.
-                    loops[i].expiresAt = now + 1 + random.nextInt(MAX_LOOP_LIFE);
-                } else if (now >= loops[i].expiresAt) {
-                    loops[i] = Loop.create(random, now);
-                }
+        void update(TeslaEntity entity, long now, int intensity, boolean grabbing) {
+            if (now == lastUpdate) return;
+            lastUpdate = now;
+
+            while (loops.size() < intensity) {
+                Loop loop = Loop.create(random, now);
+                // Stagger first expiries so the loops never all re-form on the same tick.
+                loop.expiresAt = now + 1 + random.nextInt(MAX_LOOP_LIFE);
+                loops.add(loop);
             }
+            while (loops.size() > intensity) {
+                loops.remove(loops.size() - 1);
+            }
+            for (int i = 0; i < loops.size(); i++) {
+                if (now >= loops.get(i).expiresAt) loops.set(i, Loop.create(random, now));
+            }
+
+            // Roughly one grabbing arc per two points of intensity: 2 at the default 3.
+            int grabCount = grabbing ? Math.max(1, (intensity + 1) / 2) : 0;
+            if (grabs.length != grabCount) grabs = new Grab[grabCount];
+            if (grabCount == 0) return;
+
+            Vec3 center = entity.center();
+            double reach = entity.getSize(); // twice the ball's radius (size / 2)
+            for (int i = 0; i < grabs.length; i++) {
+                Grab g = grabs[i];
+                boolean stale = g == null || now >= g.expiresAt || g.hitWorld.distanceTo(center) > reach * 1.1;
+                if (stale) grabs[i] = findGrab(entity, center, reach, now);
+            }
+        }
+
+        private Grab findGrab(TeslaEntity entity, Vec3 center, double reach, long now) {
+            for (int attempt = 0; attempt < GRAB_SEARCH_TRIES; attempt++) {
+                Vec3 end = center.add(Loop.randomUnit(random).scale(reach));
+                BlockHitResult hit = entity.level().clip(new ClipContext(center, end,
+                        ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, entity));
+                if (hit.getType() == HitResult.Type.MISS) continue;
+                Grab g = new Grab();
+                g.hitWorld = hit.getLocation();
+                g.startTick = now;
+                g.expiresAt = now + MIN_GRAB_LIFE + random.nextInt(MAX_GRAB_LIFE - MIN_GRAB_LIFE + 1);
+                g.seed = random.nextLong();
+                return g;
+            }
+            return null; // nothing solid nearby this tick — try again next tick
         }
     }
 
-    /** One closed ring, points stored relative to the ball center at full size. */
+    /** A discharge from the ball onto a block surface, fixed to its world hit point. */
+    private static final class Grab {
+        Vec3 hitWorld;
+        long startTick;
+        long expiresAt;
+        long seed;
+    }
+
+    /** One closed ring, points stored relative to the ball center at size 1. */
     private static final class Loop {
         Vec3[] points;
         long seed;
@@ -143,7 +223,7 @@ public class TeslaRenderer extends EntityRenderer<TeslaEntity> {
             return loop;
         }
 
-        private static Vec3 randomUnit(RandomSource random) {
+        static Vec3 randomUnit(RandomSource random) {
             double z = random.nextDouble() * 2.0 - 1.0;
             double angle = random.nextDouble() * Math.PI * 2.0;
             double r = Math.sqrt(1.0 - z * z);

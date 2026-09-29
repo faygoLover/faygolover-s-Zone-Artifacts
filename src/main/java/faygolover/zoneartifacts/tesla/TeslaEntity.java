@@ -1,9 +1,11 @@
 package faygolover.zoneartifacts.tesla;
 
 import faygolover.zoneartifacts.ZoneArtifacts;
+import faygolover.zoneartifacts.anomaly.AnomalyCombat;
+import faygolover.zoneartifacts.config.ModCommonConfig;
+import faygolover.zoneartifacts.network.ElectrifyPacket;
 import faygolover.zoneartifacts.network.ModNetwork;
 import faygolover.zoneartifacts.network.TeslaBurstPacket;
-import faygolover.zoneartifacts.network.TeslaElectrifyPacket;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.protocol.Packet;
@@ -16,9 +18,11 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MoverType;
+import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
@@ -36,6 +40,10 @@ import java.util.UUID;
  * so arrows, snowballs and melee all pass straight through). The only ways to get rid of one are
  * to outrun it or to make it fly into a block.
  * <p>
+ * Its settings (size, speed, respawn delay, damage, intensity) live on the route and are re-read
+ * every tick, so tuner changes apply immediately; size and intensity are synced to clients for
+ * rendering, and the size also scales the hitbox.
+ * <p>
  * Life cycle (server-driven, the state is synced to clients for visuals and the idle sound):
  * <ol>
  *     <li>{@link State#SPAWNING}: stands on a waypoint and "grows out of a point".</li>
@@ -43,7 +51,7 @@ import java.util.UUID;
  *     <li>{@link State#CHASE}: a player flagged {@code artifact_equipped} came within the chase
  *     radius — flies straight at them until the target is lost.</li>
  *     <li>{@link State#DEAD}: popped, after hitting a block (bolts scatter from the impact point)
- *     or touching a living entity (shock + electrification + a second hit when it ends).
+ *     or touching a living entity (one hit + a purely visual electrification of the target).
  *     Invisible and inert until it respawns on a random waypoint of its route.</li>
  * </ol>
  */
@@ -63,6 +71,10 @@ public class TeslaEntity extends Entity {
 
     private static final EntityDataAccessor<Byte> DATA_STATE =
             SynchedEntityData.defineId(TeslaEntity.class, EntityDataSerializers.BYTE);
+    private static final EntityDataAccessor<Float> DATA_SIZE =
+            SynchedEntityData.defineId(TeslaEntity.class, EntityDataSerializers.FLOAT);
+    private static final EntityDataAccessor<Integer> DATA_INTENSITY =
+            SynchedEntityData.defineId(TeslaEntity.class, EntityDataSerializers.INT);
 
     private static final int CHASE_SCAN_INTERVAL = 5;
     private static final int POSITION_REPORT_INTERVAL = 20;
@@ -99,9 +111,11 @@ public class TeslaEntity extends Entity {
     // ---- setup ------------------------------------------------------------------
 
     /** Called once when the route is completed, before the entity is added to the level. */
-    public void initOnRoute(int routeId, List<BlockPos> waypoints) {
-        this.routeId = routeId;
+    public void initOnRoute(TeslaRoute route) {
+        List<BlockPos> waypoints = route.waypoints();
+        this.routeId = route.id();
         this.targetIndex = waypoints.size() > 1 ? 1 : 0;
+        applySettings(route);
         setCenter(TeslaGeometry.center(waypoints.get(0)));
         setState(State.SPAWNING);
     }
@@ -113,6 +127,8 @@ public class TeslaEntity extends Entity {
     @Override
     protected void defineSynchedData() {
         this.entityData.define(DATA_STATE, (byte) State.SPAWNING.ordinal());
+        this.entityData.define(DATA_SIZE, (float) Tesla.DEFAULT_SIZE);
+        this.entityData.define(DATA_INTENSITY, 3);
     }
 
     public State getState() {
@@ -126,11 +142,42 @@ public class TeslaEntity extends Entity {
         this.stateTicks = 0;
     }
 
+    /** Visible ball diameter in blocks (1 = standard). */
+    public float getSize() {
+        return Math.max(0.1f, this.entityData.get(DATA_SIZE));
+    }
+
+    public int getIntensity() {
+        return this.entityData.get(DATA_INTENSITY);
+    }
+
+    /** Copies the route's size and intensity into the synced data when they changed. */
+    private void applySettings(TeslaRoute route) {
+        float size = (float) route.size();
+        if (Math.abs(size - this.entityData.get(DATA_SIZE)) > 1.0E-4f) {
+            this.entityData.set(DATA_SIZE, size);
+        }
+        if (route.intensity() != this.entityData.get(DATA_INTENSITY)) {
+            this.entityData.set(DATA_INTENSITY, route.intensity());
+        }
+    }
+
+    @Override
+    public EntityDimensions getDimensions(Pose pose) {
+        return super.getDimensions(pose).scale(getSize());
+    }
+
     @Override
     public void onSyncedDataUpdated(EntityDataAccessor<?> key) {
         super.onSyncedDataUpdated(key);
         if (DATA_STATE.equals(key) && this.level().isClientSide) {
             this.clientStateChangeTick = this.tickCount;
+        }
+        if (DATA_SIZE.equals(key)) {
+            // Resize around the ball's center, not its bottom, so it grows/shrinks in place.
+            Vec3 c = center();
+            refreshDimensions();
+            this.setPos(c.x, c.y - this.getBbHeight() / 2.0, c.z);
         }
     }
 
@@ -180,36 +227,37 @@ public class TeslaEntity extends Entity {
             }
         }
 
-        TeslaConfig config = TeslaConfigManager.get();
+        applySettings(route);
         if (targetIndex >= route.waypoints().size()) targetIndex = 0;
         stateTicks++;
 
         switch (getState()) {
             case SPAWNING -> {
-                if (stateTicks >= config.spawnGrowTicks()) setState(State.PATROL);
+                if (stateTicks >= Tesla.SPAWN_GROW_TICKS) setState(State.PATROL);
             }
-            case PATROL, CHASE -> tickActive(level, route, config);
+            case PATROL, CHASE -> tickActive(level, route);
             case DEAD -> {
-                if (stateTicks >= config.respawnDelayTicks()) respawn(route);
+                if (stateTicks >= Math.max(1, route.respawnSeconds()) * 20) respawn(route);
             }
         }
     }
 
-    private void tickActive(ServerLevel level, TeslaRoute route, TeslaConfig config) {
-        updateChaseTarget(level, route, config);
+    private void tickActive(ServerLevel level, TeslaRoute route) {
+        updateChaseTarget(level, route);
 
         Player target = getState() == State.CHASE ? resolveTarget(level) : null;
         Vec3 dest = target != null
                 ? target.getBoundingBox().getCenter()
                 : TeslaGeometry.center(route.waypoints().get(targetIndex));
 
+        double speed = ModCommonConfig.TESLA_BASE_SPEED.get() * route.speedMultiplier();
         Vec3 toDest = dest.subtract(center());
         double dist = toDest.length();
-        if (dist > 1.0E-4) {
-            Vec3 motion = toDest.scale(Math.min(config.speed(), dist) / dist);
+        if (dist > 1.0E-4 && speed > 1.0E-6) {
+            Vec3 motion = toDest.scale(Math.min(speed, dist) / dist);
             move(MoverType.SELF, motion);
             if (this.horizontalCollision || this.verticalCollision) {
-                pop(level, config, collisionNormal(motion), false);
+                pop(level, route, collisionNormal(motion), false);
                 return;
             }
         }
@@ -219,14 +267,14 @@ public class TeslaEntity extends Entity {
         }
 
         List<LivingEntity> touched = level.getEntitiesOfClass(LivingEntity.class,
-                getBoundingBox().inflate(CONTACT_MARGIN), TeslaCombat::isValidTarget);
+                getBoundingBox().inflate(CONTACT_MARGIN), AnomalyCombat::isValidTeslaTarget);
         if (!touched.isEmpty()) {
-            shock(level, config, touched);
+            shock(level, route, touched);
         }
     }
 
-    private void updateChaseTarget(ServerLevel level, TeslaRoute route, TeslaConfig config) {
-        double radius = config.chaseRadius();
+    private void updateChaseTarget(ServerLevel level, TeslaRoute route) {
+        double radius = ModCommonConfig.TESLA_CHASE_RADIUS.get();
         Vec3 c = center();
 
         if (getState() == State.CHASE) {
@@ -257,7 +305,7 @@ public class TeslaEntity extends Entity {
     }
 
     private static boolean isChaseable(Player player, Vec3 from, double radius) {
-        return TeslaCombat.isValidTarget(player)
+        return AnomalyCombat.isValidTeslaTarget(player)
                 && hasArtifactFlag(player)
                 && player.getBoundingBox().getCenter().distanceToSqr(from) <= radius * radius;
     }
@@ -293,22 +341,22 @@ public class TeslaEntity extends Entity {
         return new Vec3(0, 0, -Math.signum(motion.z));
     }
 
-    private void shock(ServerLevel level, TeslaConfig config, List<LivingEntity> touched) {
+    /** One hit on contact; the electrification that follows is purely visual. */
+    private void shock(ServerLevel level, TeslaRoute route, List<LivingEntity> touched) {
         for (LivingEntity target : touched) {
-            TeslaCombat.hurt(level, target, config.damageType(), config.damage());
-            TeslaCombat.playRandomHit(level, target.getBoundingBox().getCenter(), config);
-            ModNetwork.CHANNEL.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> target),
-                    new TeslaElectrifyPacket(target.getId(), config.electrifyTicks()));
-            TeslaShockScheduler.schedule(level, target, config.electrifyTicks());
+            AnomalyCombat.hurt(level, target, Tesla.DAMAGE_TYPE, route.damage());
+            AnomalyCombat.playRandom(level, target.getBoundingBox().getCenter(), Tesla.HIT_SOUNDS, Tesla.SOUND_VOLUME);
+            ElectrifyPacket.send(target, ModCommonConfig.electrifyTicks(), 0, route.intensity());
         }
-        pop(level, config, null, true);
+        pop(level, route, null, true);
     }
 
     /** @param normal the struck wall's normal, or {@code null} for a contact pop (bolts in all directions) */
-    private void pop(ServerLevel level, TeslaConfig config, @Nullable Vec3 normal, boolean contact) {
+    private void pop(ServerLevel level, TeslaRoute route, @Nullable Vec3 normal, boolean contact) {
         Vec3 c = center();
-        ModNetwork.CHANNEL.send(PacketDistributor.TRACKING_ENTITY.with(() -> this), new TeslaBurstPacket(c, normal));
-        TeslaCombat.playSound(level, c, contact ? config.contactSound() : config.blockSound(), config.soundVolume());
+        ModNetwork.CHANNEL.send(PacketDistributor.TRACKING_ENTITY.with(() -> this),
+                new TeslaBurstPacket(c, normal, getSize(), route.intensity()));
+        AnomalyCombat.playSound(level, c, contact ? Tesla.CONTACT_SOUND : Tesla.BLOCK_SOUND, Tesla.SOUND_VOLUME);
         chaseTargetUuid = null;
         setState(State.DEAD);
     }
@@ -386,6 +434,8 @@ public class TeslaEntity extends Entity {
         State state = ordinal >= 0 && ordinal < State.values().length ? State.values()[ordinal] : State.PATROL;
         if (state == State.CHASE) state = State.PATROL;
         this.entityData.set(DATA_STATE, (byte) state.ordinal());
+        if (tag.contains("size")) this.entityData.set(DATA_SIZE, tag.getFloat("size"));
+        if (tag.contains("intensity")) this.entityData.set(DATA_INTENSITY, tag.getInt("intensity"));
     }
 
     @Override
@@ -394,6 +444,8 @@ public class TeslaEntity extends Entity {
         tag.putInt("target", targetIndex);
         tag.putInt("state_ticks", stateTicks);
         tag.putByte("state", (byte) getState().ordinal());
+        tag.putFloat("size", getSize());
+        tag.putInt("intensity", getIntensity());
     }
 
     @Override

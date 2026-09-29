@@ -9,6 +9,8 @@ import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import faygolover.zoneartifacts.ZoneArtifacts;
+import faygolover.zoneartifacts.client.TunerClientHandler;
+import faygolover.zoneartifacts.item.AnomalyTunerItem;
 import faygolover.zoneartifacts.item.TeslaRoutePlacerItem;
 import faygolover.zoneartifacts.network.SyncTeslaRoutesPacket;
 import faygolover.zoneartifacts.tesla.TeslaGeometry;
@@ -36,7 +38,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * While the Tesla placer is in hand: every route around the player as small waypoint cubes joined
+ * While the Tesla placer (or, within a smaller radius, a tuner) is in hand: every route around the player as small waypoint cubes joined
  * by route lines — yellow while still being built, cyan once completed (a completed route also
  * gets its closing line from the last point back to the first). A draft's start point is drawn a
  * bit larger, so the GM always sees which point closes the route. The waypoint under the
@@ -46,6 +48,9 @@ import java.util.Optional;
 public final class TeslaRouteRenderer {
 
     private static final double VISIBLE_RADIUS = 48.0;
+
+    /** Smaller radius with a tuner in hand, which also shows every anomaly zone. */
+    private static final double TUNER_RADIUS = 16.0;
 
     private static final int DRAFT_RGB = 0xFFD23C;
     private static final int COMPLETE_RGB = 0x46C8FF;
@@ -60,18 +65,27 @@ public final class TeslaRouteRenderer {
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) return;
         Minecraft mc = Minecraft.getInstance();
         Player player = mc.player;
-        if (player == null || mc.level == null || !TeslaRoutePlacerItem.isHeld(player)) return;
+        if (player == null || mc.level == null) return;
+        boolean placer = TeslaRoutePlacerItem.isHeld(player);
+        boolean tuner = !placer && AnomalyTunerItem.isHeld(player);
+        if (!placer && !tuner) return;
 
         List<SyncTeslaRoutesPacket.Entry> routes = TeslaClientCache.routesFor(mc.level.dimension());
-        Optional<TeslaGeometry.WaypointHit> aimed = TeslaClientHandler.pick(player);
-        if (aimed.isPresent() && !TeslaGeometry.beatsBlock(aimed.get(), TeslaClientHandler.blockHitDistanceSq(player))) {
-            aimed = Optional.empty();
+        Optional<TeslaGeometry.WaypointRef> aimed;
+        if (placer) {
+            Optional<TeslaGeometry.WaypointHit> hit = TeslaClientHandler.pick(player);
+            aimed = hit.isPresent() && TeslaGeometry.beatsBlock(hit.get(), TeslaClientHandler.blockHitDistanceSq(player))
+                    ? Optional.of(hit.get().ref()) : Optional.empty();
+        } else {
+            TunerClientHandler.Target target = TunerClientHandler.pick(player);
+            aimed = target != null ? Optional.ofNullable(target.waypoint()) : Optional.empty();
         }
-        BlockPos preview = aimed.isPresent() ? null : previewPos(mc, player, routes);
+        BlockPos preview = placer && aimed.isEmpty() ? previewPos(mc, player, routes) : null;
 
         Vec3 camPos = event.getCamera().getPosition();
         Vec3 playerPos = player.position();
-        double radiusSq = VISIBLE_RADIUS * VISIBLE_RADIUS;
+        double radius = placer ? VISIBLE_RADIUS : TUNER_RADIUS;
+        double radiusSq = radius * radius;
         PoseStack poseStack = event.getPoseStack();
 
         poseStack.pushPose();
@@ -101,7 +115,7 @@ public final class TeslaRouteRenderer {
                 Vec3 c = TeslaGeometry.center(points.get(i));
                 boolean near = c.distanceToSqr(playerPos) <= radiusSq;
                 if (near) {
-                    boolean hovered = aimed.isPresent() && aimed.get().ref().routeId() == route.id() && aimed.get().ref().index() == i;
+                    boolean hovered = aimed.isPresent() && aimed.get().routeId() == route.id() && aimed.get().index() == i;
                     int edge = hovered ? 0xFFFFFF : rgb;
                     LevelRenderer.renderLineBox(poseStack, lines, markerBox(route, i),
                             r(edge), g(edge), b(edge), 1.0f);

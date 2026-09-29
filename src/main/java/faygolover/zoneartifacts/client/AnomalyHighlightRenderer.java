@@ -10,7 +10,9 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import faygolover.zoneartifacts.ZoneArtifacts;
 import faygolover.zoneartifacts.anomaly.AnomalyGeometry;
+import faygolover.zoneartifacts.anomaly.Electra;
 import faygolover.zoneartifacts.item.AnomalyPlacerItem;
+import faygolover.zoneartifacts.item.AnomalyTunerItem;
 import faygolover.zoneartifacts.network.SyncAnomaliesPacket;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
@@ -33,29 +35,40 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.joml.Matrix4f;
 
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
- * While holding an {@link AnomalyPlacerItem}, draws a translucent volume with opaque edges for
- * every existing anomaly of this type within {@link #VISIBLE_RADIUS} of the player (resolved
- * against the server-synced {@link ClientAnomalyCache}), plus — if the player is aiming at a
- * block with no anomaly of this type on it yet — a level-1 placement preview at that block.
+ * Draws anomaly zones as translucent volumes with opaque edges:
+ * <ul>
+ *     <li>with a placer in hand — every anomaly of that type within {@link #VISIBLE_RADIUS}, plus a
+ *     placement preview (default size) where a right-click would put a new one, unless the player
+ *     aims into an existing zone or the spot is inside one (placement is refused there);</li>
+ *     <li>with a tuner in hand — every anomaly of any type within {@link #TUNER_RADIUS}.</li>
+ * </ul>
+ * The zone under the crosshair gets white edges.
  */
 @Mod.EventBusSubscriber(modid = ZoneArtifacts.MODID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public class AnomalyHighlightRenderer {
 
     private static final int FACE_ARGB = 0x40FFDD55;
     private static final int EDGE_ARGB = 0xFF33251A;
+    private static final int HOVER_EDGE_ARGB = 0xFFFFFFFF;
 
-    /** How far around the player existing anomalies get drawn. Generous enough to see a cluster
-     *  of placed zones coming, cheap enough that drawing all of them every frame is a non-issue —
-     *  these are hand-placed by GMs, never hundreds at once. */
+    /** How far around the player existing anomalies get drawn with a placer in hand. */
     private static final double VISIBLE_RADIUS = 24.0;
+
+    /** Smaller radius with a tuner, which shows every anomaly type at once. */
+    private static final double TUNER_RADIUS = 16.0;
 
     /** Shrinks the drawn box a hair so its faces don't sit exactly coplanar with terrain faces
      *  (which flickers from z-fighting) when a size-1 zone lines up exactly with a block. */
     private static final double EDGE_INSET = 0.002;
+
+    private record Box(AABB aabb, boolean hovered) {
+    }
 
     @SubscribeEvent
     public static void onRenderLevelStage(RenderLevelStageEvent event) {
@@ -65,10 +78,11 @@ public class AnomalyHighlightRenderer {
         Player player = mc.player;
         if (player == null || mc.level == null) return;
 
+        boolean tuner = AnomalyTunerItem.isHeld(player);
         ResourceLocation typeId = AnomalyPlacerItem.heldTypeId(player);
-        if (typeId == null) return;
+        if (typeId == null && !tuner) return;
 
-        List<AABB> boxes = resolveAabbsToShow(mc, player, typeId);
+        List<Box> boxes = resolveBoxes(mc, player, tuner ? null : typeId, tuner ? TUNER_RADIUS : VISIBLE_RADIUS, !tuner);
         if (boxes.isEmpty()) return;
 
         Camera camera = event.getCamera();
@@ -79,54 +93,59 @@ public class AnomalyHighlightRenderer {
         poseStack.translate(-camPos.x, -camPos.y, -camPos.z);
 
         MultiBufferSource.BufferSource bufferSource = mc.renderBuffers().bufferSource();
-        for (AABB box : boxes) {
-            AABB aabb = box.deflate(EDGE_INSET);
+        for (Box box : boxes) {
+            AABB aabb = box.aabb().deflate(EDGE_INSET);
 
             renderFilledBox(poseStack, aabb, FACE_ARGB);
 
+            int edge = box.hovered() ? HOVER_EDGE_ARGB : EDGE_ARGB;
             VertexConsumer lines = bufferSource.getBuffer(RenderType.lines());
             LevelRenderer.renderLineBox(poseStack, lines, aabb,
-                    argbToFloat(EDGE_ARGB, 16), argbToFloat(EDGE_ARGB, 8), argbToFloat(EDGE_ARGB, 0), argbToFloat(EDGE_ARGB, 24));
+                    argbToFloat(edge, 16), argbToFloat(edge, 8), argbToFloat(edge, 0), argbToFloat(edge, 24));
             bufferSource.endBatch(RenderType.lines());
         }
 
         poseStack.popPose();
     }
 
-    /** Every existing anomaly of this type within {@link #VISIBLE_RADIUS} of the player, plus a
-     *  level-1 placement preview at the targeted block if it doesn't already have one. */
-    private static List<AABB> resolveAabbsToShow(Minecraft mc, Player player, ResourceLocation typeId) {
-        List<AABB> boxes = new ArrayList<>();
+    /** Zones within {@code radius} ({@code typeId == null}: every type), and — if requested — the
+     *  placement preview for a new anomaly. */
+    private static List<Box> resolveBoxes(Minecraft mc, Player player, @Nullable ResourceLocation typeId,
+                                          double radius, boolean withPreview) {
+        List<Box> boxes = new ArrayList<>();
         Vec3 playerPos = player.position();
-        double radiusSq = VISIBLE_RADIUS * VISIBLE_RADIUS;
+        double radiusSq = radius * radius;
 
         List<SyncAnomaliesPacket.Entry> entries = ClientAnomalyCache.entriesFor(player.level().dimension());
-        boolean previewPosOccupied = false;
+        Optional<SyncAnomaliesPacket.Entry> hovered = AnomalyClientTargeting.pick(player, typeId);
+
         BlockPos previewPos = null;
-        if (mc.hitResult instanceof BlockHitResult blockHit && blockHit.getType() == HitResult.Type.BLOCK) {
+        if (withPreview && hovered.isEmpty()
+                && mc.hitResult instanceof BlockHitResult blockHit && blockHit.getType() == HitResult.Type.BLOCK) {
             // Same resolution as AnomalyPlacerItem.useOn: the preview sits where the anomaly would
             // actually be placed (the neighbour on the clicked face's side), not inside the clicked block.
             previewPos = new BlockPlaceContext(player, InteractionHand.MAIN_HAND, player.getMainHandItem(), blockHit).getClickedPos();
         }
 
         for (SyncAnomaliesPacket.Entry entry : entries) {
-            if (!entry.typeId().equals(typeId)) continue;
-            if (previewPos != null && entry.pos().equals(previewPos)) previewPosOccupied = true;
+            AABB zone = AnomalyGeometry.centeredAabb(entry.pos(), entry.size());
+            if (previewPos != null && (entry.pos().equals(previewPos) || AnomalyGeometry.containsBlockCenter(zone, previewPos))) {
+                previewPos = null;
+            }
+            if (typeId != null && !entry.typeId().equals(typeId)) continue;
 
             double dx = entry.pos().getX() + 0.5 - playerPos.x;
             double dy = entry.pos().getY() + 0.5 - playerPos.y;
             double dz = entry.pos().getZ() + 0.5 - playerPos.z;
             if (dx * dx + dy * dy + dz * dz > radiusSq) continue;
 
-            int size = ClientAnomalyTypeCache.sizeForLevel(entry.typeId(), entry.level());
-            boxes.add(AnomalyGeometry.centeredAabb(entry.pos(), size));
+            boolean isHovered = hovered.isPresent() && hovered.get().pos().equals(entry.pos()) && hovered.get().typeId().equals(entry.typeId());
+            boxes.add(new Box(zone, isHovered));
         }
 
-        if (previewPos != null && !previewPosOccupied) {
-            int size = ClientAnomalyTypeCache.sizeForLevel(typeId, 1);
-            boxes.add(AnomalyGeometry.centeredAabb(previewPos, size));
+        if (previewPos != null) {
+            boxes.add(new Box(AnomalyGeometry.centeredAabb(previewPos, Electra.DEFAULT_SIZE), false));
         }
-
         return boxes;
     }
 

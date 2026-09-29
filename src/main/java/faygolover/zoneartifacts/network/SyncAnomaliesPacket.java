@@ -18,7 +18,9 @@ import java.util.function.Supplier;
 
 /**
  * Server -> client: "here is the full list of placed anomalies in this dimension right now."
- * Sent on join/dimension change and whenever an anomaly is placed, removed or changes level.
+ * Sent on join/dimension change and whenever an anomaly is placed, removed or tuned. Carries
+ * only what clients draw: position, size, visual intensity, cooldown flag (damage and cooldown
+ * length stay server-side).
  * Purely a rendering aid ({@link ClientAnomalyCache}) — no gameplay decision ever trusts it;
  * placement/removal/level changes stay server-authoritative (see AnomalyTargeting).
  */
@@ -35,7 +37,7 @@ public class SyncAnomaliesPacket {
     public static SyncAnomaliesPacket of(ResourceKey<Level> dimension, List<AnomalyInstance> instances) {
         List<Entry> entries = new ArrayList<>(instances.size());
         for (AnomalyInstance instance : instances) {
-            entries.add(new Entry(instance.typeId(), instance.pos(), instance.level(), instance.cooldownTicks() > 0));
+            entries.add(new Entry(instance.typeId(), instance.pos(), (float) instance.size(), instance.intensity(), instance.cooldownTicks() > 0));
         }
         return new SyncAnomaliesPacket(dimension, entries);
     }
@@ -46,7 +48,8 @@ public class SyncAnomaliesPacket {
         for (Entry entry : packet.entries) {
             buf.writeResourceLocation(entry.typeId());
             buf.writeBlockPos(entry.pos());
-            buf.writeVarInt(entry.level());
+            buf.writeFloat(entry.size());
+            buf.writeVarInt(entry.intensity());
             buf.writeBoolean(entry.onCooldown());
         }
     }
@@ -58,9 +61,10 @@ public class SyncAnomaliesPacket {
         for (int i = 0; i < count; i++) {
             ResourceLocation typeId = buf.readResourceLocation();
             BlockPos pos = buf.readBlockPos();
-            int level = buf.readVarInt();
+            float size = buf.readFloat();
+            int intensity = buf.readVarInt();
             boolean onCooldown = buf.readBoolean();
-            entries.add(new Entry(typeId, pos, level, onCooldown));
+            entries.add(new Entry(typeId, pos, size, intensity, onCooldown));
         }
         return new SyncAnomaliesPacket(dimension, entries);
     }
@@ -77,6 +81,6 @@ public class SyncAnomaliesPacket {
      *  both stop the instant this flips to true and resume the instant it flips back. In practice
      *  this flag is usually kept current by the much lighter {@link SyncAnomalyCooldownPacket}
      *  rather than a full resend of this packet — see that class's javadoc. */
-    public record Entry(ResourceLocation typeId, BlockPos pos, int level, boolean onCooldown) {
+    public record Entry(ResourceLocation typeId, BlockPos pos, float size, int intensity, boolean onCooldown) {
     }
 }

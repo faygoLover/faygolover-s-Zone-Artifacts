@@ -11,53 +11,48 @@ import net.minecraftforge.network.NetworkEvent;
 import java.util.function.Supplier;
 
 /**
- * Server -> client, sent once per struck target the instant a burst anomaly fires: tells the
- * client to draw lightning bolts converging from the zone's own (surface) anchor points onto
- * {@code targetEntityId} — or, when nothing living was hit and only a thrown projectile tripped
- * the field, onto the zone's own center instead ({@code targetEntityId == -1}, see {@link
- * AnomalyArcRenderer#onStrike}). This is what replaced the old particle burst: instead of a
- * generic mid-air puff, the always-on ambient arcs (also {@code AnomalyArcRenderer}) get one
- * dramatic moment where they actually reach out and hit something.
- * <p>
- * Purely cosmetic and fire-and-forget — same spirit as the rest of the visual layer here, the
- * server doesn't need the client to acknowledge or agree on anything about this packet.
+ * Server -> client, sent once per struck target the instant a zone anomaly fires: draw bolts
+ * converging from the zone's surface points onto {@code targetEntityId} (see
+ * {@link AnomalyArcRenderer#onStrike}). Carries the zone's size and intensity so the client needs
+ * no other lookup. Purely cosmetic and fire-and-forget.
  */
 public class AnomalyStrikePacket {
 
     private final ResourceLocation typeId;
     private final BlockPos pos;
-    private final int level;
+    private final float size;
+    private final int intensity;
     private final int targetEntityId;
 
-    public AnomalyStrikePacket(ResourceLocation typeId, BlockPos pos, int level, int targetEntityId) {
+    public AnomalyStrikePacket(ResourceLocation typeId, BlockPos pos, float size, int intensity, int targetEntityId) {
         this.typeId = typeId;
         this.pos = pos;
-        this.level = level;
+        this.size = size;
+        this.intensity = intensity;
         this.targetEntityId = targetEntityId;
     }
 
     public static void encode(AnomalyStrikePacket packet, FriendlyByteBuf buf) {
         buf.writeResourceLocation(packet.typeId);
         buf.writeBlockPos(packet.pos);
-        buf.writeVarInt(packet.level);
-        // -1 means "no living target, strike the zone's own center" — writeVarInt/readVarInt
-        // round-trip negative values fine (just at zig-zag-free full width), same trick already
-        // used elsewhere in this mod's networking for "no value" sentinels.
+        buf.writeFloat(packet.size);
+        buf.writeVarInt(packet.intensity);
         buf.writeVarInt(packet.targetEntityId);
     }
 
     public static AnomalyStrikePacket decode(FriendlyByteBuf buf) {
         ResourceLocation typeId = buf.readResourceLocation();
         BlockPos pos = buf.readBlockPos();
-        int level = buf.readVarInt();
+        float size = buf.readFloat();
+        int intensity = buf.readVarInt();
         int targetEntityId = buf.readVarInt();
-        return new AnomalyStrikePacket(typeId, pos, level, targetEntityId);
+        return new AnomalyStrikePacket(typeId, pos, size, intensity, targetEntityId);
     }
 
     public static void handle(AnomalyStrikePacket packet, Supplier<NetworkEvent.Context> ctx) {
         ctx.get().enqueueWork(() ->
                 DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () ->
-                        AnomalyArcRenderer.onStrike(packet.typeId, packet.pos, packet.level, packet.targetEntityId))
+                        AnomalyArcRenderer.onStrike(packet.typeId, packet.pos, packet.size, packet.intensity, packet.targetEntityId))
         );
         ctx.get().setPacketHandled(true);
     }

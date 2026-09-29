@@ -1,0 +1,6 @@
+{
+  "parent": "item/handheld",
+  "textures": {
+    "layer0": "fl_zone_arts:item/size_tuner"
+  }
+}

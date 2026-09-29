@@ -23,9 +23,6 @@ public class AnomalySyncHandler {
     @SubscribeEvent
     public static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer player && player.level() instanceof ServerLevel serverLevel) {
-            // Type shapes only need sending once per session (they don't change per-dimension);
-            // instances are sent both here and on every dimension change.
-            ModNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), SyncAnomalyTypeShapesPacket.ofAllLoadedTypes());
             sendTo(player, serverLevel);
         }
     }
@@ -42,7 +39,7 @@ public class AnomalySyncHandler {
         ModNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), packet);
     }
 
-    /** Call after any add/remove/level change so every client watching this dimension sees it. */
+    /** Call after any add/remove/tuning change so every client watching this dimension sees it. */
     public static void broadcast(ServerLevel level) {
         SyncAnomaliesPacket packet = SyncAnomaliesPacket.of(level.dimension(), AnomalySavedData.get(level).instances());
         ModNetwork.CHANNEL.send(PacketDistributor.DIMENSION.with(level::dimension), packet);

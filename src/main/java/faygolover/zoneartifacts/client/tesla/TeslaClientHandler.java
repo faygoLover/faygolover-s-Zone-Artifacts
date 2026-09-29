@@ -4,6 +4,7 @@ import faygolover.zoneartifacts.ZoneArtifacts;
 import faygolover.zoneartifacts.item.TeslaRoutePlacerItem;
 import faygolover.zoneartifacts.network.ModNetwork;
 import faygolover.zoneartifacts.network.TeslaWaypointClickPacket;
+import faygolover.zoneartifacts.tesla.Tesla;
 import faygolover.zoneartifacts.tesla.TeslaEntity;
 import faygolover.zoneartifacts.tesla.TeslaGeometry;
 import net.minecraft.client.Minecraft;
@@ -66,13 +67,13 @@ public final class TeslaClientHandler {
             }
         }
 
-        SoundEvent sound = ForgeRegistries.SOUND_EVENTS.getValue(TeslaClientCache.idleSound());
+        SoundEvent sound = ForgeRegistries.SOUND_EVENTS.getValue(Tesla.IDLE_SOUND);
         if (sound == null) return;
 
         for (Entity entity : mc.level.entitiesForRendering()) {
             if (!(entity instanceof TeslaEntity tesla) || !tesla.getState().isVisible()) continue;
             if (IDLE_SOUNDS.containsKey(tesla.getId())) continue;
-            TeslaIdleSound idle = new TeslaIdleSound(tesla, sound, TeslaClientCache.idleVolume(), TeslaClientCache.idlePitch());
+            TeslaIdleSound idle = new TeslaIdleSound(tesla, sound, Tesla.IDLE_VOLUME, Tesla.IDLE_PITCH);
             IDLE_SOUNDS.put(tesla.getId(), idle);
             mc.getSoundManager().play(idle);
         }

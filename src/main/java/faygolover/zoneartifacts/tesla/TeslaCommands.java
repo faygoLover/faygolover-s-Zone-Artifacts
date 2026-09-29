@@ -76,7 +76,9 @@ public final class TeslaCommands {
                 case UNKNOWN -> "Тесла в незагруженном чанке";
             };
             lines.add("#" + route.id() + ": " + route.waypoints().size() + " точ., старт "
-                    + TeslaRouteService.formatPos(route.waypoints().get(0)) + " — " + state);
+                    + TeslaRouteService.formatPos(route.waypoints().get(0)) + " — " + state
+                    + String.format(java.util.Locale.ROOT, " [размер %.1f, скорость x%.1f, возрождение %d с, урон %.1f, насыщенность %d]",
+                    route.size(), route.speedMultiplier(), route.respawnSeconds(), route.damage(), route.intensity()));
         }
         for (TeslaDrafts.Draft draft : TeslaDrafts.inDimension(level.dimension())) {
             lines.add("строится (" + draft.ownerName() + "): " + draft.points().size() + " точ., старт "

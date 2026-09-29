@@ -22,5 +22,22 @@
   "message.fl_zone_arts.tesla.draft_removed": "[Тесла] Незавершённый маршрут игрока %1$s удалён.",
   "message.fl_zone_arts.tesla.draft_removed_by_other": "[Тесла] Ваш незавершённый маршрут удалил %1$s.",
   "message.fl_zone_arts.tesla.draft_reset_dimension": "[Тесла] Незавершённый маршрут (старт %1$s) сброшен из-за смены измерения.",
-  "message.fl_zone_arts.tesla.current_start": "Старт текущего маршрута: %1$s."
+  "message.fl_zone_arts.tesla.current_start": "Старт текущего маршрута: %1$s.",
+  "anomaly.fl_zone_arts.electra": "Электра",
+  "item.fl_zone_arts.size_tuner": "Тюнер аномалий: размер",
+  "item.fl_zone_arts.speed_tuner": "Тюнер аномалий: скорость",
+  "item.fl_zone_arts.cooldown_tuner": "Тюнер аномалий: перезарядка",
+  "item.fl_zone_arts.effect_tuner": "Тюнер аномалий: эффекты",
+  "item.fl_zone_arts.damage_tuner": "Тюнер аномалий: урон",
+  "tuner.fl_zone_arts.size": "размер",
+  "tuner.fl_zone_arts.speed": "скорость",
+  "tuner.fl_zone_arts.cooldown": "перезарядка",
+  "tuner.fl_zone_arts.intensity": "насыщенность эффектов",
+  "tuner.fl_zone_arts.damage": "урон",
+  "message.fl_zone_arts.anomaly.placed": "%1$s поставлена в %2$s",
+  "message.fl_zone_arts.anomaly.removed": "%1$s в %2$s удалена",
+  "message.fl_zone_arts.anomaly.inside_other": "Аномалии ставятся только на блоки, не внутрь другой аномалии",
+  "message.fl_zone_arts.tuner.value": "%1$s — %2$s: %3$s (стандарт %4$s)",
+  "message.fl_zone_arts.tuner.not_applicable": "У аномалии «%1$s» нельзя настроить параметр «%2$s»",
+  "message.fl_zone_arts.tuner.tesla_route": "Тесла #%1$s"
 }

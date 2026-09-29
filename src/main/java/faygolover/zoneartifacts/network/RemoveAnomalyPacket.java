@@ -21,9 +21,7 @@ import java.util.function.Supplier;
  * round trip for the same reason cycling used to: the anomaly's zone doesn't necessarily coincide
  * with any real block, so Forge's LeftClickBlock/LeftClickEmpty never reaches the server reliably
  * on their own (LeftClickEmpty in particular is client-only) — see
- * {@code ClientAnomalyInputHandler} / {@code AnomalyClientTargeting}. Right-click (place/cycle)
- * doesn't need a packet at all since RightClickBlock/RightClickItem both reach the server directly
- * — see {@code AnomalyInteractionHandler}.
+ * {@code ClientAnomalyInputHandler} / {@code AnomalyClientTargeting}.
  * <p>
  * The server re-resolves the target itself by exact position + type rather than trusting the
  * client's aim, and also checks the sender is still holding a matching placer item. Worst case a
@@ -60,8 +58,8 @@ public class RemoveAnomalyPacket {
             AnomalySavedData data = AnomalySavedData.get(serverLevel);
             findAt(data, packet.pos, packet.typeId).ifPresent(instance -> {
                 data.remove(instance);
-                player.displayClientMessage(Component.literal("fl_zone_arts: removed " + packet.typeId
-                        + " at " + instance.pos().toShortString()), true);
+                player.displayClientMessage(Component.translatable("message.fl_zone_arts.anomaly.removed",
+                        Component.translatable("anomaly.fl_zone_arts.electra"), instance.pos().toShortString()), true);
                 AnomalySyncHandler.broadcast(serverLevel);
             });
         });

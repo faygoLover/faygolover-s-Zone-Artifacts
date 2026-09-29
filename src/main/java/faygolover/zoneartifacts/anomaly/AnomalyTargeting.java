@@ -6,39 +6,35 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
+import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Optional;
 
 /**
- * Server-authoritative "am I looking at an anomaly" check, independent of the block grid — an
- * anomaly's zone isn't a block, so vanilla's own block raytrace can't find it. This runs entirely
- * server-side against the server's own {@link AnomalySavedData}, so a player's click is never
- * trusted for anything beyond "yes, interact" / "no, don't" (the same way vanilla resolves what
- * block you're mining from your position + look direction).
+ * Server-side "am I looking at an anomaly" check, independent of the block grid — a zone isn't a
+ * block, so vanilla's block raytrace can't find it. Runs against the server's own
+ * {@link AnomalySavedData}, so a click is never trusted beyond "yes, interact" / "no, don't".
  */
 public final class AnomalyTargeting {
 
     /** Generous reach for interacting with a volume rather than a block face. */
-    private static final double REACH = 6.0;
+    public static final double REACH = 6.0;
 
     private AnomalyTargeting() {
     }
 
-    public static Optional<AnomalyInstance> pick(ServerLevel level, Player player, ResourceLocation typeId) {
-        AnomalyType type = AnomalyTypeManager.get(typeId);
-        if (type == null) return Optional.empty();
-
+    /** Nearest anomaly zone along the player's view ray; {@code typeId == null} means any type. */
+    public static Optional<AnomalyInstance> pick(ServerLevel level, Player player, @Nullable ResourceLocation typeId) {
         Vec3 eye = player.getEyePosition();
         Vec3 reachEnd = eye.add(player.getViewVector(1.0f).scale(REACH));
 
-        AnomalySavedData data = AnomalySavedData.get(level);
         AnomalyInstance closest = null;
         double closestDistSq = Double.MAX_VALUE;
 
-        for (AnomalyInstance instance : List.copyOf(data.instances())) {
-            if (!instance.typeId().equals(typeId)) continue;
+        for (AnomalyInstance instance : List.copyOf(AnomalySavedData.get(level).instances())) {
+            if (typeId != null && !instance.typeId().equals(typeId)) continue;
 
-            AABB aabb = AnomalyGeometry.zoneAabb(instance, type);
+            AABB aabb = AnomalyGeometry.zoneAabb(instance);
             Optional<Vec3> hit = aabb.clip(eye, reachEnd);
             if (hit.isEmpty()) continue;
 
@@ -48,7 +44,6 @@ public final class AnomalyTargeting {
                 closest = instance;
             }
         }
-
         return Optional.ofNullable(closest);
     }
 }

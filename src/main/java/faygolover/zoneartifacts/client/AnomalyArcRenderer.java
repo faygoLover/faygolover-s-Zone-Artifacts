@@ -4,8 +4,10 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import faygolover.zoneartifacts.ZoneArtifacts;
 import faygolover.zoneartifacts.anomaly.AnomalyGeometry;
+import faygolover.zoneartifacts.anomaly.AnomalyTypeIds;
+import faygolover.zoneartifacts.anomaly.Electra;
+import faygolover.zoneartifacts.config.ModClientConfig;
 import faygolover.zoneartifacts.network.SyncAnomaliesPacket;
-import faygolover.zoneartifacts.network.SyncAnomalyTypeShapesPacket.ArcInfo;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -95,7 +97,7 @@ public class AnomalyArcRenderer {
     /** A short charge-up before a strike actually connects: the bolts visibly reach out from the
      *  zone's points toward the target instead of just snapping onto it the instant the anomaly
      *  fires, so a hit reads as a beat more dramatic than a flash right at the target's edge. */
-    private static final int STRIKE_WINDUP_TICKS = 6;
+    private static final int STRIKE_WINDUP_TICKS = Electra.STRIKE_WINDUP_TICKS;
 
     /** How far the charging bolts reach toward the target during the windup, as a fraction of the
      *  full distance — they close the rest of the gap the moment the windup ends. */
@@ -129,8 +131,8 @@ public class AnomalyArcRenderer {
         for (SyncAnomaliesPacket.Entry entry : ClientAnomalyCache.entriesFor(mc.level.dimension())) {
             if (entry.onCooldown()) continue;
 
-            ArcInfo arc = ClientAnomalyTypeCache.arcFor(entry.typeId());
-            if (arc == null) continue;
+            if (!AnomalyTypeIds.ELECTRA.equals(entry.typeId())) continue;
+            ArcInfo arc = arcFor(entry.intensity());
 
             double dx = entry.pos().getX() + 0.5 - playerPos.x;
             double dy = entry.pos().getY() + 0.5 - playerPos.y;
@@ -140,8 +142,7 @@ public class AnomalyArcRenderer {
             Key key = new Key(entry.typeId(), entry.pos());
             desired.add(key);
 
-            int size = ClientAnomalyTypeCache.sizeForLevel(entry.typeId(), entry.level());
-            AABB trueAabb = AnomalyGeometry.centeredAabb(entry.pos(), size);
+            AABB trueAabb = AnomalyGeometry.centeredAabb(entry.pos(), entry.size());
             AABB sampleAabb = trueAabb.deflate(VOLUME_INSET);
 
             List<Bundle> bundles = BUNDLES.computeIfAbsent(key, k -> new ArrayList<>());
@@ -203,19 +204,17 @@ public class AnomalyArcRenderer {
      * thrown item hitting a wall in the same tick it trips the anomaly, say) — see {@link
      * #resolveStrikeTarget}.
      */
-    public static void onStrike(ResourceLocation typeId, BlockPos pos, int level, int targetEntityId) {
+    public static void onStrike(ResourceLocation typeId, BlockPos pos, float size, int intensity, int targetEntityId) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) return;
 
-        ArcInfo arc = ClientAnomalyTypeCache.arcFor(typeId);
-        if (arc == null) return;
-
-        int size = ClientAnomalyTypeCache.sizeForLevel(typeId, level);
+        ArcInfo arc = arcFor(intensity);
         AABB trueAabb = AnomalyGeometry.centeredAabb(pos, size);
         List<Vec3> surface = findSurfacePoints(mc.level, trueAabb);
 
         RandomSource rand = RandomSource.create();
-        int originCount = Math.max(3, arc.pointsPerBundle());
+        // One more bolt than the intensity: the default 3 gives the original 4 bolts.
+        int originCount = Mth.clamp(arc.bundleCount() + 1, 2, 12);
         List<Vec3> origins = surface.isEmpty()
                 ? List.of(trueAabb.getCenter())
                 : pickDistinct(surface, Math.min(originCount, surface.size()), rand);
@@ -510,5 +509,15 @@ public class AnomalyArcRenderer {
     }
 
     private record Key(ResourceLocation typeId, BlockPos pos) {
+    }
+
+    /** Electra's arc look (fixed, see {@link Electra}); the number of arcs is the anomaly's intensity,
+     *  capped by this player's {@code maxEffectIntensity}. */
+    private record ArcInfo(int bundleCount, int pointsPerBundle, int minLifetimeTicks, int maxLifetimeTicks, int color) {
+    }
+
+    private static ArcInfo arcFor(int intensity) {
+        return new ArcInfo(ModClientConfig.effective(intensity), Electra.ARC_POINTS_PER_BUNDLE,
+                Electra.ARC_MIN_LIFETIME_TICKS, Electra.ARC_MAX_LIFETIME_TICKS, Electra.ARC_COLOR);
     }
 }

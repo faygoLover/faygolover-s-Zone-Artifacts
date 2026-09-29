@@ -1,6 +1,7 @@
 package faygolover.zoneartifacts.registry;
 
 import faygolover.zoneartifacts.ZoneArtifacts;
+import faygolover.zoneartifacts.tesla.Tesla;
 import faygolover.zoneartifacts.tesla.TeslaEntity;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EntityType;
@@ -15,13 +16,14 @@ public final class ModEntities {
             DeferredRegister.create(ForgeRegistries.ENTITY_TYPES, ZoneArtifacts.MODID);
 
     /**
-     * The visual ball is a full block; the hitbox is a bit smaller (0.8) so a route running right
-     * along a floor or a wall doesn't register false collisions. Position updates every tick keep
-     * the flight smooth on clients (plain entities don't interpolate on their own).
+     * Base size (size 1): the visual ball is a full block, the hitbox a bit smaller so a route
+     * running right along a floor or a wall doesn't register false collisions. The entity scales
+     * both with its tuned size. Position updates every tick keep the flight smooth on clients
+     * (plain entities don't interpolate on their own).
      */
     public static final RegistryObject<EntityType<TeslaEntity>> TESLA = ENTITY_TYPES.register("tesla",
             () -> EntityType.Builder.<TeslaEntity>of(TeslaEntity::new, MobCategory.MISC)
-                    .sized(0.8f, 0.8f)
+                    .sized(Tesla.BASE_HITBOX, Tesla.BASE_HITBOX)
                     .fireImmune()
                     .clientTrackingRange(8)
                     .updateInterval(1)

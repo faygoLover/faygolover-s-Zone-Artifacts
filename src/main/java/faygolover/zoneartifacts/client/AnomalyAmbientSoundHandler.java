@@ -3,7 +3,8 @@ package faygolover.zoneartifacts.client;
 import faygolover.zoneartifacts.ZoneArtifacts;
 import faygolover.zoneartifacts.anomaly.AnomalyGeometry;
 import faygolover.zoneartifacts.network.SyncAnomaliesPacket;
-import faygolover.zoneartifacts.network.SyncAnomalyTypeShapesPacket.AmbientSoundInfo;
+import faygolover.zoneartifacts.anomaly.AnomalyTypeIds;
+import faygolover.zoneartifacts.anomaly.Electra;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.client.resources.sounds.SoundInstance;
@@ -33,7 +34,7 @@ import java.util.Set;
  * to the end even after the anomaly triggered or was removed.
  * <p>
  * Every client tick this reconciles "what should be looping right now" — every synced anomaly
- * that has an ambient sound configured (via {@link ClientAnomalyTypeCache#ambientSoundFor}) and
+ * that has an ambient sound (see {@link #ambientSoundFor}) and
  * isn't currently on cooldown ({@link SyncAnomaliesPacket.Entry#onCooldown()}) — against what's
  * actually playing, starting and stopping instances as needed. Both the anomaly's existence and
  * its cooldown state come from {@link ClientAnomalyCache}, kept current by
@@ -59,7 +60,7 @@ public class AnomalyAmbientSoundHandler {
         for (SyncAnomaliesPacket.Entry entry : ClientAnomalyCache.entriesFor(mc.level.dimension())) {
             if (entry.onCooldown()) continue;
 
-            AmbientSoundInfo ambient = ClientAnomalyTypeCache.ambientSoundFor(entry.typeId());
+            AmbientSoundInfo ambient = ambientSoundFor(entry.typeId());
             if (ambient == null) continue;
 
             Key key = new Key(entry.typeId(), entry.pos());
@@ -86,8 +87,7 @@ public class AnomalyAmbientSoundHandler {
         // (the SoundEvent-typed overloads with this many arguments don't exist on this version).
         if (ForgeRegistries.SOUND_EVENTS.getValue(ambient.soundId()) == null) return;
 
-        int size = ClientAnomalyTypeCache.sizeForLevel(entry.typeId(), entry.level());
-        AABB aabb = AnomalyGeometry.centeredAabb(entry.pos(), size);
+        AABB aabb = AnomalyGeometry.centeredAabb(entry.pos(), entry.size());
         Vec3 center = aabb.getCenter();
 
         SimpleSoundInstance instance = new SimpleSoundInstance(ambient.soundId(), SoundSource.AMBIENT,
@@ -106,5 +106,16 @@ public class AnomalyAmbientSoundHandler {
     }
 
     private record Key(ResourceLocation typeId, BlockPos pos) {
+    }
+
+    private record AmbientSoundInfo(ResourceLocation soundId, float volume, float pitch) {
+    }
+
+    @javax.annotation.Nullable
+    private static AmbientSoundInfo ambientSoundFor(ResourceLocation typeId) {
+        if (AnomalyTypeIds.ELECTRA.equals(typeId)) {
+            return new AmbientSoundInfo(Electra.IDLE_SOUND, Electra.IDLE_VOLUME, Electra.IDLE_PITCH);
+        }
+        return null;
     }
 }

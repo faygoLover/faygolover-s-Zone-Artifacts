@@ -7,6 +7,8 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
+import javax.annotation.Nullable;
+
 import java.util.Optional;
 
 /**
@@ -19,10 +21,18 @@ public final class AnomalyClientTargeting {
 
     private static final double REACH = 6.0;
 
+    /** Squared distance from the eye to where the view ray enters {@code entry}'s zone, if it does. */
+    public static Optional<Double> hitDistanceSq(Player player, SyncAnomaliesPacket.Entry entry) {
+        Vec3 eye = player.getEyePosition();
+        Vec3 reachEnd = eye.add(player.getViewVector(1.0f).scale(REACH));
+        return AnomalyGeometry.centeredAabb(entry.pos(), entry.size()).clip(eye, reachEnd).map(eye::distanceToSqr);
+    }
+
     private AnomalyClientTargeting() {
     }
 
-    public static Optional<SyncAnomaliesPacket.Entry> pick(Player player, ResourceLocation typeId) {
+    /** Nearest synced anomaly zone along the player's view ray; {@code typeId == null} means any type. */
+    public static Optional<SyncAnomaliesPacket.Entry> pick(Player player, @Nullable ResourceLocation typeId) {
         Vec3 eye = player.getEyePosition();
         Vec3 reachEnd = eye.add(player.getViewVector(1.0f).scale(REACH));
 
@@ -30,10 +40,9 @@ public final class AnomalyClientTargeting {
         double closestDistSq = Double.MAX_VALUE;
 
         for (SyncAnomaliesPacket.Entry entry : ClientAnomalyCache.entriesFor(player.level().dimension())) {
-            if (!entry.typeId().equals(typeId)) continue;
+            if (typeId != null && !entry.typeId().equals(typeId)) continue;
 
-            int size = ClientAnomalyTypeCache.sizeForLevel(entry.typeId(), entry.level());
-            AABB aabb = AnomalyGeometry.centeredAabb(entry.pos(), size);
+            AABB aabb = AnomalyGeometry.centeredAabb(entry.pos(), entry.size());
             Optional<Vec3> hit = aabb.clip(eye, reachEnd);
             if (hit.isEmpty()) continue;
 
