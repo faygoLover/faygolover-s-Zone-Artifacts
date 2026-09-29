@@ -1,7 +1,10 @@
 {
   "itemGroup.fl_zone_arts.anomalies": "Zone Artifacts: Аномалии",
   "item.fl_zone_arts.electra_placer": "Установщик аномалии «Электра»",
+  "item.fl_zone_arts.electra_placer.desc": "ПКМ по блоку — установить или переключить уровень аномалии «Электра».",
   "item.fl_zone_arts.tesla_route_tool": "Маршрутизатор «Тесла»",
+  "item.fl_zone_arts.tesla_route_tool.desc": "ПКМ по блокам — проложить маршрут патрулирования Теслы.",
+  "item.fl_zone_arts.tesla_route_tool.desc2": "Кликните по первой точке ещё раз, чтобы замкнуть петлю.",
   "entity.fl_zone_arts.tesla": "Тесла",
   "death.attack.fl_zone_arts.anomaly_shock": "%1$s был убит током аномалии",
   "subtitles.fl_zone_arts.electra_idle": "Электра потрескивает",

@@ -162,7 +162,10 @@ public class TeslaSavedData extends SavedData {
             ListTag waypointsTag = routeTag.getList("waypoints", Tag.TAG_LONG);
             List<BlockPos> waypoints = new ArrayList<>(waypointsTag.size());
             for (int j = 0; j < waypointsTag.size(); j++) {
-                waypoints.add(BlockPos.of(waypointsTag.getLong(j)));
+                // ListTag has no getLong(int) (unlike CompoundTag) - pull the raw LongTag element
+                // out and read it directly instead.
+                long packed = ((LongTag) waypointsTag.get(j)).getAsLong();
+                waypoints.add(BlockPos.of(packed));
             }
             data.routes.add(new TeslaRoute(id, typeId, waypoints));
         }

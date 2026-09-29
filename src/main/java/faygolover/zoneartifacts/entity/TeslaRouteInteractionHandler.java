@@ -2,10 +2,12 @@ package faygolover.zoneartifacts.entity;
 
 import faygolover.zoneartifacts.ZoneArtifacts;
 import faygolover.zoneartifacts.item.TeslaRouteToolItem;
+import faygolover.zoneartifacts.network.TeslaRouteSyncHandler;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
@@ -29,6 +31,12 @@ import java.util.List;
  * chain instead. With no chain in progress, right-clicking a waypoint that already belongs to a
  * finished route removes that entire route. Left-click never breaks a block while this tool is
  * held — it's purely a status readout for whatever's under the cursor.
+ * <p>
+ * Forge fires {@code RightClickBlock} once per hand — including the off-hand, even when it's
+ * empty (a well-known quirk: see e.g. MinecraftForge issue #5508) — so without a guard, a single
+ * physical click would run this whole method twice in the same tick: once adding a point, and
+ * once immediately after seeing that same point already in the chain and resetting it. {@link
+ * #isPrimaryFiring} filters that down to exactly one pass per click.
  */
 @Mod.EventBusSubscriber(modid = ZoneArtifacts.MODID)
 public class TeslaRouteInteractionHandler {
@@ -39,7 +47,7 @@ public class TeslaRouteInteractionHandler {
         if (!(player.level() instanceof ServerLevel level)) return;
 
         ItemStack stack = TeslaRouteToolItem.heldStack(player);
-        if (stack == null) return;
+        if (stack == null || !isPrimaryFiring(player, event.getHand())) return;
         ResourceLocation typeId = ((TeslaRouteToolItem) stack.getItem()).teslaTypeId();
 
         if (event.isCancelable()) {
@@ -54,12 +62,13 @@ public class TeslaRouteInteractionHandler {
             if (existing != null) {
                 int waypointCount = existing.waypoints().size();
                 TeslaSavedData.get(level).removeRoute(level, existing.id());
-                notify(player, "route #" + existing.id() + " removed (" + waypointCount + " waypoints)");
+                TeslaRouteSyncHandler.broadcast(level);
+                notify(player, "маршрут #" + existing.id() + " удалён (точек: " + waypointCount + ")");
             } else {
                 chain.add(pos);
                 TeslaRouteToolItem.setChain(stack, chain);
-                notify(player, "waypoint 1 placed at " + pos.toShortString()
-                        + " - keep right-clicking, then click this same block again to close the loop");
+                notify(player, "точка 1 установлена в " + pos.toShortString()
+                        + " - продолжайте ПКМ по блокам, затем кликните по этой же точке ещё раз, чтобы замкнуть маршрут");
             }
             return;
         }
@@ -67,19 +76,20 @@ public class TeslaRouteInteractionHandler {
         if (pos.equals(chain.get(0)) && chain.size() >= 2) {
             TeslaSavedData.get(level).createRoute(level, typeId, List.copyOf(chain));
             TeslaRouteToolItem.clearChain(stack);
-            notify(player, "route created with " + chain.size() + " waypoints - a Tesla is patrolling it now");
+            TeslaRouteSyncHandler.broadcast(level);
+            notify(player, "маршрут создан (точек: " + chain.size() + ") - Тесла уже патрулирует его");
             return;
         }
 
         if (chain.contains(pos)) {
             TeslaRouteToolItem.clearChain(stack);
-            notify(player, "chain reset (clicked a point already in the chain)");
+            notify(player, "цепочка сброшена (эта точка уже есть в цепочке)");
             return;
         }
 
         chain.add(pos);
         TeslaRouteToolItem.setChain(stack, chain);
-        notify(player, "waypoint " + chain.size() + " placed at " + pos.toShortString());
+        notify(player, "точка " + chain.size() + " установлена в " + pos.toShortString());
     }
 
     @SubscribeEvent
@@ -98,14 +108,22 @@ public class TeslaRouteInteractionHandler {
         List<BlockPos> chain = TeslaRouteToolItem.getChain(stack);
         int chainIndex = chain.indexOf(pos);
         if (chainIndex >= 0) {
-            notify(player, "position occupied (waypoint " + (chainIndex + 1) + " of the chain in progress)");
+            notify(player, "точка занята (точка №" + (chainIndex + 1) + " текущей цепочки)");
             return;
         }
 
         TeslaRoute route = TeslaSavedData.get(level).routeContaining(pos);
         if (route != null) {
-            notify(player, "position occupied (belongs to route #" + route.id() + ")");
+            notify(player, "точка занята (принадлежит маршруту #" + route.id() + ")");
         }
+    }
+
+    /** True only for the hand that actually holds the tool — see the class javadoc for why this
+     *  guard exists. {@code RightClickBlock} isn't fired per-hand for {@code LeftClickBlock}
+     *  (breaking is always main-hand-only), so no equivalent guard is needed there. */
+    private static boolean isPrimaryFiring(Player player, InteractionHand hand) {
+        boolean toolInMainHand = player.getMainHandItem().getItem() instanceof TeslaRouteToolItem;
+        return hand == (toolInMainHand ? InteractionHand.MAIN_HAND : InteractionHand.OFF_HAND);
     }
 
     private static void notify(Player player, String message) {

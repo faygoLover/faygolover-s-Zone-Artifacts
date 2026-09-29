@@ -34,6 +34,8 @@ public final class ModNetwork {
                 TeslaBumpPacket::encode, TeslaBumpPacket::decode, TeslaBumpPacket::handle);
         CHANNEL.registerMessage(id++, SyncTeslaTypesPacket.class,
                 SyncTeslaTypesPacket::encode, SyncTeslaTypesPacket::decode, SyncTeslaTypesPacket::handle);
+        CHANNEL.registerMessage(id++, SyncTeslaRoutesPacket.class,
+                SyncTeslaRoutesPacket::encode, SyncTeslaRoutesPacket::decode, SyncTeslaRoutesPacket::handle);
     }
 
     private ModNetwork() {

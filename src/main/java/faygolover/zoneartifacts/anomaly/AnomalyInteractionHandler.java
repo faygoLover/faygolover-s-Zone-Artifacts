@@ -51,7 +51,7 @@ public class AnomalyInteractionHandler {
             int nextLevel = instance.level() % type.maxLevel() + 1;
             instance.setLevel(nextLevel);
             AnomalySavedData.get(serverLevel).setDirty();
-            notify(player, typeId + " at " + instance.pos().toShortString() + " -> level " + nextLevel);
+            notify(player, "«" + typeId + "» в " + instance.pos().toShortString() + ": уровень -> " + nextLevel);
             AnomalySyncHandler.broadcast(serverLevel);
             if (event.isCancelable()) {
                 event.setCanceled(true);

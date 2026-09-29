@@ -5,6 +5,7 @@ import faygolover.zoneartifacts.anomaly.AnomalySavedData;
 import faygolover.zoneartifacts.anomaly.AnomalyType;
 import faygolover.zoneartifacts.anomaly.AnomalyTypeManager;
 import faygolover.zoneartifacts.network.AnomalySyncHandler;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -13,6 +14,7 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 
@@ -58,6 +60,14 @@ public class AnomalyPlacerItem extends Item {
     }
 
     @Override
+    public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+        // Keyed off this item's own description id (e.g. "item.fl_zone_arts.electra_placer") so
+        // any future anomaly placer picks up its own ".desc" lang entry automatically, with no new
+        // Java code — matching this class's own "one item per type, driven by data" design.
+        tooltip.add(Component.translatable(this.getDescriptionId() + ".desc").withStyle(ChatFormatting.GRAY));
+    }
+
+    @Override
     public InteractionResult useOn(UseOnContext context) {
         Level level = context.getLevel();
         BlockPos pos = context.getClickedPos();
@@ -73,7 +83,7 @@ public class AnomalyPlacerItem extends Item {
     private void placeIfEmpty(ServerLevel serverLevel, @Nullable Player player, BlockPos pos) {
         AnomalyType type = AnomalyTypeManager.get(anomalyTypeId);
         if (type == null) {
-            notify(player, "anomaly type '" + anomalyTypeId + "' is not loaded (check the datapack / run /reload)");
+            notify(player, "тип аномалии «" + anomalyTypeId + "» не загружен (проверьте датапак / выполните /reload)");
             return;
         }
 
@@ -87,7 +97,7 @@ public class AnomalyPlacerItem extends Item {
         }
 
         data.add(new AnomalyInstance(anomalyTypeId, pos.immutable(), 1));
-        notify(player, "placed " + anomalyTypeId + " at " + pos.toShortString() + " (level 1)");
+        notify(player, "аномалия «" + anomalyTypeId + "» размещена в " + pos.toShortString() + " (уровень 1)");
         AnomalySyncHandler.broadcast(serverLevel);
     }
 

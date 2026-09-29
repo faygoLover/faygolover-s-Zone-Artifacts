@@ -38,8 +38,8 @@ public class ModCommands {
                                             boolean equipped = BoolArgumentType.getBool(ctx, "equipped");
                                             ArtifactFlag.setEquipped(player, equipped);
                                             ctx.getSource().sendSuccess(() -> Component.literal(
-                                                    "fl_zone_arts: " + player.getGameProfile().getName()
-                                                            + " artifact_flag = " + equipped), true);
+                                                    "fl_zone_arts: флаг артефакта у " + player.getGameProfile().getName()
+                                                            + " = " + equipped), true);
                                             return 1;
                                         })
                                 )

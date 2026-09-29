@@ -33,12 +33,18 @@ public class TeslaAmbientSoundInstance extends AbstractTickableSoundInstance {
 
     @Override
     public void tick() {
-        if (!entity.isAlive() || entity.isRemoved()) {
-            this.stopped = true;
-            return;
-        }
         this.x = entity.getX();
         this.y = entity.getY();
         this.z = entity.getZ();
+    }
+
+    /**
+     * {@code stopped} on the base class is private, not protected — there's no field to flip from
+     * here — so instead of trying to set it, this replaces the check entirely: the sound counts as
+     * stopped the moment {@link #entity} is dead or removed, no separate flag needed.
+     */
+    @Override
+    public boolean isStopped() {
+        return super.isStopped() || !entity.isAlive() || entity.isRemoved();
     }
 }
