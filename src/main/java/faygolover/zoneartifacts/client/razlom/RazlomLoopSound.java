@@ -32,7 +32,9 @@ public class RazlomLoopSound extends AbstractTickableSoundInstance {
             stop();
             return;
         }
-        float target = RazlomClientHandler.isJetting(pos) ? Razlom.JET_IDLE_VOLUME : Razlom.IDLE_VOLUME;
+        // Silent while the flame is out (resting), louder while the jet burns.
+        float target = RazlomClientHandler.isResting(pos) ? 0.0f
+                : RazlomClientHandler.isJetting(pos) ? Razlom.JET_IDLE_VOLUME : Razlom.IDLE_VOLUME;
         this.volume += (target - this.volume) * 0.2f;
     }
 

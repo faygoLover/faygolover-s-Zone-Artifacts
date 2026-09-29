@@ -27,8 +27,13 @@ public final class Razlom {
     public static final float IDLE_VOLUME = 0.35f;
     public static final float JET_IDLE_VOLUME = 0.6f;
 
-    /** How high the flame hovers over the ground. */
-    public static final double FLAME_HEIGHT = 0.9;
+    /** How high the flame hovers over the ground — right above the cracks. */
+    public static final double FLAME_HEIGHT = 0.3;
+    /** Points along the jet's curve (for drawing and for checking what blocks it). */
+    public static final int JET_SEGMENTS = 12;
+    /** The jet doesn't appear at once: it shoots out along its arc over this many ticks, and the
+     *  first hit lands when it arrives. */
+    public static final int JET_GROW_TICKS = 5;
     /** How far below the zone the ground (and the cracks) may be. */
     public static final int GROUND_SEARCH_BELOW = 3;
 
@@ -53,6 +58,25 @@ public final class Razlom {
         Double ground = groundY(level, c.x, c.z, zone.maxY, zone.minY - GROUND_SEARCH_BELOW);
         if (ground == null) return c;
         return new Vec3(c.x, Math.min(ground + FLAME_HEIGHT, zone.maxY), c.z);
+    }
+
+    /**
+     * Point {@code t} (0..1) of the jet's arc from the flame to the target: a quadratic curve that
+     * shoots up first and then sideways, reaching the target from below and the side (never
+     * dropping onto it from above). Shared by the server (what the jet hits) and the client.
+     */
+    public static Vec3 jetPoint(Vec3 from, Vec3 to, double t) {
+        Vec3 control = jetControl(from, to);
+        double u = 1.0 - t;
+        return from.scale(u * u).add(control.scale(2.0 * u * t)).add(to.scale(t * t));
+    }
+
+    /** The arc's control point: a third of the way out horizontally, nearly at the target's
+     *  height, a little above the flame at least. */
+    public static Vec3 jetControl(Vec3 from, Vec3 to) {
+        double rise = Math.max(0.0, to.y - from.y);
+        double y = from.y + rise * 0.95 + 0.25;
+        return new Vec3(from.x + (to.x - from.x) * 0.3, y, from.z + (to.z - from.z) * 0.3);
     }
 
     /** Top of the first solid surface in column (x, z), scanning down from {@code fromY} to

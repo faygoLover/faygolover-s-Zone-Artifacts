@@ -9,9 +9,9 @@ import net.minecraft.resources.ResourceLocation;
  * defaults in the {@code comet} section of the common config.
  * <p>
  * On impact — a block, or touching a living entity — it explodes: no block damage, a push away
- * from the blast, fire damage falling off towards the edge, and fire: whatever it hit and
- * everything in the inner radius burns, things further out catch fire only now and then. Both
- * radii scale with the Comet's size. Then it is gone until the respawn delay passes.
+ * from the blast, fire damage falling off towards the edge, and fire: whatever it hit and every
+ * entity in the inner radius burns, entities further out only now and then; blocks get just a few
+ * scattered fires (the impact spot, then a handful at random). Both radii scale with the size. Then it is gone until the respawn delay passes.
  */
 public final class Comet {
 
@@ -37,7 +37,9 @@ public final class Comet {
     /** Damage at the blast edge, as a share of the full damage. */
     public static final float EDGE_DAMAGE = 0.3f;
     public static final double OUTER_ENTITY_IGNITE_CHANCE = 0.35;
-    public static final double OUTER_BLOCK_IGNITE_CHANCE = 0.15;
+    /** Per empty spot: chance to become a fire candidate (then capped at 2 + 2 x size fires). */
+    public static final double CORE_BLOCK_IGNITE_CHANCE = 0.12;
+    public static final double OUTER_BLOCK_IGNITE_CHANCE = 0.015;
 
     private Comet() {
     }

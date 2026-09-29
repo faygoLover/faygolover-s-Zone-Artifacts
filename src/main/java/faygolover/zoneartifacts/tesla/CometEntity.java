@@ -27,6 +27,7 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.network.PacketDistributor;
 
 import javax.annotation.Nullable;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -101,23 +102,40 @@ public class CometEntity extends TeslaEntity {
             }
         }
 
-        // ---- blocks: fire around the impact, never any damage ----
+        // ---- blocks: a few fires around the impact, never any damage ----
+        // The impact spot itself first, then random spots: likelier near the center, never more
+        // than a handful (2 + 2 x size) in total.
         if (ModCommonConfig.COMET_IGNITES_BLOCKS.get()) {
+            int maxFires = 2 + (int) Math.round(2.0 * size);
+            BlockPos origin = BlockPos.containing(c);
+            int fires = 0;
+            if (ignite(level, origin)) fires++;
+
             double scan = Math.min(blast, Comet.MAX_BLOCK_RADIUS);
             double coreScan = Math.min(core, Comet.MAX_BLOCK_RADIUS);
             int r = Mth.ceil(scan);
-            BlockPos origin = BlockPos.containing(c);
-            BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+            List<BlockPos> candidates = new ArrayList<>();
             for (int dx = -r; dx <= r; dx++) {
                 for (int dy = -r; dy <= r; dy++) {
                     for (int dz = -r; dz <= r; dz++) {
-                        pos.set(origin.getX() + dx, origin.getY() + dy, origin.getZ() + dz);
+                        BlockPos pos = origin.offset(dx, dy, dz);
                         double d = Vec3.atCenterOf(pos).distanceTo(c);
                         if (d > scan) continue;
-                        if (d > coreScan && random.nextDouble() >= Comet.OUTER_BLOCK_IGNITE_CHANCE) continue;
-                        ignite(level, pos.immutable());
+                        double chance = d <= coreScan ? Comet.CORE_BLOCK_IGNITE_CHANCE : Comet.OUTER_BLOCK_IGNITE_CHANCE;
+                        if (random.nextDouble() < chance) candidates.add(pos);
                     }
                 }
+            }
+            // Random order, so the cap doesn't always favour one corner.
+            for (int i = candidates.size() - 1; i > 0; i--) {
+                int j = random.nextInt(i + 1);
+                BlockPos tmp = candidates.get(i);
+                candidates.set(i, candidates.get(j));
+                candidates.set(j, tmp);
+            }
+            for (BlockPos pos : candidates) {
+                if (fires >= maxFires) break;
+                if (ignite(level, pos)) fires++;
             }
         }
 
@@ -127,21 +145,25 @@ public class CometEntity extends TeslaEntity {
         die();
     }
 
-    /** Fire in an empty spot where fire can stand; unlit campfires and candles light up. */
-    private static void ignite(ServerLevel level, BlockPos pos) {
-        if (!level.isLoaded(pos)) return;
+    /** Fire in an empty spot where fire can stand; unlit campfires and candles light up.
+     *  @return whether something was set alight */
+    private static boolean ignite(ServerLevel level, BlockPos pos) {
+        if (!level.isLoaded(pos)) return false;
         BlockState state = level.getBlockState(pos);
         if (state.isAir()) {
             if (BaseFireBlock.canBePlacedAt(level, pos, Direction.UP)) {
                 level.setBlockAndUpdate(pos, BaseFireBlock.getState(level, pos));
+                return true;
             }
-            return;
+            return false;
         }
         if ((state.getBlock() instanceof CampfireBlock || state.getBlock() instanceof AbstractCandleBlock)
                 && state.hasProperty(BlockStateProperties.LIT) && !state.getValue(BlockStateProperties.LIT)
                 && !(state.hasProperty(BlockStateProperties.WATERLOGGED) && state.getValue(BlockStateProperties.WATERLOGGED))) {
             level.setBlockAndUpdate(pos, state.setValue(BlockStateProperties.LIT, true));
+            return true;
         }
+        return false;
     }
 
     /** A light trail: sparks and small flames shed from the surface, drifting behind. */

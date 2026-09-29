@@ -65,6 +65,7 @@ public final class ModCommonConfig {
     public static final ForgeConfigSpec.IntValue RAZLOM_HIT_INTERVAL_TICKS;
     public static final ForgeConfigSpec.DoubleValue RAZLOM_JET_RANGE;
     public static final ForgeConfigSpec.IntValue RAZLOM_IGNITE_SECONDS;
+    public static final ForgeConfigSpec.DoubleValue RAZLOM_BLOCK_IGNITE_CHANCE;
 
     // effects
     public static final ForgeConfigSpec.DoubleValue ELECTRIFY_SECONDS;
@@ -168,6 +169,9 @@ public final class ModCommonConfig {
                 .defineInRange("jetRange", 4.0, 0.0, 64.0);
         RAZLOM_IGNITE_SECONDS = b.comment("How long a target hit by the jet burns, seconds.")
                 .defineInRange("igniteSeconds", 3, 0, 60);
+        RAZLOM_BLOCK_IGNITE_CHANCE = b.comment("Chance per jet hit to set a block on fire: next to the target when it hits,",
+                        "or the block in the way when something blocks it. 0 = never.")
+                .defineInRange("blockIgniteChance", 0.04, 0.0, 1.0);
         b.pop();
 
         b.push("effects");

@@ -55,23 +55,32 @@ public final class RazlomClientHandler {
     private RazlomClientHandler() {
     }
 
-    /** One crack: a polyline over the ground. {@code ys[i]} is null where there is no ground. */
+    /** One crack: a polyline over the ground. {@code ys[i]} is null where there is no ground.
+     *  A branch starts on its main crack, so only its far end is a free end. */
     public static final class Crack {
         public final double[] xs;
         public final double[] zs;
         public final float[] widths;
         public final Double[] ys;
+        public final boolean branch;
 
-        Crack(double[] xs, double[] zs, float[] widths) {
+        Crack(double[] xs, double[] zs, float[] widths, boolean branch) {
             this.xs = xs;
             this.zs = zs;
             this.widths = widths;
+            this.branch = branch;
             this.ys = new Double[xs.length];
+        }
+
+        /** The glowing seam stops one segment short of every free end. */
+        public boolean seamCovers(int segment) {
+            if (segment >= xs.length - 2) return false;
+            return branch || segment >= 1;
         }
     }
 
-    /** The jet: whom it burns and until when (game time). */
-    public record Jet(int targetId, long endTick) {
+    /** The jet: whom it burns, when it was fired at them (it shoots out from there) and until when. */
+    public record Jet(int targetId, long startTick, long endTick) {
     }
 
     public static final class State {
@@ -87,6 +96,10 @@ public final class RazlomClientHandler {
         RazlomLoopSound loop;
         @Nullable
         RazlomJetSound jetSound;
+        /** 1 = flame burning, 0 = out (it goes out while the Razlom rests). */
+        float flameLevel = 1.0f;
+        float prevFlameLevel = 1.0f;
+        boolean wasResting;
 
         public SyncAnomaliesPacket.Entry entry() {
             return entry;
@@ -103,6 +116,16 @@ public final class RazlomClientHandler {
         @Nullable
         public Jet jet() {
             return jet;
+        }
+
+        public float flameLevel(float partialTick) {
+            return Mth.lerp(partialTick, prevFlameLevel, flameLevel);
+        }
+
+        /** How far the jet has shot out along its arc (0..1). */
+        public float jetExtend(long now, float partialTick) {
+            if (jet == null) return 0.0f;
+            return Mth.clamp((now - jet.startTick() + partialTick) / Razlom.JET_GROW_TICKS, 0.0f, 1.0f);
         }
 
         public boolean jetActive(long now) {
@@ -124,7 +147,8 @@ public final class RazlomClientHandler {
     public static void onJet(BlockPos pos, int targetId, int ticks) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) return;
-        Jet jet = new Jet(targetId, mc.level.getGameTime() + ticks);
+        long now = mc.level.getGameTime();
+        Jet jet = new Jet(targetId, now, now + ticks);
         State state = STATES.get(pos);
         if (state == null) {
             if (targetId >= 0) PENDING_JETS.put(pos.immutable(), jet);
@@ -155,7 +179,13 @@ public final class RazlomClientHandler {
             if (!AnomalyTypeIds.RAZLOM.equals(entry.typeId())) continue;
             if (Vec3.atCenterOf(entry.pos()).distanceToSqr(cam) > VISIBLE_RADIUS * VISIBLE_RADIUS) continue;
             seen.add(entry.pos());
-            State state = STATES.computeIfAbsent(entry.pos(), p -> new State());
+            State state = STATES.computeIfAbsent(entry.pos(), p -> {
+                // Coming into range while it rests: the flame is simply out, no puff.
+                State created = new State();
+                created.wasResting = entry.onCooldown();
+                created.flameLevel = created.prevFlameLevel = entry.onCooldown() ? 0.0f : 1.0f;
+                return created;
+            });
             state.entry = entry;
             Jet pending = PENDING_JETS.remove(entry.pos());
             if (pending != null) state.jet = pending;
@@ -174,6 +204,20 @@ public final class RazlomClientHandler {
 
             boolean jetting = state.jetActive(now);
             if (!jetting && state.jet != null && now >= state.jet.endTick()) state.jet = null;
+
+            // The flame goes out while the Razlom rests and flares up again after.
+            boolean resting = entry.onCooldown();
+            state.prevFlameLevel = state.flameLevel;
+            state.flameLevel = resting ? Math.max(0.0f, state.flameLevel - 0.15f) : Math.min(1.0f, state.flameLevel + 0.1f);
+            if (resting != state.wasResting) {
+                Vec3 f = state.flame;
+                for (int i = 0; i < (resting ? 6 : 4); i++) {
+                    level.addParticle(resting ? ParticleTypes.SMOKE : ParticleTypes.FLAME,
+                            f.x + (RANDOM.nextDouble() - 0.5) * 0.15, f.y, f.z + (RANDOM.nextDouble() - 0.5) * 0.15,
+                            (RANDOM.nextDouble() - 0.5) * 0.02, 0.03 + RANDOM.nextDouble() * 0.03, (RANDOM.nextDouble() - 0.5) * 0.02);
+                }
+                state.wasResting = resting;
+            }
 
             tickSounds(mc, state, jetting);
             tickParticles(level, state, jetting, now);
@@ -205,6 +249,12 @@ public final class RazlomClientHandler {
         return STATES.containsKey(pos);
     }
 
+    /** For the hum: the flame is out while the Razlom rests. */
+    public static boolean isResting(BlockPos pos) {
+        State state = STATES.get(pos);
+        return state != null && state.entry.onCooldown();
+    }
+
     /** For the sounds: is this Razlom's jet burning right now? */
     public static boolean isJetting(BlockPos pos) {
         State state = STATES.get(pos);
@@ -234,10 +284,9 @@ public final class RazlomClientHandler {
     private static void tickParticles(ClientLevel level, State state, boolean jetting, long now) {
         int eff = ModClientConfig.effective(state.entry.intensity());
         Vec3 f = state.flame;
-        boolean resting = state.entry.onCooldown();
 
-        // The hovering flame: small flames licking upwards.
-        if (RANDOM.nextFloat() < (resting ? 0.08f : 0.22f)) {
+        // The hovering flame: small flames licking upwards (none while it's out).
+        if (state.flameLevel > 0.5f && RANDOM.nextFloat() < 0.22f) {
             level.addParticle(ParticleTypes.SMALL_FLAME, f.x + (RANDOM.nextDouble() - 0.5) * 0.12, f.y - 0.05,
                     f.z + (RANDOM.nextDouble() - 0.5) * 0.12, 0.0, 0.012 + RANDOM.nextDouble() * 0.01, 0.0);
         }
@@ -254,26 +303,26 @@ public final class RazlomClientHandler {
             }
         }
 
-        // The jet: a stream of flames from the flame to the target.
+        // The jet: flames streaming along its arc (only as far as it has shot out yet).
         if (jetting && state.jet != null) {
             Entity target = level.getEntity(state.jet.targetId());
             if (target != null) {
                 Vec3 aim = target.getBoundingBox().getCenter();
-                Vec3 dir = aim.subtract(f);
-                double dist = dir.length();
-                if (dist > 1.0E-3) {
-                    dir = dir.scale(1.0 / dist);
-                    int n = 3 + eff / 2;
-                    for (int i = 0; i < n; i++) {
-                        double speed = 0.35 + RANDOM.nextDouble() * 0.25;
-                        Vec3 spread = new Vec3(RANDOM.nextGaussian(), RANDOM.nextGaussian(), RANDOM.nextGaussian()).scale(0.03);
-                        Vec3 v = dir.scale(speed).add(spread);
-                        level.addParticle(ParticleTypes.FLAME, f.x, f.y, f.z, v.x, v.y, v.z);
-                    }
-                    if (RANDOM.nextInt(3) == 0) {
-                        Vec3 p = f.add(dir.scale(dist * RANDOM.nextDouble()));
-                        level.addParticle(ModParticles.HEAT_SMOKE.get(), p.x, p.y, p.z, 0.0, 0.03, 0.0);
-                    }
+                float extend = state.jetExtend(now, 1.0f);
+                int n = 3 + eff / 2;
+                for (int i = 0; i < n; i++) {
+                    double t = extend * RANDOM.nextDouble();
+                    Vec3 p = Razlom.jetPoint(f, aim, t);
+                    Vec3 ahead = Razlom.jetPoint(f, aim, Math.min(1.0, t + 0.05));
+                    Vec3 tangent = ahead.subtract(p);
+                    if (tangent.lengthSqr() < 1.0E-8) continue;
+                    Vec3 spread = new Vec3(RANDOM.nextGaussian(), RANDOM.nextGaussian(), RANDOM.nextGaussian()).scale(0.02);
+                    Vec3 v = tangent.normalize().scale(0.1 + RANDOM.nextDouble() * 0.12).add(spread);
+                    level.addParticle(ParticleTypes.FLAME, p.x, p.y, p.z, v.x, v.y, v.z);
+                }
+                if (RANDOM.nextInt(3) == 0) {
+                    Vec3 p = Razlom.jetPoint(f, aim, extend * RANDOM.nextDouble());
+                    level.addParticle(ModParticles.HEAT_SMOKE.get(), p.x, p.y, p.z, 0.0, 0.03, 0.0);
                 }
             }
         }
@@ -302,7 +351,7 @@ public final class RazlomClientHandler {
             double dz = Math.sin(angle);
             double back = radius * (0.6 + random.nextDouble() * 0.4);
             double forward = radius * (0.6 + random.nextDouble() * 0.4);
-            Crack main = walk(random, cx, cz, dx, dz, -back, forward, 1.0f, true);
+            Crack main = walk(random, cx, cz, dx, dz, -back, forward, 1.0f, true, false);
             cracks.add(main);
 
             int branches = random.nextInt(3) == 0 ? 2 : 1;
@@ -314,14 +363,14 @@ public final class RazlomClientHandler {
                 double bx = Math.cos(angle + turn) * side;
                 double bz = Math.sin(angle + turn) * side;
                 double length = radius * (0.25 + random.nextDouble() * 0.3);
-                cracks.add(walk(random, main.xs[at], main.zs[at], bx, bz, 0, length, 0.55f, false));
+                cracks.add(walk(random, main.xs[at], main.zs[at], bx, bz, 0, length, 0.55f, false, true));
             }
         }
         return cracks;
     }
 
     private static Crack walk(RandomSource random, double ox, double oz, double dx, double dz,
-                              double from, double to, float width, boolean pinCenter) {
+                              double from, double to, float width, boolean pinCenter, boolean branch) {
         int n = Math.max(2, (int) Math.ceil((to - from) / STEP) + 1);
         double[] xs = new double[n];
         double[] zs = new double[n];
@@ -339,7 +388,7 @@ public final class RazlomClientHandler {
             double along = pinCenter ? Math.abs(t) / Math.max(Math.abs(from), Math.abs(to)) : i / (double) (n - 1);
             widths[i] = width * (float) (1.0 - 0.7 * along);
         }
-        return new Crack(xs, zs, widths);
+        return new Crack(xs, zs, widths, branch);
     }
 
     /** Re-reads the ground under every crack point and the flame's position. */

@@ -9,6 +9,7 @@ import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import faygolover.zoneartifacts.ZoneArtifacts;
+import faygolover.zoneartifacts.anomaly.Razlom;
 import faygolover.zoneartifacts.client.tesla.FireDraw;
 import faygolover.zoneartifacts.config.ModClientConfig;
 import net.minecraft.client.Minecraft;
@@ -26,6 +27,9 @@ import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.joml.Matrix4f;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Draws every Razlom in range:
@@ -132,7 +136,8 @@ public final class RazlomRenderer {
             // Seams: flat glowing lines on the ground, pulsing.
             for (RazlomClientHandler.Crack crack : state.cracks()) {
                 for (int i = 0; i < crack.xs.length - 1; i++) {
-                    if (!flatSegment(crack, i)) continue;
+                    // The seam stops a segment short of the dark crack's free ends.
+                    if (!crack.seamCovers(i) || !flatSegment(crack, i)) continue;
                     float pa = 0.75f + 0.25f * Mth.sin(time * 0.08f + i * 0.5f + seed);
                     float pb = 0.75f + 0.25f * Mth.sin(time * 0.08f + (i + 1) * 0.5f + seed);
                     int ca = FireDraw.fade(FireDraw.mix(SEAM_DIM, SEAM_HOT, crack.widths[i] * pa), level * pa);
@@ -144,19 +149,20 @@ public final class RazlomRenderer {
             }
 
             Vec3 f = state.flame();
-            float flameSize = jetting ? 1.35f : resting ? 0.6f : 1.0f;
+            // The flame is out while resting (it fades out and flares up again).
+            float flameSize = (jetting ? 1.35f : 1.0f) * state.flameLevel(partial);
 
-            // Jet streams.
+            // Jet streams: shooting out along the arc, stopped by the first block in the way.
             RazlomClientHandler.Jet jet = state.jet();
             if (jetting && jet != null) {
                 Entity target = mc.level.getEntity(jet.targetId());
                 if (target != null) {
                     Vec3 aim = target.getPosition(partial).add(0.0, target.getBbHeight() / 2.0, 0.0);
-                    BlockHitResult hit = mc.level.clip(new ClipContext(f, aim, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, target));
-                    if (hit.getType() != HitResult.Type.MISS) aim = hit.getLocation();
-                    drawJet(matrix, buffer, f, aim, time, ModClientConfig.effective(state.entry().intensity()), cam);
+                    drawJet(mc, matrix, buffer, f, aim, state.jetExtend(now, partial), target, time,
+                            ModClientConfig.effective(state.entry().intensity()), cam);
                 }
             }
+            if (flameSize < 0.02f) continue;
 
             // Flame tongues, then its glow last (the render type writes depth).
             for (int k = 0; k < 2; k++) {
@@ -182,28 +188,52 @@ public final class RazlomRenderer {
         poseStack.popPose();
     }
 
-    /** Twisting streams from {@code from} to {@code to}, narrow at the flame, wide at the target. */
-    private static void drawJet(Matrix4f matrix, VertexConsumer buffer, Vec3 from, Vec3 to, float time, int intensity, Vec3 cam) {
-        Vec3 dir = to.subtract(from);
-        double len = dir.length();
-        if (len < 0.05) return;
-        Vec3 d = dir.scale(1.0 / len);
-        Vec3 helper = Math.abs(d.y) < 0.9 ? new Vec3(0, 1, 0) : new Vec3(1, 0, 0);
-        Vec3 p1 = d.cross(helper).normalize();
-        Vec3 p2 = d.cross(p1).normalize();
+    /**
+     * Twisting streams along the jet's arc ({@link Razlom#jetPoint}) from the flame towards
+     * {@code to}, drawn only as far as it has shot out ({@code extend}, 0..1) and cut at the first
+     * block in the way; narrow at the flame, wide at the far end.
+     */
+    private static void drawJet(Minecraft mc, Matrix4f matrix, VertexConsumer buffer, Vec3 from, Vec3 to, float extend,
+                                Entity context, float time, int intensity, Vec3 cam) {
+        if (extend <= 0.01f || to.distanceToSqr(from) < 0.0025) return;
+        int samples = 16;
+        List<Vec3> path = new ArrayList<>();
+        List<Double> params = new ArrayList<>();
+        path.add(from);
+        params.add(0.0);
+        Vec3 prev = from;
+        for (int i = 1; i <= samples; i++) {
+            double t = extend * i / (double) samples;
+            Vec3 next = Razlom.jetPoint(from, to, t);
+            BlockHitResult hit = mc.level.clip(new ClipContext(prev, next, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, context));
+            if (hit.getType() != HitResult.Type.MISS) {
+                path.add(hit.getLocation());
+                params.add(t);
+                break;
+            }
+            path.add(next);
+            params.add(t);
+            prev = next;
+        }
+        int n = path.size();
+        if (n < 2) return;
 
         int streams = Mth.clamp(2 + intensity / 3, 2, 5);
-        int segments = Mth.clamp((int) (len * 4), 6, 40);
         for (int s = 0; s < streams; s++) {
             float phase = s * 2.4f;
-            Vec3[] points = new Vec3[segments + 1];
-            float[] widths = new float[segments + 1];
-            int[] colors = new int[segments + 1];
-            for (int i = 0; i <= segments; i++) {
-                double t = i / (double) segments;
+            Vec3[] points = new Vec3[n];
+            float[] widths = new float[n];
+            int[] colors = new int[n];
+            for (int i = 0; i < n; i++) {
+                double t = params.get(i);
+                Vec3 tangent = path.get(Math.min(n - 1, i + 1)).subtract(path.get(Math.max(0, i - 1)));
+                Vec3 d = tangent.lengthSqr() < 1.0E-8 ? new Vec3(0, 1, 0) : tangent.normalize();
+                Vec3 helper = Math.abs(d.y) < 0.9 ? new Vec3(0, 1, 0) : new Vec3(1, 0, 0);
+                Vec3 p1 = d.cross(helper).normalize();
+                Vec3 p2 = d.cross(p1).normalize();
                 double swirl = 0.12 * t * Math.sin(time * 0.9 + t * 9.0 + phase);
                 double swirl2 = 0.12 * t * Math.cos(time * 0.8 + t * 7.0 + phase * 1.3);
-                points[i] = from.add(d.scale(len * t)).add(p1.scale(swirl)).add(p2.scale(swirl2));
+                points[i] = path.get(i).add(p1.scale(swirl)).add(p2.scale(swirl2));
                 widths[i] = (float) (0.035 + 0.16 * t) * (s == 0 ? 1.0f : 0.7f);
                 int c = t < 0.35 ? FireDraw.mix(JET_BASE, JET_MID, (float) (t / 0.35)) : FireDraw.mix(JET_MID, JET_TIP, (float) ((t - 0.35) / 0.65));
                 colors[i] = s == 0 ? c : FireDraw.fade(c, 0.7f);
