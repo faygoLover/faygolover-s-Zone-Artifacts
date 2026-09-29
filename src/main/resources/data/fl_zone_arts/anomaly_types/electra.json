@@ -18,12 +18,16 @@
     "damage_by_level": [3.0, 3.0, 3.0]
   },
   "ambient": {
-    "particle": "minecraft:electric_spark",
-    "particle_count": 6,
-    "interval_ticks": 5,
     "sound": "fl_zone_arts:electra_idle",
     "sound_volume": 0.4,
     "sound_pitch": 1.0
+  },
+  "arc": {
+    "bundle_count": 3,
+    "points_per_bundle": 4,
+    "min_lifetime_ticks": 15,
+    "max_lifetime_ticks": 25,
+    "color": "B8E8FF"
   },
   "trigger_effect": {
     "particle": "minecraft:electric_spark",

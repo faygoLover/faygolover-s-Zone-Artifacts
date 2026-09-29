@@ -91,9 +91,10 @@ public class AnomalyTypeManager extends SimpleJsonResourceReloadListener {
         AnomalyDetect detect = root.has("detect") ? parseDetect(root.getAsJsonObject("detect")) : new AnomalyDetect(true, true, false);
         AnomalyEffect effect = parseEffect(getObject(root, "effect"), shape.maxLevel());
         AnomalyVisualSound ambient = root.has("ambient") ? parseVisualSound(root.getAsJsonObject("ambient"), "ambient") : null;
+        AnomalyArcEffect arc = root.has("arc") ? parseArcEffect(root.getAsJsonObject("arc")) : null;
         AnomalyTriggerEffect triggerEffect = root.has("trigger_effect") ? parseTriggerEffect(root.getAsJsonObject("trigger_effect")) : null;
 
-        return new AnomalyType(id, shape, trigger, detect, effect, ambient, triggerEffect);
+        return new AnomalyType(id, shape, trigger, detect, effect, ambient, arc, triggerEffect);
     }
 
     private static AnomalyShape parseShape(JsonObject shapeObj) {
@@ -166,13 +167,6 @@ public class AnomalyTypeManager extends SimpleJsonResourceReloadListener {
     }
 
     private static AnomalyVisualSound parseVisualSound(JsonObject obj, String path) {
-        ResourceLocation particle = null;
-        if (obj.has("particle")) {
-            particle = ResourceLocation.tryParse(obj.get("particle").getAsString());
-            if (particle == null) {
-                throw new AnomalyTypeParseException(path + ".particle", "not a valid resource location");
-            }
-        }
         ResourceLocation sound = null;
         if (obj.has("sound")) {
             sound = ResourceLocation.tryParse(obj.get("sound").getAsString());
@@ -180,12 +174,36 @@ public class AnomalyTypeManager extends SimpleJsonResourceReloadListener {
                 throw new AnomalyTypeParseException(path + ".sound", "not a valid resource location");
             }
         }
-        int particleCount = getInt(obj, "particle_count", 1);
-        int intervalTicks = getInt(obj, "interval_ticks", 0);
         float soundVolume = obj.has("sound_volume") ? obj.get("sound_volume").getAsFloat() : 1.0f;
         float soundPitch = obj.has("sound_pitch") ? obj.get("sound_pitch").getAsFloat() : 1.0f;
 
-        return new AnomalyVisualSound(particle, particleCount, intervalTicks, sound, soundVolume, soundPitch);
+        return new AnomalyVisualSound(sound, soundVolume, soundPitch);
+    }
+
+    private static AnomalyArcEffect parseArcEffect(JsonObject obj) {
+        String path = "arc";
+        int bundleCount = getInt(obj, "bundle_count", 3);
+        if (bundleCount < 1) {
+            throw new AnomalyTypeParseException(path + ".bundle_count", "must be >= 1, got " + bundleCount);
+        }
+        int pointsPerBundle = getInt(obj, "points_per_bundle", 4);
+        if (pointsPerBundle < 2) {
+            throw new AnomalyTypeParseException(path + ".points_per_bundle", "must be >= 2 (need at least 2 points to draw an arc), got " + pointsPerBundle);
+        }
+        int minLifetimeTicks = getInt(obj, "min_lifetime_ticks", 15);
+        int maxLifetimeTicks = getInt(obj, "max_lifetime_ticks", 25);
+        if (minLifetimeTicks < 1 || maxLifetimeTicks < minLifetimeTicks) {
+            throw new AnomalyTypeParseException(path + ".min_lifetime_ticks",
+                    "must have 1 <= min_lifetime_ticks <= max_lifetime_ticks, got min=" + minLifetimeTicks + " max=" + maxLifetimeTicks);
+        }
+        String colorStr = obj.has("color") ? obj.get("color").getAsString() : "B8E8FF";
+        int color;
+        try {
+            color = Integer.parseInt(colorStr, 16);
+        } catch (NumberFormatException e) {
+            throw new AnomalyTypeParseException(path + ".color", "not a valid hex RGB color (e.g. \"B8E8FF\"): '" + colorStr + "'");
+        }
+        return new AnomalyArcEffect(bundleCount, pointsPerBundle, minLifetimeTicks, maxLifetimeTicks, color);
     }
 
     private static AnomalyTriggerEffect parseTriggerEffect(JsonObject obj) {

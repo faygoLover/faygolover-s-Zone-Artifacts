@@ -15,6 +15,7 @@ public record AnomalyType(
         AnomalyDetect detect,
         AnomalyEffect effect,
         @Nullable AnomalyVisualSound ambient,
+        @Nullable AnomalyArcEffect arc,
         @Nullable AnomalyTriggerEffect triggerEffect
 ) {
     public int maxLevel() {

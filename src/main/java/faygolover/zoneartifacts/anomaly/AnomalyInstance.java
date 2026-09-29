@@ -15,7 +15,6 @@ public class AnomalyInstance {
     private int level;
 
     private transient int cooldownTicks;
-    private transient int ambientParticleTicker;
 
     public AnomalyInstance(ResourceLocation typeId, BlockPos pos, int level) {
         this.typeId = typeId;
@@ -45,14 +44,6 @@ public class AnomalyInstance {
 
     public void setCooldownTicks(int ticks) {
         this.cooldownTicks = ticks;
-    }
-
-    public int ambientParticleTicker() {
-        return ambientParticleTicker;
-    }
-
-    public void setAmbientParticleTicker(int ticks) {
-        this.ambientParticleTicker = ticks;
     }
 
     public CompoundTag save() {
