@@ -55,6 +55,8 @@ import java.util.Set;
 public final class GravityClientHandler {
 
     public static final double VISIBLE_RADIUS = 48.0;
+    /** How long an anomaly takes to show itself again after its cooldown, ticks. */
+    public static final float FADE_IN_TICKS = 50.0f;
     private static final RandomSource RANDOM = RandomSource.create();
 
     public enum Kind { PLESH, VORONKA, KARUSEL, PODUSHKA }
@@ -77,6 +79,11 @@ public final class GravityClientHandler {
         double bob;
         boolean free;
         int life;
+        /** 0..1: a new bit grows in instead of popping up. */
+        float grow;
+        float growRate = 1.0f / 30.0f;
+        /** Voronka: how far into the pull this bit came in from the edge. */
+        float startProgress;
 
         public BlockState state() {
             return state;
@@ -91,7 +98,8 @@ public final class GravityClientHandler {
         }
 
         public float size() {
-            return size;
+            float g = grow * grow * (3.0f - 2.0f * grow);
+            return size * g;
         }
 
         public Vector3f axis() {
@@ -117,6 +125,12 @@ public final class GravityClientHandler {
         final List<Glint> glints = new ArrayList<>();
         @Nullable
         Gravity.Bounce localBounce;
+        /** On cooldown right now (as last seen). */
+        boolean resting;
+        /** Game time the cooldown last ended; long ago = fully shown. */
+        long readySince = -1_000_000L;
+        @Nullable
+        KaruselIdleSound idleSound;
 
         public SyncAnomaliesPacket.Entry entry() {
             return entry;
@@ -148,6 +162,12 @@ public final class GravityClientHandler {
             return entry.active() && activeStart >= 0;
         }
 
+        /** 0 on cooldown, then fading in to 1 over {@link #FADE_IN_TICKS} once it's ready again. */
+        public float readiness(long now, float partial) {
+            if (resting) return 0.0f;
+            return Mth.clamp((now - readySince + partial) / FADE_IN_TICKS, 0.0f, 1.0f);
+        }
+
         /** 0..1 through the current phase. */
         public float progress(long now, float partial) {
             if (!active()) return 0.0f;
@@ -172,6 +192,11 @@ public final class GravityClientHandler {
         return STATES.values();
     }
 
+    /** Still shown (not removed, not out of range). */
+    static boolean isTracked(State state) {
+        return state.entry != null && STATES.get(state.entry.pos()) == state;
+    }
+
     /** Phase length for the look of it (the server decides when it really ends). The common
      *  config is loaded on the client too — from its own file, normally the same values. */
     private static int phaseTicks(Kind kind) {
@@ -183,7 +208,11 @@ public final class GravityClientHandler {
             };
             return Math.max(1, (int) Math.round(seconds * 20.0));
         } catch (IllegalStateException notLoaded) {
-            return kind == Kind.KARUSEL ? 100 : 60;
+            return switch (kind) {
+                case KARUSEL -> 128;
+                case VORONKA -> 60;
+                default -> 50;
+            };
         }
     }
 
@@ -257,8 +286,25 @@ public final class GravityClientHandler {
                 dustBurst(level, c, 55, 0.25, 0.6);
             }
             case KARUSEL -> {
-                double y = state.zone().minY + 0.3;
-                dustBurst(level, new Vec3(c.x, y, c.z), 30, 0.1, 0.35);
+                // The wave of compressed air goes out flat: dust and bits fly off sideways.
+                double ground = state.groundY != null ? state.groundY : state.zone().minY;
+                double reach = Gravity.reach(state.entry.size());
+                for (int i = 0; i < 90; i++) {
+                    double a = RANDOM.nextDouble() * Math.PI * 2.0;
+                    double speed = 0.35 + RANDOM.nextDouble() * 0.35;
+                    double r = 0.2 + RANDOM.nextDouble() * 0.6;
+                    double y = ground + 0.1 + Math.pow(RANDOM.nextDouble(), 2.0) * reach * 0.8;
+                    level.addParticle(ModParticles.GRAV_DUST.get(), c.x + Math.cos(a) * r, y, c.z + Math.sin(a) * r,
+                            Math.cos(a) * speed, 0.005, Math.sin(a) * speed);
+                }
+                for (Debris d : state.debris) {
+                    Vec3 out = new Vec3(d.pos.x - c.x, 0.0, d.pos.z - c.z);
+                    out = out.lengthSqr() < 1.0E-4 ? new Vec3(1, 0, 0) : out.normalize();
+                    d.free = true;
+                    d.life = 25 + RANDOM.nextInt(15);
+                    d.velocity = out.scale(0.45 + RANDOM.nextDouble() * 0.3).add(0.0, 0.08, 0.0);
+                    d.spin *= 3.0f;
+                }
             }
             default -> {
             }
@@ -297,7 +343,7 @@ public final class GravityClientHandler {
                 }
                 case KARUSEL -> {
                     if (!state.active() || !Gravity.inCylinder(player, entry.pos(), entry.size())) continue;
-                    player.setDeltaMovement(Gravity.swirl(player.position(), v, state.center(), force, player.onGround()));
+                    player.setDeltaMovement(Gravity.swirl(player.position(), v, state.center(), Gravity.reach(entry.size()), force, player.onGround()));
                 }
                 case PODUSHKA -> {
                     AABB zone = state.zone();
@@ -341,8 +387,16 @@ public final class GravityClientHandler {
             if (Vec3.atCenterOf(entry.pos()).distanceToSqr(cam) > VISIBLE_RADIUS * VISIBLE_RADIUS) continue;
             seen.add(entry.pos());
             State state = STATES.computeIfAbsent(entry.pos(), p -> new State());
+            boolean fresh = state.entry == null;
             state.entry = entry;
             state.kind = kind;
+            if (entry.onCooldown()) {
+                state.resting = true;
+            } else if (state.resting || fresh) {
+                // Came off cooldown now: fade in. (Seen for the first time already ready: shown at once.)
+                state.readySince = fresh ? now - 1_000_000L : now;
+                state.resting = false;
+            }
             if (entry.active() && state.activeStart < 0) state.activeStart = now; // joined mid-phase
             if (!entry.active()) state.activeStart = -1;
 
@@ -353,6 +407,10 @@ public final class GravityClientHandler {
             tickDebris(level, state, now);
             tickParticles(level, state, now);
             state.glints.removeIf(g -> now > g.born() + g.life());
+            if (kind == Kind.KARUSEL && (state.idleSound == null || state.idleSound.isStopped())) {
+                state.idleSound = new KaruselIdleSound(state, state.center());
+                mc.getSoundManager().play(state.idleSound);
+            }
         }
         STATES.keySet().removeIf(pos -> !seen.contains(pos));
     }
@@ -400,13 +458,13 @@ public final class GravityClientHandler {
         double sizeFactor = Mth.clamp(state.entry.size(), 1.0, 4.0);
         return switch (state.kind) {
             case PLESH -> Mth.clamp((int) ((3 + eff) * sizeFactor), 3, 40);
-            case VORONKA -> Mth.clamp((int) ((2 + eff / 2) * sizeFactor), 2, 24);
+            case VORONKA -> Mth.clamp((int) ((3 + eff) * sizeFactor), 3, 32);
             case KARUSEL -> Mth.clamp((int) ((4 + eff) * sizeFactor), 4, 48);
             case PODUSHKA -> Mth.clamp((int) ((3 + eff) * sizeFactor), 3, 40);
         };
     }
 
-    private static Debris newDebris(State state) {
+    private static Debris newDebris(State state, float progress) {
         Debris d = new Debris();
         d.state = state.palette.isEmpty() ? Blocks.GRAVEL.defaultBlockState() : state.palette.get(RANDOM.nextInt(state.palette.size()));
         d.size = (float) (0.06 + RANDOM.nextDouble() * 0.08);
@@ -425,9 +483,12 @@ public final class GravityClientHandler {
                 d.orbitSpeed = 0.008 + RANDOM.nextDouble() * 0.008;
             }
             case VORONKA -> {
-                d.orbitRadius = half * (0.25 + RANDOM.nextDouble() * 0.35);
-                d.orbitHeight = (RANDOM.nextDouble() - 0.5) * half * 0.4;
+                // Comes in from the edge of the pull sphere, from any direction.
+                d.orbitRadius = reach * (0.8 + RANDOM.nextDouble() * 0.2);
+                d.orbitHeight = (RANDOM.nextDouble() * 2.0 - 1.0) * 0.8;
                 d.orbitSpeed = 0.01 + RANDOM.nextDouble() * 0.01;
+                d.startProgress = progress;
+                d.growRate = 1.0f / 8.0f;
             }
             case KARUSEL -> {
                 d.orbitRadius = reach * (0.25 + RANDOM.nextDouble() * 0.7);
@@ -436,13 +497,14 @@ public final class GravityClientHandler {
                 d.size *= 0.8f;
             }
             case PODUSHKA -> {
-                d.orbitRadius = half * RANDOM.nextDouble() * 0.85;
-                d.orbitHeight = (RANDOM.nextDouble() - 0.5) * state.entry.size() * 0.8;
+                // Spread evenly through the whole cushion, not bunched at its middle.
+                d.orbitRadius = half * 0.92 * Math.sqrt(RANDOM.nextDouble());
+                d.orbitHeight = (RANDOM.nextDouble() - 0.5) * state.entry.size() * 0.85;
                 d.orbitSpeed = 0.002 + RANDOM.nextDouble() * 0.003;
                 d.spin = 0.005f + RANDOM.nextFloat() * 0.015f;
             }
         }
-        d.pos = target(state, d, 0.0f, 0L);
+        d.pos = target(state, d, progress, 0L);
         d.prevPos = d.pos;
         return d;
     }
@@ -459,8 +521,11 @@ public final class GravityClientHandler {
                 yield new Vec3(c.x + Math.cos(d.orbitAngle) * r, y, c.z + Math.sin(d.orbitAngle) * r);
             }
             case VORONKA -> {
-                double r = d.orbitRadius * (1.0 - 0.9 * progress);
-                yield new Vec3(c.x + Math.cos(d.orbitAngle) * r, c.y + d.orbitHeight * (1.0 - progress) + 0.05 * bob, c.z + Math.sin(d.orbitAngle) * r);
+                // From the edge down to the center by the end of the pull.
+                double local = Mth.clamp((progress - d.startProgress) / Math.max(0.05, 1.0 - d.startProgress), 0.0, 1.0);
+                double r = d.orbitRadius * Math.pow(1.0 - local, 1.4) + 0.04;
+                double flat = Math.sqrt(1.0 - d.orbitHeight * d.orbitHeight);
+                yield new Vec3(c.x + Math.cos(d.orbitAngle) * r * flat, c.y + d.orbitHeight * r, c.z + Math.sin(d.orbitAngle) * r * flat);
             }
             case KARUSEL -> {
                 double reach = Gravity.reach(state.entry.size());
@@ -482,8 +547,25 @@ public final class GravityClientHandler {
         boolean anyFree = false;
         for (Debris d : list) anyFree |= d.free;
         int want = debrisCount(state);
-        if (!anyFree && !(resting && state.kind != Kind.KARUSEL && state.kind != Kind.PODUSHKA)) {
-            while (list.size() < want) list.add(newDebris(state));
+        switch (state.kind) {
+            case PLESH -> {
+                // After the cooldown the dust comes back bit by bit, each one growing in.
+                if (!anyFree && !resting && list.size() < want && now % 3 == 0) list.add(newDebris(state, 0.0f));
+            }
+            case VORONKA -> {
+                // Nothing at rest; while pulling, bits come in from the edge through the first 60 %.
+                if (!state.active()) {
+                    if (!anyFree) list.clear();
+                } else {
+                    int due = (int) Math.ceil(want * Math.min(1.0f, progress / 0.6f));
+                    if (list.size() < due) list.add(newDebris(state, progress));
+                }
+            }
+            default -> {
+                if (!anyFree) {
+                    while (list.size() < want) list.add(newDebris(state, 0.0f));
+                }
+            }
         }
         while (list.size() > want && !anyFree) list.remove(list.size() - 1);
 
@@ -493,6 +575,7 @@ public final class GravityClientHandler {
             d.prevPos = d.pos;
             d.prevAngle = d.angle;
             d.angle += d.spin;
+            d.grow = Math.min(1.0f, d.grow + d.growRate);
             if (d.free) {
                 d.velocity = d.velocity.scale(0.98).add(0.0, -0.04, 0.0);
                 d.pos = d.pos.add(d.velocity);
@@ -529,11 +612,11 @@ public final class GravityClientHandler {
                         Vec3 v = c.subtract(p).scale(1.0 / 24.0);
                         level.addParticle(ModParticles.GRAV_DUST.get(), p.x, p.y, p.z, v.x, v.y, v.z);
                     }
-                } else if (RANDOM.nextDouble() < 0.04 * eff) {
-                    // A speck drifting round lazily.
+                } else if (state.kind == Kind.PLESH && RANDOM.nextDouble() < 0.04 * eff * state.readiness(now, 0.0f)) {
+                    // A speck drifting round lazily (Voronka shows nothing at rest).
                     double a = RANDOM.nextDouble() * Math.PI * 2.0;
                     double r = half * RANDOM.nextDouble();
-                    double y = state.kind == Kind.PLESH && state.groundY != null ? state.groundY + 0.1 : c.y;
+                    double y = state.groundY != null ? state.groundY + 0.1 : c.y;
                     Vec3 p = new Vec3(c.x + Math.cos(a) * r, y, c.z + Math.sin(a) * r);
                     level.addParticle(ModParticles.GRAV_DUST.get(), p.x, p.y, p.z, -Math.sin(a) * 0.02, 0.005, Math.cos(a) * 0.02);
                 }

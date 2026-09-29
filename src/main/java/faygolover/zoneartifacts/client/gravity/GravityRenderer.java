@@ -35,9 +35,11 @@ import org.joml.Quaternionf;
  *     <li><b>debris</b> — tiny spinning blocks, drawn with the real block models;</li>
  *     <li><b>Plesh</b> — a flattened, dusty patch on the ground; while pulling, rings of pressure
  *     closing in and a dark bubble thickening in the middle; the throw sends out a shock ring;</li>
- *     <li><b>Voronka</b> — a faint lens: a thin pale rim and a slight darkening inside; while
- *     pulling the lens shrinks, darkens and its rim flares; the tear is a flash and a shock ring;</li>
- *     <li><b>Karusel</b> — twinkles of light inside (plus the whirl of dust and leaves);</li>
+ *     <li><b>Voronka</b> — refraction ({@link VoronkaLens}): barely visible at rest (fading in after
+ *     the cooldown, nothing during it); while pulling, the distortion deepens, ripples run in, the
+ *     air goes cloudy and a dark knot forms in the middle; the tear is a flash and a shock ring;</li>
+ *     <li><b>Karusel</b> — twinkles of light inside (plus the whirl of dust and leaves); its blowout
+ *     sends a flat wave out over the ground;</li>
  *     <li><b>Podushka</b> — only haze and hanging pebbles.</li>
  * </ul>
  */
@@ -87,6 +89,9 @@ public final class GravityRenderer {
         }
         bufferSource.endBatch();
 
+        // Voronka's refraction (a copy of the frame, drawn distorted).
+        VoronkaLens.render(mc, cam, new Matrix4f(poseStack.last().pose()), now, partial);
+
         // Soft dark shapes: alpha-blended, no depth writes.
         poseStack.pushPose();
         poseStack.translate(-cam.x, -cam.y, -cam.z);
@@ -118,10 +123,12 @@ public final class GravityRenderer {
                     }
                 }
                 case VORONKA -> {
-                    // The lens: a faint darkening that shrinks and deepens while pulling.
-                    double r = state.active() ? reach * (1.0 - 0.75 * t) : half * 0.9;
-                    int alpha = state.active() ? (int) (25 + 120 * t) : 25;
-                    disc(buffer, matrix, c, r * 0.95, cam, 15, 15, 25, alpha);
+                    if (state.active()) {
+                        // The air goes cloudy while pulling, and a dark knot forms at the very center.
+                        double r = Math.max(half, reach * (1.0 - 0.45 * t));
+                        disc(buffer, matrix, c, r * 0.8, cam, 150, 155, 165, (int) (55 * t * t));
+                        disc(buffer, matrix, c, 0.25 + 0.35 * t, cam, 12, 12, 18, (int) (120 * t * t * t));
+                    }
                 }
                 default -> {
                 }
@@ -173,12 +180,14 @@ public final class GravityRenderer {
                     }
                 }
                 case VORONKA -> {
-                    double r = state.active() ? reach * (1.0 - 0.75 * t) : half * 0.9;
-                    int rimAlpha = state.active() ? (int) (45 + 150 * t) : 45;
-                    ring(matrix, buffer, c, r, cam, state.active() ? 0.02f + 0.02f * t : 0.015f, FireDraw.argb(rimAlpha, 205, 220, 255));
+                    // No outline: at rest it's only the refraction. While pulling, faint rings run in.
                     if (state.active()) {
-                        float s = frac(time * 0.04f);
-                        ring(matrix, buffer, c, r + (reach - r) * (1 - s), cam, 0.015f, FireDraw.argb((int) (60 * s), 190, 205, 255));
+                        for (int k = 0; k < 2; k++) {
+                            float s = frac(time * 0.03f + k * 0.5f);
+                            double r = reach * (1.0 - s) + 0.15;
+                            int a = (int) (Math.min(1.0f, level) * 70 * 4 * s * (1 - s) * t);
+                            ring(matrix, buffer, c, r, cam, 0.012f, FireDraw.argb(a, 195, 205, 230));
+                        }
                     }
                     if (release >= 0 && release < 1) {
                         float f = (1 - release) * (1 - release);
@@ -194,8 +203,13 @@ public final class GravityRenderer {
                         FireDraw.glow(matrix, buffer, g.pos(), g.size(), cam, FireDraw.argb(a, 230, 240, 255), 8);
                     }
                     if (release >= 0 && release < 1) {
-                        Vec3 base = new Vec3(c.x, state.zone().minY + 0.5, c.z);
-                        shockRing(matrix, buffer, base, Math.max(2.0, reach * 0.5), release, cam, 220, 220, 210);
+                        // The wave of compressed air spreads flat, low over the ground.
+                        double ground = state.groundY() != null ? state.groundY() : state.zone().minY;
+                        for (int k = 0; k < 3; k++) {
+                            double y = ground + 0.15 + k * reach * 0.3;
+                            float lag = Math.max(0.0f, release - k * 0.06f);
+                            flatShockRing(matrix, buffer, new Vec3(c.x, y, c.z), reach, lag, cam, 1.0f - k * 0.3f);
+                        }
                     }
                 }
                 default -> {
@@ -217,6 +231,25 @@ public final class GravityRenderer {
         double radius = 0.3 + reach * 1.6 * e;
         int alpha = (int) (200 * (1.0f - life));
         ring(matrix, buffer, c, radius, cam, 0.04f + 0.08f * (1 - life), FireDraw.argb(alpha, r, g, b));
+    }
+
+    /** Karusel's wave: a ring lying flat, rushing out and fading. */
+    private static void flatShockRing(Matrix4f matrix, VertexConsumer buffer, Vec3 c, double reach, float life, Vec3 cam, float strength) {
+        if (life <= 0.0f || life >= 1.0f) return;
+        float e = 1.0f - (1.0f - life) * (1.0f - life);
+        double radius = 0.3 + reach * 1.5 * e;
+        int alpha = (int) (170 * strength * (1.0f - life));
+        if (alpha <= 2) return;
+        Vec3[] points = new Vec3[RING_POINTS + 1];
+        float[] widths = new float[RING_POINTS + 1];
+        int[] colors = new int[RING_POINTS + 1];
+        for (int i = 0; i <= RING_POINTS; i++) {
+            double a = Math.PI * 2.0 * i / RING_POINTS;
+            points[i] = new Vec3(c.x + Math.cos(a) * radius, c.y, c.z + Math.sin(a) * radius);
+            widths[i] = 0.05f + 0.1f * (1 - life);
+            colors[i] = FireDraw.argb(alpha, 225, 225, 215);
+        }
+        FireDraw.ribbon(matrix, buffer, points, widths, colors, cam);
     }
 
     /** A camera-facing circle drawn as a ribbon. */

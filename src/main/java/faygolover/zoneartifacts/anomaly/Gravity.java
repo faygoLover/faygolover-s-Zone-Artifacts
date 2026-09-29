@@ -35,15 +35,19 @@ public final class Gravity {
      *  or is held (Voronka). */
     public static final double CAPTURE_RADIUS = 1.0;
 
-    // ---- sounds (vanilla-backed placeholders in sounds.json) ------------------------------
-    public static final ResourceLocation PLESH_PULL_SOUND = id("plesh_pull");
-    public static final ResourceLocation PLESH_THROW_SOUND = id("plesh_throw");
-    public static final ResourceLocation VORONKA_PULL_SOUND = id("voronka_pull");
-    public static final ResourceLocation VORONKA_BURST_SOUND = id("voronka_burst");
-    public static final ResourceLocation KARUSEL_SPIN_SOUND = id("karusel_spin");
-    public static final ResourceLocation KARUSEL_HIT_SOUND = id("karusel_hit");
+    // ---- sounds ------------------------------------------------------------------------------
+    /** Each blowout sound covers the whole phase: the build-up, then the burst. Played so that the
+     *  burst in it (this far into the file) lands exactly on the release. */
+    public static final ResourceLocation PLESH_BLOWOUT_SOUND = id("plesh_blowout");
+    public static final int PLESH_BURST_TICKS = 40;
+    public static final ResourceLocation VORONKA_BLOWOUT_SOUND = id("voronka_blowout");
+    public static final int VORONKA_BURST_TICKS = 41;
+    public static final ResourceLocation KARUSEL_BLOWOUT_SOUND = id("karusel_blowout");
+    public static final int KARUSEL_BURST_TICKS = 128;
+    /** Karusel's quiet idle rustle (client loop). */
+    public static final ResourceLocation KARUSEL_IDLE_SOUND = id("karusel_idle");
     public static final ResourceLocation PODUSHKA_BOUNCE_SOUND = id("podushka_bounce");
-    public static final ResourceLocation GORE_SOUND = id("gore_splat");
+    public static final ResourceLocation GORE_SOUND = id("anomaly_body_tear");
 
     public static final ResourceLocation GRAVITY_DAMAGE_TYPE = id("anomaly_gravity");
     public static final ResourceLocation IMPACT_DAMAGE_TYPE = id("anomaly_impact");
@@ -153,12 +157,19 @@ public final class Gravity {
 
     // ==== Karusel swirl ======================================================================
 
+    /** Karusel's sideways pull per tick on the ground: at the axis / at the rim of the cylinder.
+     *  A sprint (0.127 per tick) beats it by a little, a walk (0.098) doesn't. */
+    public static final double KARUSEL_GROUND_PULL_AXIS = 0.106;
+    public static final double KARUSEL_GROUND_PULL_RIM = 0.100;
+    /** In the air there's no grip (air control is only 0.026): a jump gets you pulled back in. */
+    public static final double KARUSEL_AIR_PULL = 0.05;
+
     /**
      * New velocity for one tick of the Karusel: a sideways pull to the axis plus a push along the
      * circle, vertical motion untouched. On the ground the pull is a bit weaker than a sprint, so
-     * running flat out gets you away; in the air (no grip) it's stronger.
+     * running flat out gets you away (about a block a second); in the air it wins.
      */
-    public static Vec3 swirl(Vec3 pos, Vec3 velocity, Vec3 axis, double force, boolean onGround) {
+    public static Vec3 swirl(Vec3 pos, Vec3 velocity, Vec3 axis, double reach, double force, boolean onGround) {
         double dx = pos.x - axis.x;
         double dz = pos.z - axis.z;
         double d = Math.sqrt(dx * dx + dz * dz);
@@ -167,7 +178,10 @@ public final class Gravity {
         double iz = -dz / d;
         double tx = -iz;
         double tz = ix;
-        double pullAccel = (onGround ? 0.15 : 0.22) * force * Math.min(1.0, d / 0.6);
+        double base = onGround
+                ? Mth.lerp(Mth.clamp(d / Math.max(0.5, reach), 0.0, 1.0), KARUSEL_GROUND_PULL_AXIS, KARUSEL_GROUND_PULL_RIM)
+                : KARUSEL_AIR_PULL;
+        double pullAccel = base * force * Math.min(1.0, d / 0.6);
         double spinTarget = 0.28 * force * Math.min(1.0, d / 0.8);
         double along = velocity.x * tx + velocity.z * tz;
         double spinAccel = (spinTarget - along) * 0.2;
@@ -224,10 +238,19 @@ public final class Gravity {
         return new Vec3(vx, vy + gravity, vz);
     }
 
-    /** Sneaking inside a Podushka: sink slowly instead of bouncing. */
+    /** How fast sneaking sinks through a Podushka, blocks per tick. */
+    public static final double SINK_SPEED = 0.05;
+
+    /**
+     * Sneaking inside a Podushka (players only): whatever the motion was — falling in, flying up —
+     * it eases towards a slow, even sink, with no bounce. A player's gravity is applied after its
+     * move, so the returned value is exactly this tick's move; {@code velocity} is what the last
+     * tick left ((move - gravity) x 0.98), from which the last move is recovered.
+     */
     public static Vec3 sink(Vec3 velocity, double gravity) {
-        double vy = Math.max(Math.min(velocity.y, 0.0) * 0.8, -0.06);
-        return new Vec3(velocity.x, vy + gravity, velocity.z);
+        double lastMove = velocity.y / 0.98 + gravity;
+        double vy = lastMove + (-SINK_SPEED - lastMove) * 0.25;
+        return new Vec3(velocity.x, vy, velocity.z);
     }
 
     /** Fresh bounce state for something that just got into a Podushka. */

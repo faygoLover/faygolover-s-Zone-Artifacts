@@ -30,14 +30,12 @@ public final class ModSounds {
     public static final RegistryObject<SoundEvent> COMET_IDLE = register("comet_idle");
     public static final RegistryObject<SoundEvent> COMET_EXPLODE = register("comet_explode");
     public static final RegistryObject<SoundEvent> RAZLOM_JET = register("razlom_jet");
-    public static final RegistryObject<SoundEvent> PLESH_PULL = register("plesh_pull");
-    public static final RegistryObject<SoundEvent> PLESH_THROW = register("plesh_throw");
-    public static final RegistryObject<SoundEvent> VORONKA_PULL = register("voronka_pull");
-    public static final RegistryObject<SoundEvent> VORONKA_BURST = register("voronka_burst");
-    public static final RegistryObject<SoundEvent> KARUSEL_SPIN = register("karusel_spin");
-    public static final RegistryObject<SoundEvent> KARUSEL_HIT = register("karusel_hit");
+    public static final RegistryObject<SoundEvent> PLESH_BLOWOUT = register("plesh_blowout");
+    public static final RegistryObject<SoundEvent> VORONKA_BLOWOUT = register("voronka_blowout");
+    public static final RegistryObject<SoundEvent> KARUSEL_BLOWOUT = register("karusel_blowout");
+    public static final RegistryObject<SoundEvent> KARUSEL_IDLE = register("karusel_idle");
     public static final RegistryObject<SoundEvent> PODUSHKA_BOUNCE = register("podushka_bounce");
-    public static final RegistryObject<SoundEvent> GORE_SPLAT = register("gore_splat");
+    public static final RegistryObject<SoundEvent> BODY_TEAR = register("anomaly_body_tear");
 
     private static RegistryObject<SoundEvent> register(String name) {
         ResourceLocation id = new ResourceLocation(ZoneArtifacts.MODID, name);

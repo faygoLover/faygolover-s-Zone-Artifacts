@@ -90,69 +90,35 @@
       "fl_zone_arts:razlom_jet"
     ]
   },
-  "plesh_pull": {
-    "subtitle": "subtitles.fl_zone_arts.plesh_pull",
+  "plesh_blowout": {
+    "subtitle": "subtitles.fl_zone_arts.plesh_blowout",
     "sounds": [
+      "fl_zone_arts:plesh_blowout1",
       {
-        "name": "block.portal.trigger",
-        "type": "event",
-        "volume": 0.7,
-        "pitch": 1.5
+        "name": "fl_zone_arts:plesh_blowout2",
+        "volume": 0.75
       }
     ]
   },
-  "plesh_throw": {
-    "subtitle": "subtitles.fl_zone_arts.plesh_throw",
+  "voronka_blowout": {
+    "subtitle": "subtitles.fl_zone_arts.voronka_blowout",
     "sounds": [
-      {
-        "name": "entity.warden.sonic_boom",
-        "type": "event",
-        "volume": 0.6,
-        "pitch": 1.5
-      }
+      "fl_zone_arts:voronka_blowout"
     ]
   },
-  "voronka_pull": {
-    "subtitle": "subtitles.fl_zone_arts.voronka_pull",
+  "karusel_blowout": {
+    "subtitle": "subtitles.fl_zone_arts.karusel_blowout",
     "sounds": [
-      {
-        "name": "block.portal.trigger",
-        "type": "event",
-        "volume": 0.8,
-        "pitch": 0.8
-      }
+      "fl_zone_arts:karusel_blowout"
     ]
   },
-  "voronka_burst": {
-    "subtitle": "subtitles.fl_zone_arts.voronka_burst",
-    "sounds": [
-      {
-        "name": "entity.generic.explode",
-        "type": "event",
-        "volume": 0.9,
-        "pitch": 0.7
-      }
-    ]
-  },
-  "karusel_spin": {
-    "subtitle": "subtitles.fl_zone_arts.karusel_spin",
+  "karusel_idle": {
+    "subtitle": "subtitles.fl_zone_arts.karusel_idle",
     "sounds": [
       {
         "name": "item.elytra.flying",
         "type": "event",
-        "volume": 0.6,
-        "pitch": 1.3
-      }
-    ]
-  },
-  "karusel_hit": {
-    "subtitle": "subtitles.fl_zone_arts.karusel_hit",
-    "sounds": [
-      {
-        "name": "entity.warden.sonic_boom",
-        "type": "event",
-        "volume": 0.5,
-        "pitch": 1.9
+        "pitch": 0.6
       }
     ]
   },
@@ -167,21 +133,10 @@
       }
     ]
   },
-  "gore_splat": {
-    "subtitle": "subtitles.fl_zone_arts.gore_splat",
+  "anomaly_body_tear": {
+    "subtitle": "subtitles.fl_zone_arts.anomaly_body_tear",
     "sounds": [
-      {
-        "name": "entity.slime.squish",
-        "type": "event",
-        "volume": 1.0,
-        "pitch": 0.6
-      },
-      {
-        "name": "block.honey_block.break",
-        "type": "event",
-        "volume": 1.0,
-        "pitch": 0.6
-      }
+      "fl_zone_arts:anomaly_body_tear"
     ]
   }
 }

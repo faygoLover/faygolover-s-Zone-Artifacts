@@ -102,6 +102,7 @@ public final class ModCommonConfig {
     public static final ForgeConfigSpec.DoubleValue KARUSEL_CORE_RADIUS;
     public static final ForgeConfigSpec.IntValue PODUSHKA_INTENSITY;
     public static final ForgeConfigSpec.DoubleValue PODUSHKA_HEIGHT;
+    public static final ForgeConfigSpec.DoubleValue PODUSHKA_FALL_DAMAGE_MULTIPLIER;
 
     // effects
     public static final ForgeConfigSpec.DoubleValue ELECTRIFY_SECONDS;
@@ -245,7 +246,8 @@ public final class ModCommonConfig {
         PLESH_DAMAGE = b.comment("Damage for slamming into a wall after the throw, at full speed, half-hearts.")
                 .defineInRange("damage", 4.0, 0.0, 1000.0);
         PLESH_INTENSITY = b.defineInRange("intensity", 3, 1, 50);
-        PLESH_PULL_SECONDS = b.defineInRange("pullSeconds", 3.0, 0.5, 60.0);
+        PLESH_PULL_SECONDS = b.comment("Pull time before the throw (2.5 matches the sound).")
+                .defineInRange("pullSeconds", 2.5, 0.5, 60.0);
         PLESH_THROW_SPEED = b.comment("Throw speed at x1.0, blocks per tick (1.6 flies roughly 10-12 blocks).")
                 .defineInRange("throwSpeed", 1.6, 0.1, 10.0);
         PLESH_FALL_DAMAGE_MULTIPLIER = b.comment("Fall damage after being thrown is multiplied by this.")
@@ -265,21 +267,25 @@ public final class ModCommonConfig {
         b.pop();
 
         b.comment("Karusel (carousel): a whirlwind — pulls sideways to its axis and spins, no vertical pull.",
-                "After spinSeconds everyone near the axis is hurt. Running flat out gets you away; jumping doesn't.",
+                "After spinSeconds everyone near the axis is hurt and a flat wave of air pushes everything out.",
+                "Running flat out gets you away; jumping doesn't.",
                 "The speed tuner scales the pull.").push("karusel");
         KARUSEL_COOLDOWN_SECONDS = b.defineInRange("cooldownSeconds", 6, 1, 3600);
         KARUSEL_DAMAGE = b.defineInRange("damage", 12.0, 0.0, 1000.0);
         KARUSEL_INTENSITY = b.defineInRange("intensity", 3, 1, 50);
-        KARUSEL_SPIN_SECONDS = b.defineInRange("spinSeconds", 5.0, 0.5, 60.0);
+        KARUSEL_SPIN_SECONDS = b.comment("Spin time from the trigger to the blowout (6.4 matches the sound).")
+                .defineInRange("spinSeconds", 6.4, 0.5, 60.0);
         KARUSEL_CORE_RADIUS = b.comment("Only those within this many blocks of the axis get hurt.")
                 .defineInRange("coreRadius", 0.75, 0.1, 16.0);
         b.pop();
 
         b.comment("Podushka (cushion): harmless. Brakes a fall, then bounces up above its top; sneaking inside",
-                "sinks gently instead. The speed tuner scales the height.").push("podushka");
+                "sinks gently instead. The landing after a bounce hurts less. The speed tuner scales the height.").push("podushka");
         PODUSHKA_INTENSITY = b.defineInRange("intensity", 3, 1, 50);
         PODUSHKA_HEIGHT = b.comment("Bounce height above the cushion's top at x1.0, blocks.")
                 .defineInRange("height", 3.0, 0.5, 64.0);
+        PODUSHKA_FALL_DAMAGE_MULTIPLIER = b.comment("Fall damage after bouncing out of it is multiplied by this.")
+                .defineInRange("fallDamageMultiplier", 0.5, 0.0, 1.0);
         b.pop();
 
         b.push("effects");

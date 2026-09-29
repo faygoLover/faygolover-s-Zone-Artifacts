@@ -60,8 +60,12 @@ public final class GravityEngine {
 
     /** Entities thrown by a Plesh: hitting a wall while still flying fast hurts. */
     private static final Map<UUID, Thrown> THROWN = new HashMap<>();
-    /** Until when (game time) an entity's fall damage is reduced after a Plesh throw. */
-    private static final Map<UUID, Long> SOFT_FALL = new HashMap<>();
+    /** Until when (game time) an entity's fall damage is reduced, and by how much — after a Plesh
+     *  throw or a Podushka bounce. */
+    private static final Map<UUID, SoftFall> SOFT_FALL = new HashMap<>();
+
+    private record SoftFall(long until, double multiplier) {
+    }
 
     private static final Map<UUID, Gravity.Bounce> BOUNCES = new HashMap<>();
     private static final Map<UUID, Integer> ITEM_BOUNCES = new HashMap<>();
@@ -127,10 +131,27 @@ public final class GravityEngine {
         AnomalySyncHandler.broadcastState(level, instance);
         Vec3 c = Gravity.center(instance.pos(), instance.size());
         GravityEventPacket.send(level, instance.pos(), GravityEventPacket.START, instance.phaseSeed(), c);
+        if (blowoutDelay(instance.typeId()) == 0) playBlowout(level, instance);
+    }
+
+    /** Ticks into the phase to start the blowout sound, so the burst in it falls on the release
+     *  (right away if the phase is shorter than the sound's build-up). */
+    private static int blowoutDelay(ResourceLocation type) {
+        int burst = AnomalyTypeIds.KARUSEL.equals(type) ? Gravity.KARUSEL_BURST_TICKS
+                : AnomalyTypeIds.VORONKA.equals(type) ? Gravity.VORONKA_BURST_TICKS : Gravity.PLESH_BURST_TICKS;
+        return Math.max(0, phaseTicks(type) - burst);
+    }
+
+    private static void playBlowout(ServerLevel level, AnomalyInstance instance) {
         ResourceLocation type = instance.typeId();
-        ResourceLocation sound = AnomalyTypeIds.PLESH.equals(type) ? Gravity.PLESH_PULL_SOUND
-                : AnomalyTypeIds.VORONKA.equals(type) ? Gravity.VORONKA_PULL_SOUND : Gravity.KARUSEL_SPIN_SOUND;
-        AnomalyCombat.playSound(level, c, sound, 1.5f);
+        Vec3 c = Gravity.center(instance.pos(), instance.size());
+        if (AnomalyTypeIds.KARUSEL.equals(type)) {
+            AnomalyCombat.playSound(level, c, Gravity.KARUSEL_BLOWOUT_SOUND, 2.0f);
+        } else if (AnomalyTypeIds.VORONKA.equals(type)) {
+            AnomalyCombat.playSound(level, c, Gravity.VORONKA_BLOWOUT_SOUND, 2.5f);
+        } else {
+            AnomalyCombat.playSound(level, c, Gravity.PLESH_BLOWOUT_SOUND, 2.0f);
+        }
     }
 
     private static int phaseTicks(ResourceLocation type) {
@@ -148,6 +169,7 @@ public final class GravityEngine {
             release(level, instance);
             return;
         }
+        if (t == blowoutDelay(type)) playBlowout(level, instance);
 
         boolean karusel = AnomalyTypeIds.KARUSEL.equals(type);
         boolean plesh = AnomalyTypeIds.PLESH.equals(type);
@@ -163,7 +185,7 @@ public final class GravityEngine {
 
             Vec3 v;
             if (karusel) {
-                v = Gravity.swirl(e.position(), e.getDeltaMovement(), c, force, e.onGround());
+                v = Gravity.swirl(e.position(), e.getDeltaMovement(), c, r, force, e.onGround());
             } else {
                 Gravity.Orbit orbit = plesh ? Gravity.Orbit.of(instance.phaseSeed(), e.getId()) : Gravity.Orbit.STILL;
                 v = Gravity.pull(e.getBoundingBox().getCenter(), e.getDeltaMovement(), c, force, Gravity.gravityOf(e), orbit, t);
@@ -189,10 +211,9 @@ public final class GravityEngine {
                 e.hasImpulse = true;
                 if (e instanceof LivingEntity) {
                     THROWN.put(e.getUUID(), new Thrown(level.dimension(), e.position(), instance.damage(), speed, now));
-                    SOFT_FALL.put(e.getUUID(), now + 200);
+                    SOFT_FALL.put(e.getUUID(), new SoftFall(now + 200, ModCommonConfig.PLESH_FALL_DAMAGE_MULTIPLIER.get()));
                 }
             }
-            AnomalyCombat.playSound(level, c, Gravity.PLESH_THROW_SOUND, 2.0f);
         } else if (AnomalyTypeIds.VORONKA.equals(type)) {
             double core = ModCommonConfig.VORONKA_CORE_RADIUS.get();
             destroyItems(level, c, core, null);
@@ -208,7 +229,6 @@ public final class GravityEngine {
                 goreActive = false;
             }
             shockwave(level, c, r * 1.2, 0.7);
-            AnomalyCombat.playSound(level, c, Gravity.VORONKA_BURST_SOUND, 2.0f);
         } else {
             double core = ModCommonConfig.KARUSEL_CORE_RADIUS.get();
             destroyItems(level, c, core, instance);
@@ -223,8 +243,8 @@ public final class GravityEngine {
             } finally {
                 goreActive = false;
             }
-            shockwave(level, new Vec3(c.x, AnomalyGeometry.zoneAabb(instance).minY + 0.5, c.z), Math.max(2.0, core * 2.0), 0.4);
-            AnomalyCombat.playSound(level, c, Gravity.KARUSEL_HIT_SOUND, 1.5f);
+            double bottom = AnomalyGeometry.zoneAabb(instance).minY;
+            horizontalShockwave(level, c, bottom - 0.5, bottom + r + 0.5, r * 1.3, 0.55);
         }
 
         GravityEventPacket.send(level, instance.pos(), GravityEventPacket.RELEASE, instance.phaseSeed(), c);
@@ -268,6 +288,22 @@ public final class GravityEngine {
         }
     }
 
+    /** Karusel's wave of compressed air: straight out from its axis, flat, only a slight lift. */
+    private static void horizontalShockwave(ServerLevel level, Vec3 c, double minY, double maxY, double radius, double strength) {
+        AABB box = new AABB(c.x - radius, minY, c.z - radius, c.x + radius, maxY, c.z + radius);
+        for (Entity e : level.getEntities((Entity) null, box, Gravity::movable)) {
+            double dx = e.getX() - c.x;
+            double dz = e.getZ() - c.z;
+            double d = Math.sqrt(dx * dx + dz * dz);
+            if (d > radius) continue;
+            double angle = d < 1.0E-3 ? level.random.nextDouble() * Math.PI * 2.0 : Math.atan2(dz, dx);
+            double k = strength * (0.35 + 0.65 * (1.0 - d / radius));
+            e.setDeltaMovement(e.getDeltaMovement().add(Math.cos(angle) * k, 0.1 * k, Math.sin(angle) * k));
+            e.hurtMarked = true;
+            e.hasImpulse = true;
+        }
+    }
+
     // ==== Podushka =========================================================================
 
     private static void tickPodushka(ServerLevel level, AnomalyInstance instance) {
@@ -304,6 +340,10 @@ public final class GravityEngine {
             if (now.contains(id)) continue;
             BOUNCES.remove(id);
             Entity left = level.getEntity(id);
+            // Bounced out (not just walked off): the landing hurts less, as after a Plesh throw.
+            if (left instanceof LivingEntity living && living.isAlive() && !living.onGround()) {
+                SOFT_FALL.put(id, new SoftFall(level.getGameTime() + 200, ModCommonConfig.PODUSHKA_FALL_DAMAGE_MULTIPLIER.get()));
+            }
             boolean overCushion = left instanceof ItemEntity && left.isAlive()
                     && left.getX() >= zone.minX && left.getX() <= zone.maxX
                     && left.getZ() >= zone.minZ && left.getZ() <= zone.maxZ && left.getY() >= zone.minY;
@@ -408,16 +448,16 @@ public final class GravityEngine {
             t.previousSpeed = speed;
             t.previous = at;
         }
-        SOFT_FALL.values().removeIf(until -> until < now - 1200);
+        SOFT_FALL.values().removeIf(soft -> soft.until() < now - 1200);
     }
 
     @SubscribeEvent
     public static void onLivingFall(LivingFallEvent event) {
         LivingEntity entity = event.getEntity();
         if (entity.level().isClientSide) return;
-        Long until = SOFT_FALL.remove(entity.getUUID());
-        if (until != null && entity.level().getGameTime() <= until) {
-            event.setDamageMultiplier(event.getDamageMultiplier() * ModCommonConfig.PLESH_FALL_DAMAGE_MULTIPLIER.get().floatValue());
+        SoftFall soft = SOFT_FALL.remove(entity.getUUID());
+        if (soft != null && entity.level().getGameTime() <= soft.until()) {
+            event.setDamageMultiplier(event.getDamageMultiplier() * (float) soft.multiplier());
         }
     }
 
