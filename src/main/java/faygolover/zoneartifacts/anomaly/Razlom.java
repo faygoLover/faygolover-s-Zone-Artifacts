@@ -6,16 +6,24 @@ import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.VoxelShape;
 
 import javax.annotation.Nullable;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * The Razlom (rift): glowing cracks in the ground under it, crossing at one point, and a small
- * flame hovering over that point. When a living being steps into its zone, the flame hits it with
- * a jet of fire for {@code razlom.jetSeconds} (5.5 s), following it a few blocks beyond the zone,
- * then rests for its cooldown. Server logic in {@link RazlomEngine}; the geometry here is shared
+ * flame hovering over that point. When a living being (or a flying projectile) comes into its zone,
+ * the flame spews a jet of fire for {@code razlom.jetSeconds} (5.5 s): the jet's end turns after
+ * the target at a limited speed (a fast target can dodge it), and with no target left it keeps
+ * going, drifting on and sinking to the ground, until the time is up. Then it rests for its cooldown. Server logic in {@link RazlomEngine}; the geometry here is shared
  * by the server (jet origin) and the client (cracks, flame).
  */
 public final class Razlom {
@@ -95,6 +103,43 @@ public final class Razlom {
             return (double) (y + 1);
         }
         return null;
+    }
+
+    /** The jet's arc from {@code from} towards {@code aim}, as far as it has shot out
+     *  ({@code extend}, 0..1): its points, and the block that stops it (null if none). */
+    public record Arc(List<Vec3> points, @Nullable BlockHitResult hit) {
+        public Vec3 end() {
+            return points.get(points.size() - 1);
+        }
+    }
+
+    public static Arc arc(BlockGetter level, Vec3 from, Vec3 aim, double extend) {
+        List<Vec3> points = new ArrayList<>(JET_SEGMENTS + 1);
+        points.add(from);
+        Vec3 prev = from;
+        for (int i = 1; i <= JET_SEGMENTS; i++) {
+            Vec3 next = jetPoint(from, aim, extend * i / JET_SEGMENTS);
+            BlockHitResult hit = clipBlocks(level, prev, next);
+            if (hit.getType() != HitResult.Type.MISS) {
+                points.add(hit.getLocation());
+                return new Arc(points, hit);
+            }
+            points.add(next);
+            prev = next;
+        }
+        return new Arc(points, null);
+    }
+
+    /** Raycast against block collision shapes that needs no entity (works the same on both sides). */
+    public static BlockHitResult clipBlocks(BlockGetter level, Vec3 from, Vec3 to) {
+        return BlockGetter.traverseBlocks(from, to, level, (getter, pos) -> {
+            BlockState state = getter.getBlockState(pos);
+            VoxelShape shape = state.getCollisionShape(getter, pos, CollisionContext.empty());
+            return getter.clipWithInteractionOverride(from, to, pos, shape, state);
+        }, getter -> {
+            Vec3 d = from.subtract(to);
+            return BlockHitResult.miss(to, Direction.getNearest(d.x, d.y, d.z), BlockPos.containing(to));
+        });
     }
 
     private static ResourceLocation id(String path) {

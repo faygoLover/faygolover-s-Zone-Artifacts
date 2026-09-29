@@ -15,7 +15,6 @@ import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
@@ -79,8 +78,30 @@ public final class RazlomClientHandler {
         }
     }
 
-    /** The jet: whom it burns, when it was fired at them (it shoots out from there) and until when. */
-    public record Jet(int targetId, long startTick, long endTick) {
+    /** The jet: where its end is aimed (updated every tick by the server, drawn in between),
+     *  when it was fired (it shoots out from there) and until when. */
+    public static final class Jet {
+        int targetId;
+        final long startTick;
+        long endTick;
+        Vec3 aim;
+        Vec3 prevAim;
+
+        Jet(int targetId, long startTick, long endTick, Vec3 aim) {
+            this.targetId = targetId;
+            this.startTick = startTick;
+            this.endTick = endTick;
+            this.aim = aim;
+            this.prevAim = aim;
+        }
+
+        public Vec3 aim(float partialTick) {
+            return prevAim.lerp(aim, partialTick);
+        }
+
+        public long endTick() {
+            return endTick;
+        }
     }
 
     public static final class State {
@@ -125,11 +146,11 @@ public final class RazlomClientHandler {
         /** How far the jet has shot out along its arc (0..1). */
         public float jetExtend(long now, float partialTick) {
             if (jet == null) return 0.0f;
-            return Mth.clamp((now - jet.startTick() + partialTick) / Razlom.JET_GROW_TICKS, 0.0f, 1.0f);
+            return Mth.clamp((now - jet.startTick + partialTick) / Razlom.JET_GROW_TICKS, 0.0f, 1.0f);
         }
 
         public boolean jetActive(long now) {
-            return jet != null && jet.targetId() >= 0 && now < jet.endTick();
+            return jet != null && now < jet.endTick;
         }
     }
 
@@ -144,18 +165,29 @@ public final class RazlomClientHandler {
 
     // ==== packet ======================================================================
 
-    public static void onJet(BlockPos pos, int targetId, int ticks) {
+    public static void onJet(BlockPos pos, int targetId, int ticks, Vec3 aim) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) return;
         long now = mc.level.getGameTime();
-        Jet jet = new Jet(targetId, now, now + ticks);
         State state = STATES.get(pos);
-        if (state == null) {
-            if (targetId >= 0) PENDING_JETS.put(pos.immutable(), jet);
-            else PENDING_JETS.remove(pos);
+        Jet current = state != null ? state.jet : PENDING_JETS.get(pos);
+
+        if (ticks <= 0) {
+            if (state != null) state.jet = null;
+            PENDING_JETS.remove(pos);
             return;
         }
-        state.jet = jet;
+        if (current != null && now <= current.endTick + 2) {
+            // The same jet, one tick on: move its end.
+            current.targetId = targetId;
+            current.prevAim = current.aim;
+            current.aim = aim;
+            current.endTick = now + ticks;
+            return;
+        }
+        Jet jet = new Jet(targetId, now, now + ticks, aim);
+        if (state != null) state.jet = jet;
+        else PENDING_JETS.put(pos.immutable(), jet);
     }
 
     // ==== tick ========================================================================
@@ -303,26 +335,39 @@ public final class RazlomClientHandler {
             }
         }
 
-        // The jet: flames streaming along its arc (only as far as it has shot out yet).
+        // The jet: flames streaming along its arc (as far as it has shot out yet, and only up to
+        // the block it lands on), splashing where it hits.
         if (jetting && state.jet != null) {
-            Entity target = level.getEntity(state.jet.targetId());
-            if (target != null) {
-                Vec3 aim = target.getBoundingBox().getCenter();
-                float extend = state.jetExtend(now, 1.0f);
-                int n = 3 + eff / 2;
-                for (int i = 0; i < n; i++) {
-                    double t = extend * RANDOM.nextDouble();
-                    Vec3 p = Razlom.jetPoint(f, aim, t);
-                    Vec3 ahead = Razlom.jetPoint(f, aim, Math.min(1.0, t + 0.05));
-                    Vec3 tangent = ahead.subtract(p);
-                    if (tangent.lengthSqr() < 1.0E-8) continue;
-                    Vec3 spread = new Vec3(RANDOM.nextGaussian(), RANDOM.nextGaussian(), RANDOM.nextGaussian()).scale(0.02);
-                    Vec3 v = tangent.normalize().scale(0.1 + RANDOM.nextDouble() * 0.12).add(spread);
-                    level.addParticle(ParticleTypes.FLAME, p.x, p.y, p.z, v.x, v.y, v.z);
+            float extend = state.jetExtend(now, 1.0f);
+            Razlom.Arc arc = Razlom.arc(level, f, state.jet.aim, extend);
+            List<Vec3> points = arc.points();
+            int n = 3 + eff / 2;
+            for (int i = 0; i < n && points.size() > 1; i++) {
+                int seg = RANDOM.nextInt(points.size() - 1);
+                Vec3 a = points.get(seg);
+                Vec3 b = points.get(seg + 1);
+                Vec3 p = a.lerp(b, RANDOM.nextDouble());
+                Vec3 tangent = b.subtract(a);
+                if (tangent.lengthSqr() < 1.0E-8) continue;
+                Vec3 spread = new Vec3(RANDOM.nextGaussian(), RANDOM.nextGaussian(), RANDOM.nextGaussian()).scale(0.02);
+                Vec3 v = tangent.normalize().scale(0.1 + RANDOM.nextDouble() * 0.12).add(spread);
+                level.addParticle(ParticleTypes.FLAME, p.x, p.y, p.z, v.x, v.y, v.z);
+            }
+            if (RANDOM.nextInt(3) == 0 && points.size() > 1) {
+                Vec3 p = points.get(1 + RANDOM.nextInt(points.size() - 1));
+                level.addParticle(ModParticles.HEAT_SMOKE.get(), p.x, p.y, p.z, 0.0, 0.03, 0.0);
+            }
+            if (arc.hit() != null && extend >= 1.0f) {
+                // Splash: flames bouncing off the surface, a puff of smoke now and then.
+                Vec3 hit = arc.end();
+                Vec3 normal = Vec3.atLowerCornerOf(arc.hit().getDirection().getNormal());
+                for (int i = 0; i < 2; i++) {
+                    Vec3 v = normal.scale(0.03 + RANDOM.nextDouble() * 0.04)
+                            .add(RANDOM.nextGaussian() * 0.04, 0.02, RANDOM.nextGaussian() * 0.04);
+                    level.addParticle(ParticleTypes.FLAME, hit.x, hit.y, hit.z, v.x, v.y, v.z);
                 }
-                if (RANDOM.nextInt(3) == 0) {
-                    Vec3 p = Razlom.jetPoint(f, aim, extend * RANDOM.nextDouble());
-                    level.addParticle(ModParticles.HEAT_SMOKE.get(), p.x, p.y, p.z, 0.0, 0.03, 0.0);
+                if (RANDOM.nextInt(4) == 0) {
+                    level.addParticle(ParticleTypes.SMOKE, hit.x, hit.y + 0.1, hit.z, 0.0, 0.04, 0.0);
                 }
             }
         }

@@ -10,11 +10,8 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Projectile;
-import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.block.BaseFireBlock;
 import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
 import javax.annotation.Nullable;
@@ -24,21 +21,25 @@ import java.util.List;
  * Server side of the Razlom, called from {@link AnomalyEngine} every tick.
  * <ol>
  *     <li><b>Idle</b>: waits for a living being in its zone (not a spectator, not a player in
- *     creative) — the nearest one becomes the target. A flying projectile (a snowball, an arrow...)
- *     sets it off too, like the Electra: the jet chases it, it flies off, the jet dies out and the
- *     Razlom goes on cooldown — a way to discharge it. Projectiles take no damage.</li>
- *     <li><b>Jet</b> ({@code active}): for {@code razlom.jetSeconds} the flame burns the target:
- *     a hit every {@code hitIntervalTicks} (fire damage, sets it on fire), only while no block
- *     stands in the way of the jet's arc ({@link Razlom#jetPoint}). Now and then
- *     ({@code blockIgniteChance}) a hit also sets a spot next to the target on fire, or the block
- *     in the way when something blocks it. The jet follows the target up to {@code jetRange} blocks beyond the
- *     zone; if it gets away or dies, the jet switches to someone else in the zone or ends early.</li>
- *     <li><b>Cooldown</b> ({@link AnomalyInstance#cooldownSeconds()}): rests, then waits again.</li>
+ *     creative) or, failing that, a flying projectile (a snowball, an arrow...) — like the Electra,
+ *     so it can be set off from a distance and discharged.</li>
+ *     <li><b>Jet</b> ({@code active}), always the full {@code razlom.jetSeconds}: the jet runs along
+ *     an arc from the flame to its <i>aim point</i>. The aim point chases the target at no more
+ *     than {@code aimSpeed} blocks per tick, smoothly (so a sprinting player can outrun it, and a
+ *     miss really misses — the fire lands wherever the arc does). With no target (it ran out of
+ *     range, died, the projectile flew off) the jet keeps going: the aim point drifts on with its
+ *     momentum, wanders a little and sinks to the ground, until a new target turns up or time is up.
+ *     Every {@code hitIntervalTicks} whoever the arc passes through is burned; now and then
+ *     ({@code blockIgniteChance}) a fire starts next to a victim or where the jet hits a block.</li>
+ *     <li><b>Cooldown</b> ({@link AnomalyInstance#cooldownSeconds()}): the flame is out, then it waits again.</li>
  * </ol>
- * Clients learn about the jet from {@link RazlomJetPacket} (whom it's aimed at, for how long) and
- * the {@code active} / cooldown flags.
+ * The aim point is sent to nearby clients every tick ({@link RazlomJetPacket}), so everyone sees the
+ * jet exactly where it burns.
  */
 public final class RazlomEngine {
+
+    /** How close to the arc an entity's box must be to get burned. */
+    private static final double JET_THICKNESS = 0.3;
 
     private RazlomEngine() {
     }
@@ -62,10 +63,14 @@ public final class RazlomEngine {
         int jetTicks = Math.max(1, (int) Math.round(ModCommonConfig.RAZLOM_JET_SECONDS.get() * 20.0));
         instance.setActive(true);
         instance.setPulseTicks(jetTicks);
-        firstHitOnArrival(instance);
+        // First hit as the jet arrives (it shoots out over JET_GROW_TICKS), then every hitIntervalTicks.
+        instance.setBlockTicks(Math.max(0, ModCommonConfig.RAZLOM_HIT_INTERVAL_TICKS.get() - Razlom.JET_GROW_TICKS));
         instance.setJetTargetId(target.getId());
+        instance.setJetAim(target.getBoundingBox().getCenter());
+        instance.setJetVelocity(Vec3.ZERO);
+        instance.setJetWander(level.random.nextDouble() * Math.PI * 2.0);
         AnomalySyncHandler.broadcastState(level, instance);
-        RazlomJetPacket.send(level, instance.pos(), target.getId(), jetTicks);
+        RazlomJetPacket.send(level, instance.pos(), target.getId(), jetTicks, instance.jetAim());
     }
 
     private static void tickJet(ServerLevel level, AnomalyInstance instance) {
@@ -73,70 +78,123 @@ public final class RazlomEngine {
         double range = Razlom.jetRange(instance.size(), ModCommonConfig.RAZLOM_JET_RANGE.get());
         int remaining = instance.pulseTicks() - 1;
         instance.setPulseTicks(remaining);
-
-        Entity current = level.getEntity(instance.jetTargetId());
-        Entity target = current != null && valid(current, flame, range) ? current : null;
-        if (target == null) {
-            target = nearestInZone(level, instance, flame);
-            if (target == null) {
-                endJet(level, instance);
-                return;
-            }
-            instance.setJetTargetId(target.getId());
-            firstHitOnArrival(instance); // the jet shoots out at the new target again
-            RazlomJetPacket.send(level, instance.pos(), target.getId(), Math.max(1, remaining));
+        if (remaining <= 0) {
+            endJet(level, instance);
+            return;
         }
+
+        // Keep the target while it's valid and in reach, else take whoever is in the zone now.
+        Entity current = level.getEntity(instance.jetTargetId());
+        Entity target = current != null && valid(current, flame, range) ? current : nearestInZone(level, instance, flame);
+        instance.setJetTargetId(target != null ? target.getId() : -1);
+
+        moveAim(level, instance, flame, range, target);
 
         int hitTicks = instance.blockTicks() + 1;
         if (hitTicks >= ModCommonConfig.RAZLOM_HIT_INTERVAL_TICKS.get()) {
             hitTicks = 0;
-            Vec3 aim = target.getBoundingBox().getCenter();
-            BlockHitResult blocked = blockAlongArc(level, flame, aim, target);
-            double blockChance = ModCommonConfig.RAZLOM_BLOCK_IGNITE_CHANCE.get();
-            if (blocked == null && target instanceof LivingEntity living) {
-                // Hits land every few ticks on purpose: don't let vanilla's half-second of
-                // invulnerability swallow them.
-                living.invulnerableTime = 0;
-                AnomalyCombat.hurt(level, living, Thermal.HEAT_DAMAGE_TYPE, instance.damage());
-                int ignite = ModCommonConfig.RAZLOM_IGNITE_SECONDS.get();
-                if (ignite > 0 && !living.fireImmune()) living.setSecondsOnFire(ignite);
-                if (level.random.nextDouble() < blockChance) igniteNear(level, living.blockPosition());
-            } else if (blocked != null && level.random.nextDouble() < blockChance) {
-                // (A projectile it reaches is only burned at, not hurt.)
-                // The block in the way catches fire (on the side the jet came from).
-                igniteSpot(level, blocked.getBlockPos().relative(blocked.getDirection()));
-            }
+            burn(level, instance, flame);
         }
         instance.setBlockTicks(hitTicks);
 
-        if (remaining <= 0) endJet(level, instance);
+        RazlomJetPacket.send(level, instance.pos(), instance.jetTargetId(), remaining, instance.jetAim());
     }
 
-    /** Counts the hit timer so the first hit lands as the jet arrives ({@link Razlom#JET_GROW_TICKS}). */
-    private static void firstHitOnArrival(AnomalyInstance instance) {
-        instance.setBlockTicks(Math.max(0, ModCommonConfig.RAZLOM_HIT_INTERVAL_TICKS.get() - Razlom.JET_GROW_TICKS));
+    /**
+     * Steers the aim point: after the target at up to {@code aimSpeed}, smoothed so it swings
+     * rather than snaps; without one, it coasts on, wanders and falls, then slides along the ground.
+     * It never strays further than {@code range} from the flame.
+     */
+    private static void moveAim(ServerLevel level, AnomalyInstance instance, Vec3 flame, double range, @Nullable Entity target) {
+        Vec3 aim = instance.jetAim();
+        Vec3 velocity = instance.jetVelocity();
+        double maxSpeed = ModCommonConfig.RAZLOM_AIM_SPEED.get();
+
+        if (target != null) {
+            Vec3 want = target.getBoundingBox().getCenter().subtract(aim);
+            double distance = want.length();
+            Vec3 wantVelocity = distance < 1.0E-4 ? Vec3.ZERO : want.scale(Math.min(maxSpeed, distance * 0.5) / distance);
+            velocity = velocity.scale(0.7).add(wantVelocity.scale(0.3));
+        } else {
+            // Coast: horizontal momentum fades slowly, a gently turning heading nudges it along,
+            // and the stream sags towards the ground.
+            double wander = instance.jetWander() + level.random.nextGaussian() * 0.12;
+            instance.setJetWander(wander);
+            Vec3 nudge = new Vec3(Math.cos(wander), 0.0, Math.sin(wander)).scale(0.02);
+            velocity = new Vec3(velocity.x * 0.96, Math.max(-0.3, velocity.y - 0.015), velocity.z * 0.96).add(nudge);
+            double horizontal = Math.sqrt(velocity.x * velocity.x + velocity.z * velocity.z);
+            if (horizontal > maxSpeed) velocity = new Vec3(velocity.x * maxSpeed / horizontal, velocity.y, velocity.z * maxSpeed / horizontal);
+        }
+
+        aim = aim.add(velocity);
+
+        // Stay within reach of the flame: pull back and bounce off the edge.
+        Vec3 offset = aim.subtract(flame);
+        double dist = offset.length();
+        if (dist > range && dist > 1.0E-4) {
+            aim = flame.add(offset.scale(range / dist));
+            Vec3 outward = offset.scale(1.0 / dist);
+            double out = velocity.dot(outward);
+            if (out > 0) velocity = velocity.subtract(outward.scale(out * 1.5));
+        }
+
+        // Never below the ground: once down, it slides along it.
+        Double ground = Razlom.groundY(level, aim.x, aim.z, aim.y + 1.5, aim.y - 8.0);
+        if (ground != null && aim.y < ground + 0.1) {
+            aim = new Vec3(aim.x, ground + 0.1, aim.z);
+            if (velocity.y < 0) velocity = new Vec3(velocity.x, 0.0, velocity.z);
+        }
+
+        instance.setJetAim(aim);
+        instance.setJetVelocity(velocity);
+    }
+
+    /** Burns whoever the arc passes through; with a small chance, starts a fire where it lands. */
+    private static void burn(ServerLevel level, AnomalyInstance instance, Vec3 flame) {
+        Razlom.Arc arc = Razlom.arc(level, flame, instance.jetAim(), 1.0);
+        List<Vec3> points = arc.points();
+        double blockChance = ModCommonConfig.RAZLOM_BLOCK_IGNITE_CHANCE.get();
+
+        AABB bounds = new AABB(flame, flame);
+        for (Vec3 p : points) bounds = bounds.minmax(new AABB(p, p));
+        List<LivingEntity> near = level.getEntitiesOfClass(LivingEntity.class, bounds.inflate(1.0), RazlomEngine::targetable);
+
+        boolean hitSomeone = false;
+        for (LivingEntity victim : near) {
+            AABB box = victim.getBoundingBox().inflate(JET_THICKNESS);
+            if (!touches(box, points)) continue;
+            hitSomeone = true;
+            // Hits land every few ticks on purpose: don't let vanilla's half-second of
+            // invulnerability swallow them.
+            victim.invulnerableTime = 0;
+            AnomalyCombat.hurt(level, victim, Thermal.HEAT_DAMAGE_TYPE, instance.damage());
+            int ignite = ModCommonConfig.RAZLOM_IGNITE_SECONDS.get();
+            if (ignite > 0 && !victim.fireImmune()) victim.setSecondsOnFire(ignite);
+            if (level.random.nextDouble() < blockChance) igniteNear(level, victim.blockPosition());
+        }
+
+        // The stream splashing onto a block (a miss, the ground, or something in the way).
+        if (!hitSomeone && arc.hit() != null && level.random.nextDouble() < blockChance) {
+            igniteSpot(level, arc.hit().getBlockPos().relative(arc.hit().getDirection()));
+        }
+    }
+
+    private static boolean touches(AABB box, List<Vec3> points) {
+        for (int i = 0; i < points.size() - 1; i++) {
+            Vec3 a = points.get(i);
+            if (box.contains(a) || box.clip(a, points.get(i + 1)).isPresent()) return true;
+        }
+        return box.contains(points.get(points.size() - 1));
     }
 
     private static void endJet(ServerLevel level, AnomalyInstance instance) {
         instance.setActive(false);
         instance.setPulseTicks(0);
         instance.setJetTargetId(-1);
+        instance.setJetVelocity(Vec3.ZERO);
         instance.setCooldownTicks(AnomalyDefaults.ticks(instance.cooldownSeconds()));
         AnomalySyncHandler.broadcastState(level, instance);
-        RazlomJetPacket.send(level, instance.pos(), -1, 0);
-    }
-
-    /** First block the jet's arc runs into, or null if it reaches {@code aim}. */
-    @Nullable
-    private static BlockHitResult blockAlongArc(ServerLevel level, Vec3 flame, Vec3 aim, Entity context) {
-        Vec3 prev = flame;
-        for (int i = 1; i <= Razlom.JET_SEGMENTS; i++) {
-            Vec3 next = Razlom.jetPoint(flame, aim, i / (double) Razlom.JET_SEGMENTS);
-            BlockHitResult hit = level.clip(new ClipContext(prev, next, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, context));
-            if (hit.getType() != HitResult.Type.MISS) return hit;
-            prev = next;
-        }
-        return null;
+        RazlomJetPacket.send(level, instance.pos(), -1, 0, instance.jetAim());
     }
 
     /** A fire on a free spot right around {@code feet} (a few tries). */

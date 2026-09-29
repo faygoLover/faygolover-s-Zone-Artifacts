@@ -3,6 +3,7 @@ package faygolover.zoneartifacts.anomaly;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.phys.Vec3;
 
 /**
  * One zone anomaly placed in the world (Electra, Zharka, Iney), with its own settings changed with
@@ -27,6 +28,10 @@ public class AnomalyInstance {
 
     // Razlom runtime state, not saved: the entity its fire jet is aimed at (-1 = none).
     private transient int jetTargetId = -1;
+    // Where the jet's end is, how it is moving, and its wandering heading once it has no target.
+    private transient Vec3 jetAim = Vec3.ZERO;
+    private transient Vec3 jetVelocity = Vec3.ZERO;
+    private transient double jetWander;
 
     public AnomalyInstance(ResourceLocation typeId, BlockPos pos, double size, double cooldownSeconds, float damage, int intensity) {
         this.typeId = typeId;
@@ -123,6 +128,30 @@ public class AnomalyInstance {
 
     public void setJetTargetId(int id) {
         this.jetTargetId = id;
+    }
+
+    public Vec3 jetAim() {
+        return jetAim;
+    }
+
+    public void setJetAim(Vec3 aim) {
+        this.jetAim = aim;
+    }
+
+    public Vec3 jetVelocity() {
+        return jetVelocity;
+    }
+
+    public void setJetVelocity(Vec3 velocity) {
+        this.jetVelocity = velocity;
+    }
+
+    public double jetWander() {
+        return jetWander;
+    }
+
+    public void setJetWander(double wander) {
+        this.jetWander = wander;
     }
 
     public CompoundTag save() {

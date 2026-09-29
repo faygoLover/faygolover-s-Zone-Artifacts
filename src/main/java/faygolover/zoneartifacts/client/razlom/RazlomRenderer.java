@@ -17,10 +17,6 @@ import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.util.Mth;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.level.ClipContext;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
@@ -155,12 +151,8 @@ public final class RazlomRenderer {
             // Jet streams: shooting out along the arc, stopped by the first block in the way.
             RazlomClientHandler.Jet jet = state.jet();
             if (jetting && jet != null) {
-                Entity target = mc.level.getEntity(jet.targetId());
-                if (target != null) {
-                    Vec3 aim = target.getPosition(partial).add(0.0, target.getBbHeight() / 2.0, 0.0);
-                    drawJet(mc, matrix, buffer, f, aim, state.jetExtend(now, partial), target, time,
-                            ModClientConfig.effective(state.entry().intensity()), cam);
-                }
+                drawJet(mc, matrix, buffer, f, jet.aim(partial), state.jetExtend(now, partial), time,
+                        ModClientConfig.effective(state.entry().intensity()), cam);
             }
             if (flameSize < 0.02f) continue;
 
@@ -194,26 +186,14 @@ public final class RazlomRenderer {
      * block in the way; narrow at the flame, wide at the far end.
      */
     private static void drawJet(Minecraft mc, Matrix4f matrix, VertexConsumer buffer, Vec3 from, Vec3 to, float extend,
-                                Entity context, float time, int intensity, Vec3 cam) {
+                                float time, int intensity, Vec3 cam) {
         if (extend <= 0.01f || to.distanceToSqr(from) < 0.0025) return;
-        int samples = 16;
-        List<Vec3> path = new ArrayList<>();
-        List<Double> params = new ArrayList<>();
-        path.add(from);
-        params.add(0.0);
-        Vec3 prev = from;
-        for (int i = 1; i <= samples; i++) {
-            double t = extend * i / (double) samples;
-            Vec3 next = Razlom.jetPoint(from, to, t);
-            BlockHitResult hit = mc.level.clip(new ClipContext(prev, next, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, context));
-            if (hit.getType() != HitResult.Type.MISS) {
-                path.add(hit.getLocation());
-                params.add(t);
-                break;
-            }
-            path.add(next);
-            params.add(t);
-            prev = next;
+        Razlom.Arc arc = Razlom.arc(mc.level, from, to, extend);
+        List<Vec3> path = arc.points();
+        // Parameter along the whole arc for each point (the last may be cut short by a block).
+        List<Double> params = new ArrayList<>(path.size());
+        for (int i = 0; i < path.size(); i++) {
+            params.add(Math.min(extend, extend * i / (double) Razlom.JET_SEGMENTS));
         }
         int n = path.size();
         if (n < 2) return;
