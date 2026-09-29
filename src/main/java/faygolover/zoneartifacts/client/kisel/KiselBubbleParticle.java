@@ -27,8 +27,8 @@ public class KiselBubbleParticle extends TextureSheetParticle {
         this.maxSize = 0.03f + random.nextFloat() * 0.05f;
         this.quadSize = maxSize * 0.3f;
         float s = 0.85f + random.nextFloat() * 0.15f;
-        setColor(0.55f * s, 1.0f * s, 0.3f * s);
-        this.alpha = 0.9f;
+        setColor(0.45f * s, 0.85f * s, 0.25f * s);
+        this.alpha = 0.75f;
         pickSprite(sprites);
     }
 
@@ -37,7 +37,7 @@ public class KiselBubbleParticle extends TextureSheetParticle {
         super.tick();
         float t = age / (float) lifetime;
         quadSize = maxSize * (0.3f + 0.7f * Math.min(1.0f, t * 1.6f));
-        if (t > 0.85f) alpha = (1.0f - t) / 0.15f * 0.9f;
+        if (t > 0.85f) alpha = (1.0f - t) / 0.15f * 0.75f;
     }
 
     /** It glows. */

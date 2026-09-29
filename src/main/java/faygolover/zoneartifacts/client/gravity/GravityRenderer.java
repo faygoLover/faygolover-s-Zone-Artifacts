@@ -195,17 +195,13 @@ public final class GravityRenderer {
                     }
                 }
                 case VORONKA -> {
-                    // The zone's edge: a faint pale rim over the band of stronger refraction.
+                    // The zone's edge while it pulls: a faint pale rim over the band of stronger
+                    // refraction. At rest only the refraction marks the edge (no drawn rim).
                     if (state.active()) {
                         double lensR = Math.max(half, reach * (1.0 - 0.45 * t));
                         double open = Math.min(1.0, t / 0.15);
                         double rim = Mth.lerp(open, half * 1.1, lensR) * VoronkaLens.RIM_AT;
                         ring(matrix, buffer, c, rim, cam, 0.012f, FireDraw.argb((int) (35 + 45 * t), 205, 220, 255));
-                    } else {
-                        float ready = state.readiness(now, partial);
-                        if (ready > 0.0f) {
-                            ring(matrix, buffer, c, half * 1.1 * VoronkaLens.RIM_AT, cam, 0.01f, FireDraw.argb((int) (22 * ready), 205, 220, 255));
-                        }
                     }
                     // While pulling, faint rings run in.
                     if (state.active()) {

@@ -244,9 +244,12 @@ public final class AmoebaClient {
         double thetaMax = Math.PI * (0.5 + 0.5 * g2);
         long seed = state.entry.pos().asLong();
         float s0 = (seed & 0xFFFF) / 6553.6f;
-        // It quivers harder and faster as it swells towards bursting.
-        double quiver = 0.06 + 0.1 * g3;
-        double speed = 0.4 + 0.8 * g3 * g3;
+        // It sways slowly, like a heavy jelly, and harder as it swells; just before bursting a fine
+        // shiver runs over it. (Fixed frequencies: a frequency that changes with the swell jerked
+        // the phase, since the time it multiplies is large.)
+        double quiver = 0.05 + 0.07 * g3;
+        double speed = 0.13;
+        double shiver = 0.025 * g3 * g3 * g3;
         Vec3[][] p = new Vec3[RINGS + 1][SEGMENTS + 1];
         int[][] col = new int[RINGS + 1][SEGMENTS + 1];
         int[][] alpha = new int[RINGS + 1][SEGMENTS + 1];
@@ -258,8 +261,9 @@ public final class AmoebaClient {
                 double edge = 0.84 + 0.1 * Math.sin(phi * 3.0 + s0) + 0.06 * Math.sin(phi * 5.0 - s0 * 1.3 + time * 0.01);
                 double rP = rho * puddle * edge;
                 double hP = 0.035 * (1.0 - rho * rho) + 0.008 * Math.sin(rho * 9.0 - time * 0.12 + s0) * (1.0 - rho);
-                double wobble = 1.0 + quiver * Math.sin(phi * 3.0 + time * speed + s0) + quiver * 0.7 * Math.sin(phi * 5.0 - time * speed * 0.8 + theta * 4.0);
-                double pulse = 1.0 + (0.05 + 0.05 * g3) * Math.sin(time * (0.5 + g3) + s0);
+                double wobble = 1.0 + quiver * Math.sin(phi * 3.0 + time * speed + s0) + quiver * 0.7 * Math.sin(phi * 5.0 - time * speed * 0.8 + theta * 4.0)
+                        + shiver * Math.sin(phi * 7.0 + theta * 6.0 + time * 0.45 + s0);
+                double pulse = 1.0 + (0.03 + 0.04 * g3) * Math.sin(time * 0.1 + s0);
                 double rD = radius * Math.sin(theta) * wobble * pulse;
                 double hD = centerY + radius * Math.cos(theta) * pulse;
                 double r = Mth.lerp(g1, rP, rD);

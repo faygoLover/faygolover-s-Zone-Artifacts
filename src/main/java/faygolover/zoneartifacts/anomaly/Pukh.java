@@ -31,8 +31,11 @@ public final class Pukh {
     public static final double WALL_DEPTH = 0.3;
     /** Where the strands start under a ceiling base (just inside its underside). */
     public static final double CEILING_TOP = 0.825;
-    /** On a wall: just under the ledge at the top of the base. */
-    public static final double WALL_TOP = 0.84;
+    /** On a wall: from the very top of the base (which covers the whole wall face of the block, so
+     *  bases stacked one over another join into one furry wall). */
+    public static final double WALL_TOP = 1.0;
+    /** How far the wall base stands out of its wall. */
+    public static final double WALL_BASE = 2.0 / 16.0;
 
     public static final double MIN_LENGTH = 0.5;
     /** The lace texture is this long: longer strands would only repeat it. */

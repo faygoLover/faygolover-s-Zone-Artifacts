@@ -137,7 +137,7 @@ public class CometRenderer extends EntityRenderer<CometEntity> {
             Vec3 c = entity.getPosition(partialTick).add(0.0, entity.getBbHeight() / 2.0, 0.0);
             boolean cold = entity.isCold();
             int color = FireDraw.mix(cold ? SOUL_CYAN : YELLOW, cold ? SOUL_WHITE : HOT_WHITE, 0.5f);
-            coreDisc(core, world, c, 0.27 * grow * entity.getSize(), cam, color);
+            coreDisc(core, world, c, 0.15 * grow * entity.getSize(), cam, color);
         }
         BufferUploader.drawWithShader(core.end());
         RenderSystem.enableCull();
@@ -298,12 +298,14 @@ public class CometRenderer extends EntityRenderer<CometEntity> {
         // ---- the glowing core: its own pass without depth writes (additive, so the order doesn't
         // matter). Its layers used to fight over the same depth (the rippling halo), and the
         // halo's disc hid the arches behind the ball.
-        float pulse = 1.0f + 0.07f * Mth.sin(time * 0.7f + ball.phase);
+        float pulse = 1.0f + 0.08f * Mth.sin(time * 0.7f + ball.phase);
         // (Kept soft: a bright, wide middle glow made the whole ball look much bigger than it is.)
         FireDraw.glow(matrix, buffer, center, 0.7 * scale * pulse, cam, FireDraw.fade(FireDraw.mix(cDeep, body, 0.5f), 0.28f), 20);
-        FireDraw.glow(matrix, buffer, center, 0.4 * scale * pulse, cam, FireDraw.fade(body, 0.45f), 18);
+        // Like the Tesla's: past the pulsing halo only a faint tint of the body's colour and the small
+        // white-hot heart (the old bright middle glow and wide opaque disc made the core look huge).
+        FireDraw.glow(matrix, buffer, center, 0.36 * scale * pulse, cam, FireDraw.fade(body, 0.16f), 18);
         Vec3 toCam = cam.subtract(center).normalize();
-        FireDraw.glow(matrix, buffer, center.add(toCam.scale(0.02 * size)), 0.2 * scale * pulse, cam,
+        FireDraw.glow(matrix, buffer, center.add(toCam.scale(0.02 * size)), 0.17 * scale * pulse, cam,
                 FireDraw.mix(cHot, cBright, 0.3f * shift), 14);
     }
 

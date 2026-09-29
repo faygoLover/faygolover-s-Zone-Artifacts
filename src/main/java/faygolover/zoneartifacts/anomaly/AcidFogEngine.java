@@ -39,6 +39,11 @@ public final class AcidFogEngine {
             }
         }
 
+        // The speed tuner is the jets' frequency (x0: none at all).
+        if (instance.speed() <= 0.001) {
+            NEXT_JET.remove(instance);
+            return;
+        }
         int next = NEXT_JET.computeIfAbsent(instance, k -> t + interval(level, instance));
         if (t < next) return;
         NEXT_JET.put(instance, t + interval(level, instance));
@@ -65,7 +70,7 @@ public final class AcidFogEngine {
     }
 
     private static int interval(ServerLevel level, AnomalyInstance instance) {
-        int base = AnomalyDefaults.ticks(instance.cooldownSeconds());
+        double base = AnomalyDefaults.ticks(instance.cooldownSeconds()) / Math.max(0.05, instance.speed());
         return Math.max(5, (int) (base * (0.67 + level.random.nextDouble() * 0.66)));
     }
 

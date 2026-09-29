@@ -13,9 +13,16 @@ import java.util.List;
  */
 public final class PukhLayout {
 
-    /** A sheet: its top-left corner, the direction across it, its width, and a per-sheet seed. */
-    public record Sheet(Vec3 origin, Vec3 across, double width, float seed) {
+    /** A sheet: its top-left corner, the direction across it, its width, a per-sheet seed, and on a
+     *  wall how far its top leans back to the base (its fibres grow out of the base's face and
+     *  fall away from it over the first {@link #LEAN_LENGTH} blocks). */
+    public record Sheet(Vec3 origin, Vec3 across, double width, float seed, double lean) {
+        public Sheet(Vec3 origin, Vec3 across, double width, float seed) {
+            this(origin, across, width, seed, 0.0);
+        }
     }
+
+    public static final double LEAN_LENGTH = 0.45;
 
     private static final double TOP = faygolover.zoneartifacts.anomaly.Pukh.WALL_TOP;
 
@@ -42,7 +49,8 @@ public final class PukhLayout {
         Direction wall = facing.getOpposite();
         int layers = Math.max(2, Math.min(PukhBlockEntity.MAX_SHEETS, 1 + (intensity + 1) / 2));
         for (int i = 0; i < layers; i++) {
-            double depth = 0.04 + 0.22 * i / Math.max(1, layers - 1);
+            double base = faygolover.zoneartifacts.anomaly.Pukh.WALL_BASE + 0.015;
+            double depth = base + 0.16 * i / Math.max(1, layers - 1);
             Vec3 origin;
             Vec3 across;
             switch (wall) {
@@ -63,7 +71,7 @@ public final class PukhLayout {
                     across = new Vec3(0, 0, 1);
                 }
             }
-            out.add(new Sheet(origin, across, 1.0, i * 2.3f));
+            out.add(new Sheet(origin, across, 1.0, i * 2.3f, depth - base));
         }
         return out;
     }

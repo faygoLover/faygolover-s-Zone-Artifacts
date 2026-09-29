@@ -61,10 +61,13 @@ public class PukhRenderer implements BlockEntityRenderer<PukhBlockEntity> {
         for (int r = 0; r <= ROWS; r++) {
             double d = length * r / ROWS;
             light[r] = LevelRenderer.getLightColor(level, BlockPos.containing(origin.getX() + 0.5,
-                    origin.getY() + (wall ? Pukh.WALL_TOP : Pukh.CEILING_TOP) - d, origin.getZ() + 0.5));
+                    origin.getY() + (wall ? Pukh.WALL_TOP : Pukh.CEILING_TOP) - d - 0.02, origin.getZ() + 0.5));
         }
         Vec3 away = wall ? new Vec3(facing.getStepX(), 0, facing.getStepZ()) : Vec3.ZERO;
 
+        // Wall bases stacked over each other hang their sheets in the same planes: shift every other
+        // one a hair, so where the upper's strands hang over the lower's they don't flicker.
+        double parity = wall && (origin.getY() & 1) != 0 ? 0.018 : 0.0;
         int columns = PukhBlockEntity.PART_COLUMNS;
         for (int s = 0; s < sheets.size() && s < PukhBlockEntity.MAX_SHEETS; s++) {
             PukhLayout.Sheet sheet = sheets.get(s);
@@ -85,6 +88,11 @@ public class PukhRenderer implements BlockEntityRenderer<PukhBlockEntity> {
                     double sway = Math.sin(time * 0.04 + d * 1.2 + sheet.seed() + u * 0.8) * amp;
                     double sway2 = Math.sin(time * 0.031 + d * 0.9 + sheet.seed() * 1.3) * amp * 0.5;
                     p = p.add(across.scale(sway)).add(normal.scale(sway2 * (wall ? 0.4 : 1.0)));
+                    if (wall) {
+                        // Growing out of the base's face, then falling away from it.
+                        double k = Math.max(0.0, 1.0 - d / PukhLayout.LEAN_LENGTH);
+                        p = p.add(away.scale(parity * (1.0 - k) - sheet.lean() * k * k));
+                    }
                     // Parted where something went through.
                     float fc = Mth.clamp((float) (u * columns - 0.5), 0.0f, columns - 1.0f);
                     int c0 = (int) Math.floor(fc);

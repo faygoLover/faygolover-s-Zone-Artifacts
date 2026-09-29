@@ -22,6 +22,8 @@ public final class Gravi {
     public static final double POP_PUSH = 0.35;
     /** Surface pops per second are capped, however big it is. */
     public static final double MAX_POPS_PER_SECOND = 10.0;
+    /** How often a footprint lands on a wall or the ceiling beside the step instead of the floor. */
+    public static final float OFF_FLOOR_CHANCE = 0.2f;
 
     private Gravi() {
     }

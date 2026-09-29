@@ -90,6 +90,35 @@ public final class ChemClient {
                 int outer = i % 2 == 0 ? LEMON : YELLOW_GREEN;
                 out.add(new Gas.FramePuff(c.add(dir.scale(dist)), r, 0.5f + 0.2f * shape.nextFloat(), inner, outer, shape.nextFloat() * 10f));
             }
+            satellites(out, comet, c, size, time);
+        }
+    }
+
+    /**
+     * Instead of the fiery Comets' prominences: little bubbles of the same liquid acid that bud off
+     * the body, circle it for a while on a slanted orbit and sink back in (each on its own cycle, a
+     * new orbit every time).
+     */
+    private static void satellites(List<Gas.FramePuff> out, ChemCometEntity comet, Vec3 c, double size, float time) {
+        int count = Math.max(1, (ModClientConfig.effective(comet.getIntensity()) + 1) / 2);
+        for (int i = 0; i < count; i++) {
+            RandomSource fixed = RandomSource.create(comet.getId() * 131L + i * 977L);
+            int period = 70 + fixed.nextInt(60);
+            float offset = fixed.nextFloat() * period;
+            long cycle = (long) Math.floor((time + offset) / period);
+            float phase = ((time + offset) - cycle * period) / period;
+            RandomSource orbit = RandomSource.create(comet.getId() * 7L + i * 1_000_003L + cycle * 31L);
+            Vec3 axis = new Vec3(orbit.nextGaussian(), orbit.nextGaussian() * 0.6 + 1.0, orbit.nextGaussian()).normalize();
+            Vec3 start = axis.cross(new Vec3(orbit.nextGaussian(), orbit.nextGaussian(), orbit.nextGaussian())).normalize();
+            if (!Double.isFinite(start.x)) continue;
+            double out01 = Math.sin(Math.PI * phase);
+            double rise = Math.min(1.0, out01 * 1.6);
+            double dist = (0.22 + (0.38 + 0.2 * orbit.nextDouble()) * rise) * size;
+            double angle = phase * Math.PI * 2.0 * (1.0 + orbit.nextInt(2)) * (orbit.nextBoolean() ? 1 : -1);
+            Vec3 dir = rotate(start, axis, angle);
+            double r = (0.05 + 0.03 * orbit.nextDouble()) * size * (0.4 + 0.6 * rise);
+            out.add(new Gas.FramePuff(c.add(dir.scale(dist)), r, (float) (0.9 * Math.min(1.0, rise * 2.0)), ACID, ACID_DARK,
+                    orbit.nextFloat() * 10f, true));
         }
     }
 
@@ -159,6 +188,17 @@ public final class ChemClient {
             Gas.add(new Gas.Puff(start, vel, 0.4, 0.9 + RANDOM.nextDouble() * 0.9, now,
                     (int) (life * (0.75 + RANDOM.nextDouble() * 0.45)), 0.38f + RANDOM.nextFloat() * 0.18f,
                     inner, outer, RANDOM.nextFloat() * 10f).settle(settle));
+        }
+        // A lighter part of it flies off sideways and up too: thinner, and gone sooner.
+        int spray = Mth.clamp((int) ((8 + 2.5 * radius) * (0.6 + eff / 7.5)), 10, 50);
+        for (int i = 0; i < spray; i++) {
+            Vec3 dir = new Vec3(RANDOM.nextGaussian(), Math.abs(RANDOM.nextGaussian()) * 0.9 + 0.15, RANDOM.nextGaussian()).normalize();
+            double v0 = 0.06 + RANDOM.nextDouble() * 0.08 + radius * 0.006;
+            Vec3 start = center.add(dir.scale(0.2));
+            int outer = RANDOM.nextInt(2) == 0 ? YELLOW_GREEN : LEMON;
+            Gas.add(new Gas.Puff(start, dir.scale(v0), 0.3, 0.7 + RANDOM.nextDouble() * 0.6, now,
+                    (int) (life * (0.2 + RANDOM.nextDouble() * 0.2)), 0.2f + RANDOM.nextFloat() * 0.1f,
+                    OLIVE, outer, RANDOM.nextFloat() * 10f).drag(0.9));
         }
         // Burns on the surfaces around.
         int stains = 10 + (int) (radius * 2);

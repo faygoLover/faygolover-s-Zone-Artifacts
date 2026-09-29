@@ -40,6 +40,7 @@ import org.joml.Matrix4f;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -47,21 +48,32 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Kisel's look and sound: a puddle of thick, dark green liquid with a bright green glow shimmering
- * on it (caustic-like, additive), glowing bubbles rising and bursting, and its green light falling
- * on the ground and walls around (faked: soft additive patches on the surfaces around it). When
- * something is in it, it seethes: far more bubbles, steam, a brighter glow. A quiet bubbling loop,
- * louder while it seethes (the hiss is the server's).
+ * Kisel's look and sound: a puddle of thick, dark green liquid. Its glow isn't spread over the whole
+ * of it but sits in a few seething spots (more of them the bigger it is): there the liquid is lighter,
+ * glowing bubbles rise and burst, and a soft green light falls on the ground and walls close by
+ * (faked: additive patches on the surfaces). When something is in it, it seethes: it spreads out,
+ * new seething spots open up, the old ones boil harder and glow brighter, steam rises. A quiet
+ * bubbling loop, louder while it seethes; of several Kisels close together only the nearest few
+ * are heard, the nearest the loudest, each at its own pitch (the hiss is the server's).
  */
 @Mod.EventBusSubscriber(modid = ZoneArtifacts.MODID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public final class KiselClient {
 
     private static final double VISIBLE_RADIUS = 48.0;
-    private static final int RINGS = 8;
-    private static final int SEGMENTS = 32;
+    private static final int RINGS = 10;
+    private static final int SEGMENTS = 36;
+    /** At rest the puddle keeps to this part of its full (seething) size. */
+    private static final double REST_SCALE = 0.72;
+    /** How many Kisels are heard at once, and how loud each by closeness rank. */
+    private static final float[] RANK_GAIN = {1.0f, 0.4f, 0.2f};
+    private static final int GLOW_RGB = 0x4CD01E;
     private static final RandomSource RANDOM = RandomSource.create();
 
     private record LightSpot(Vec3 pos, Vec3 normal, double distance) {
+    }
+
+    /** A seething spot: offset from the centre, its radius, and whether it only opens while seething. */
+    private record Hot(double dx, double dz, double radius, boolean extra, List<LightSpot> spots) {
     }
 
     private static final class State {
@@ -70,7 +82,9 @@ public final class KiselClient {
         float activity;
         float prevActivity;
         int nextScan;
-        List<LightSpot> spots = List.of();
+        float scannedSize = -1.0f;
+        List<Hot> hots = List.of();
+        int rank;
         @Nullable
         ZoneLoopSound loop;
     }
@@ -80,12 +94,20 @@ public final class KiselClient {
     private KiselClient() {
     }
 
-    private static double puddleRadius(SyncAnomaliesPacket.Entry entry) {
+    /** The puddle's full radius (seething); at rest it is {@link #REST_SCALE} of it. */
+    private static double fullRadius(SyncAnomaliesPacket.Entry entry) {
         return entry.size() * 0.5 * 0.95;
     }
 
-    private static double lightRadius(SyncAnomaliesPacket.Entry entry) {
-        return 2.5 + entry.size() * 1.5;
+    private static double radiusNow(State state, float activity) {
+        return fullRadius(state.entry) * (REST_SCALE + (1.0 - REST_SCALE) * activity);
+    }
+
+    /** How much of a spot shows at this activity (the extra ones open up as it seethes). */
+    private static float weight(Hot hot, float activity) {
+        if (!hot.extra()) return 1.0f;
+        float t = Mth.clamp((activity - 0.15f) / 0.6f, 0.0f, 1.0f);
+        return t * t * (3.0f - 2.0f * t);
     }
 
     @SubscribeEvent
@@ -107,66 +129,111 @@ public final class KiselClient {
             seen.add(entry.pos());
             State state = STATES.computeIfAbsent(entry.pos(), p -> new State());
             state.entry = entry;
-            if (--state.nextScan <= 0) {
+            if (--state.nextScan <= 0 || state.scannedSize != entry.size()) {
                 scan(level, state);
                 state.nextScan = 80 + RANDOM.nextInt(20);
             }
             state.prevActivity = state.activity;
-            state.activity = entry.active() ? Math.min(1.0f, state.activity + 0.15f) : Math.max(0.0f, state.activity - 0.03f);
+            state.activity = entry.active() ? Math.min(1.0f, state.activity + 0.08f) : Math.max(0.0f, state.activity - 0.02f);
 
             AABB zone = AnomalyGeometry.centeredAabb(entry.pos(), entry.size());
             Vec3 c = zone.getCenter();
-            double r = puddleRadius(entry);
+            float act = state.activity;
             int eff = ModClientConfig.effective(entry.intensity());
-            double rate = 0.05 * eff * Math.max(1.0, r * r * 4.0) * (1.0 + 4.0 * state.activity);
-            int n = (int) rate + (RANDOM.nextDouble() < rate - (int) rate ? 1 : 0);
-            for (int i = 0; i < n; i++) {
-                double a = RANDOM.nextDouble() * Math.PI * 2.0;
-                double d = r * 0.85 * Math.sqrt(RANDOM.nextDouble());
-                level.addParticle(ModParticles.KISEL_BUBBLE.get(), c.x + Math.cos(a) * d, state.surfaceY + 0.02, c.z + Math.sin(a) * d,
-                        0.0, 0.004 + 0.01 * state.activity, 0.0);
-            }
-            if (state.activity > 0.2f && RANDOM.nextInt(5) == 0) {
-                // Steam off the seething acid.
-                double a = RANDOM.nextDouble() * Math.PI * 2.0;
-                double d = r * 0.7 * Math.sqrt(RANDOM.nextDouble());
-                Gas.add(new Gas.Puff(new Vec3(c.x + Math.cos(a) * d, state.surfaceY + 0.1, c.z + Math.sin(a) * d),
-                        new Vec3(0.0, 0.03 + RANDOM.nextDouble() * 0.02, 0.0), 0.2, 0.7, now, 30 + RANDOM.nextInt(20),
-                        0.25f * state.activity, 0x9CD86A, 0xC8F0A0, RANDOM.nextFloat() * 10f).drag(0.96).glow(0.6f));
-            }
-            if (state.loop == null || state.loop.isStopped()) {
-                State s = state;
-                BlockPos pos = entry.pos();
-                state.loop = new ZoneLoopSound(ModSounds.KISEL_IDLE.get(), new Vec3(c.x, state.surfaceY + 0.2, c.z),
-                        () -> STATES.get(pos) == s, () -> 0.45 + 0.45 * s.activity);
-                mc.getSoundManager().play(state.loop);
+            for (Hot hot : state.hots) {
+                float w = weight(hot, act);
+                if (w <= 0.01f) continue;
+                double rate = (0.07 + 0.3 * act) * (eff / 3.0) * w * Math.max(0.6, hot.radius() / 0.3);
+                int n = (int) rate + (RANDOM.nextDouble() < rate - (int) rate ? 1 : 0);
+                for (int i = 0; i < n; i++) {
+                    double bx = c.x + hot.dx() + RANDOM.nextGaussian() * hot.radius() * 0.35;
+                    double bz = c.z + hot.dz() + RANDOM.nextGaussian() * hot.radius() * 0.35;
+                    level.addParticle(ModParticles.KISEL_BUBBLE.get(), bx, state.surfaceY + 0.02, bz,
+                            0.0, 0.004 + 0.008 * act, 0.0);
+                }
+                if (act > 0.25f && RANDOM.nextInt(14) == 0) {
+                    // Steam off the seething spot.
+                    Gas.add(new Gas.Puff(new Vec3(c.x + hot.dx() + RANDOM.nextGaussian() * 0.15, state.surfaceY + 0.1,
+                            c.z + hot.dz() + RANDOM.nextGaussian() * 0.15),
+                            new Vec3(0.0, 0.025 + RANDOM.nextDouble() * 0.02, 0.0), 0.15, 0.55, now, 30 + RANDOM.nextInt(20),
+                            0.2f * act * w, 0x9CD86A, 0xC8F0A0, RANDOM.nextFloat() * 10f).drag(0.96).glow(0.4f));
+                }
             }
         }
         STATES.keySet().removeIf(pos -> !seen.contains(pos));
+
+        // Sound: only the nearest few, the nearest the loudest (so it can still be found by ear).
+        List<State> byDistance = new ArrayList<>(STATES.values());
+        byDistance.sort(Comparator.comparingDouble(st -> Vec3.atCenterOf(st.entry.pos()).distanceToSqr(cam)));
+        for (int i = 0; i < byDistance.size(); i++) {
+            State state = byDistance.get(i);
+            state.rank = i;
+            if (i >= RANK_GAIN.length || (state.loop != null && !state.loop.isStopped())) continue;
+            BlockPos pos = state.entry.pos();
+            AABB zone = AnomalyGeometry.centeredAabb(pos, state.entry.size());
+            Vec3 c = zone.getCenter();
+            float pitch = 0.85f + ((pos.hashCode() >>> 3) % 31) / 100.0f;
+            state.loop = new ZoneLoopSound(ModSounds.KISEL_IDLE.get(), new Vec3(c.x, state.surfaceY + 0.2, c.z),
+                    () -> STATES.get(pos) == state && state.rank < RANK_GAIN.length,
+                    () -> (0.35 + 0.4 * state.activity) * RANK_GAIN[Math.min(state.rank, RANK_GAIN.length - 1)]).pitch(pitch);
+            mc.getSoundManager().play(state.loop);
+        }
     }
 
-    /** The surface, and where its light falls: rays out from just over it. */
+    /** The surface; where the seething spots are; and where each one's light falls. */
     private static void scan(ClientLevel level, State state) {
         AABB zone = AnomalyGeometry.centeredAabb(state.entry.pos(), state.entry.size());
         Vec3 c = zone.getCenter();
         Double ground = Razlom.groundY(level, c.x, c.z, zone.maxY, zone.minY - 3.0);
         state.surfaceY = (ground != null ? ground : zone.minY) + 0.06;
-        Vec3 from = new Vec3(c.x, state.surfaceY + 0.35, c.z);
-        double reach = lightRadius(state.entry);
-        List<LightSpot> spots = new ArrayList<>();
-        int rays = 56;
-        for (int i = 0; i < rays; i++) {
-            // Spread over the lower half and a bit above the horizon (the light goes out and down).
-            double y = -1.0 + 1.3 * (i + 0.5) / rays;
-            double r = Math.sqrt(Math.max(0.0, 1.0 - y * y));
-            double phi = i * 2.399963;
-            Vec3 dir = new Vec3(Math.cos(phi) * r, y, Math.sin(phi) * r);
-            BlockHitResult hit = Razlom.clipBlocks(level, from, from.add(dir.scale(reach)));
-            if (hit.getType() == HitResult.Type.MISS) continue;
-            Vec3 n = Vec3.atLowerCornerOf(hit.getDirection().getNormal());
-            spots.add(new LightSpot(hit.getLocation().add(n.scale(0.01)), n, hit.getLocation().distanceTo(from)));
+        state.scannedSize = state.entry.size();
+
+        double size = state.entry.size();
+        double full = fullRadius(state.entry);
+        double rest = full * REST_SCALE;
+        int base = Mth.clamp((int) Math.round(0.5 + 0.55 * size * size), 1, 10);
+        int extra = Math.max(1, Math.round(base * 0.7f));
+        RandomSource shape = RandomSource.create(state.entry.pos().asLong() * 0x9E3779B97F4A7C15L);
+        List<double[]> placed = new ArrayList<>();
+        List<Hot> hots = new ArrayList<>();
+        for (int i = 0; i < base + extra; i++) {
+            boolean isExtra = i >= base;
+            double hr = Math.min(0.45, 0.2 + 0.07 * size) * (0.8 + 0.4 * shape.nextDouble());
+            double dx = 0.0, dz = 0.0;
+            for (int attempt = 0; attempt < 8; attempt++) {
+                double a = shape.nextDouble() * Math.PI * 2.0;
+                double d = isExtra ? full * (0.5 + 0.28 * shape.nextDouble()) : rest * 0.62 * Math.sqrt(shape.nextDouble());
+                if (base == 1 && i == 0) d *= 0.4;
+                dx = Math.cos(a) * d;
+                dz = Math.sin(a) * d;
+                boolean clear = true;
+                for (double[] o : placed) {
+                    if (Math.hypot(o[0] - dx, o[1] - dz) < (o[2] + hr) * 0.8) {
+                        clear = false;
+                        break;
+                    }
+                }
+                if (clear) break;
+            }
+            placed.add(new double[]{dx, dz, hr});
+            Vec3 from = new Vec3(c.x + dx, state.surfaceY + 0.25, c.z + dz);
+            double reach = Math.min(3.0, 1.2 + 0.3 * size);
+            List<LightSpot> spots = new ArrayList<>();
+            int rays = 14;
+            for (int k = 0; k < rays; k++) {
+                // Out and down, a little above the horizon.
+                double y = -1.0 + 1.25 * (k + 0.5) / rays;
+                double r = Math.sqrt(Math.max(0.0, 1.0 - y * y));
+                double phi = k * 2.399963 + i;
+                Vec3 dir = new Vec3(Math.cos(phi) * r, y, Math.sin(phi) * r);
+                BlockHitResult hit = Razlom.clipBlocks(level, from, from.add(dir.scale(reach)));
+                if (hit.getType() == HitResult.Type.MISS) continue;
+                Vec3 n = Vec3.atLowerCornerOf(hit.getDirection().getNormal());
+                spots.add(new LightSpot(hit.getLocation().add(n.scale(0.01)), n, hit.getLocation().distanceTo(from)));
+            }
+            hots.add(new Hot(dx, dz, hr, isExtra, spots));
         }
-        state.spots = spots;
+        state.hots = hots;
     }
 
     @SubscribeEvent
@@ -182,7 +249,7 @@ public final class KiselClient {
         poseStack.translate(-cam.x, -cam.y, -cam.z);
         Matrix4f m = poseStack.last().pose();
 
-        // The liquid itself.
+        // The liquid itself (lighter where it seethes).
         RenderSystem.setShader(GameRenderer::getPositionColorShader);
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
@@ -192,40 +259,51 @@ public final class KiselClient {
         RenderSystem.depthMask(false);
         BufferBuilder body = Tesselator.getInstance().getBuilder();
         body.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
-        for (State state : STATES.values()) surface(body, m, state, time, Mth.lerp(partial, state.prevActivity, state.activity), false);
+        for (State state : STATES.values()) surface(body, m, state, time, Mth.lerp(partial, state.prevActivity, state.activity));
         BufferUploader.drawWithShader(body.end());
         RenderSystem.depthMask(true);
         RenderSystem.enableCull();
         RenderSystem.disableBlend();
 
-        // Its glow, and its light on everything around.
+        // The glow of its seething spots, and their light on what's close by.
         MultiBufferSource.BufferSource bufferSource = mc.renderBuffers().bufferSource();
         VertexConsumer glow = bufferSource.getBuffer(GlowRenderType.GLOW);
         for (State state : STATES.values()) {
             float act = Mth.lerp(partial, state.prevActivity, state.activity);
-            surface(glow, m, state, time, act, true);
-            float flicker = 1.0f + 0.08f * Mth.sin(time * 0.13f + state.entry.pos().hashCode()) + 0.05f * Mth.sin(time * 0.37f);
-            float strength = (0.55f + 0.6f * act) * flicker;
-            double reach = lightRadius(state.entry);
-            for (LightSpot spot : state.spots) {
-                double k = 1.0 - spot.distance() / reach;
-                if (k <= 0.0) continue;
-                int a = (int) (Mth.clamp(strength * k * k * 0.45f, 0.0f, 1.0f) * 255);
-                if (a <= 2) continue;
-                patch(glow, m, spot.pos(), spot.normal(), 0.7 + 0.5 * state.entry.size() * (1.0 - k * 0.5), 0x4CE01E, a);
+            AABB zone = AnomalyGeometry.centeredAabb(state.entry.pos(), state.entry.size());
+            Vec3 c = zone.getCenter();
+            float strength = 0.16f + 0.24f * act;
+            double reach = Math.min(3.0, 1.2 + 0.3 * state.entry.size());
+            int i = 0;
+            for (Hot hot : state.hots) {
+                float w = weight(hot, act);
+                i++;
+                if (w <= 0.01f) continue;
+                // Slow, gentle breathing of each spot on its own (no flicker).
+                float breath = 0.9f + 0.1f * Mth.sin(time * 0.02f + i * 1.7f);
+                Vec3 at = new Vec3(c.x + hot.dx(), state.surfaceY + 0.008, c.z + hot.dz());
+                blob(glow, m, at, hot.radius() * (0.9 + 0.25 * act), GLOW_RGB, (int) (255 * strength * w * breath), i, time);
+                blob(glow, m, at.add(0.0, 0.002, 0.0), hot.radius() * 0.45, 0x8CFF50, (int) (255 * strength * 0.7f * w * breath), i + 7, time);
+                for (LightSpot spot : hot.spots()) {
+                    double k = 1.0 - spot.distance() / reach;
+                    if (k <= 0.0) continue;
+                    int a = (int) (Mth.clamp(strength * w * (float) (k * k) * 0.3f, 0.0f, 1.0f) * 255);
+                    if (a <= 2) continue;
+                    patch(glow, m, spot.pos(), spot.normal(), 0.35 + 0.35 * (1.0 - k), GLOW_RGB, a);
+                }
             }
         }
         bufferSource.endBatch(GlowRenderType.GLOW);
         poseStack.popPose();
     }
 
-    /** The puddle: dark liquid (body) or its shimmering glow (additive), with a soft torn rim. */
-    private static void surface(VertexConsumer buffer, Matrix4f m, State state, float time, float activity, boolean glow) {
+    /** The puddle: dark liquid with a soft torn rim, lighter around its seething spots. */
+    private static void surface(VertexConsumer buffer, Matrix4f m, State state, float time, float activity) {
         AABB zone = AnomalyGeometry.centeredAabb(state.entry.pos(), state.entry.size());
         Vec3 c = zone.getCenter();
-        double r0 = puddleRadius(state.entry);
+        double r0 = radiusNow(state, activity);
         float s0 = (state.entry.pos().hashCode() & 0xFFFF) / 6553.6f;
-        double y0 = state.surfaceY + (glow ? 0.006 : 0.0);
+        double y0 = state.surfaceY;
         Vec3[][] p = new Vec3[RINGS + 1][SEGMENTS + 1];
         int[][] col = new int[RINGS + 1][SEGMENTS + 1];
         int[][] al = new int[RINGS + 1][SEGMENTS + 1];
@@ -233,23 +311,20 @@ public final class KiselClient {
             double rho = i / (double) RINGS;
             for (int j = 0; j <= SEGMENTS; j++) {
                 double phi = Math.PI * 2.0 * j / SEGMENTS;
-                double edge = 0.86 + 0.09 * Math.sin(phi * 3.0 + s0) + 0.05 * Math.sin(phi * 7.0 - s0);
+                double edge = 0.8 + 0.12 * Math.sin(phi * 3.0 + s0) + 0.08 * Math.sin(phi * 7.0 - s0) + 0.04 * Math.sin(phi * 11.0 + s0 * 2.0);
                 double r = rho * r0 * edge;
                 double x = c.x + Math.cos(phi) * r;
                 double z = c.z + Math.sin(phi) * r;
-                double wave = 0.006 * Math.sin(x * 4.0 + time * 0.09) * Math.sin(z * 4.3 - time * 0.07) * (1.0 + 2.0 * activity);
+                double heat = 0.0;
+                for (Hot hot : state.hots) {
+                    double d = Math.hypot(x - c.x - hot.dx(), z - c.z - hot.dz()) / (hot.radius() * 1.3);
+                    if (d < 1.0) heat = Math.max(heat, (1.0 - d * d) * weight(hot, activity));
+                }
+                double wave = 0.005 * Math.sin(x * 4.0 + time * 0.09) * Math.sin(z * 4.3 - time * 0.07) * (1.0 + 2.0 * heat * activity);
                 p[i][j] = new Vec3(x, y0 + wave, z);
                 float fade = (float) Math.min(1.0, (1.0 - rho) / 0.25);
-                if (glow) {
-                    double caustic = 0.5 + 0.5 * Math.sin(x * 3.1 + time * 0.07 + s0) * Math.sin(z * 3.4 - time * 0.055);
-                    float a = (float) ((0.22 + 0.4 * activity) * (0.55 + 0.45 * caustic)) * fade;
-                    col[i][j] = 0x6CFF2E;
-                    al[i][j] = (int) (255 * Mth.clamp(a, 0.0f, 1.0f));
-                } else {
-                    col[i][j] = rho < 0.5 ? 0x2F8C16 : 0x1F5C0E;
-                    al[i][j] = (int) (255 * (0.55 + 0.35 * fade));
-                    if (i == RINGS) al[i][j] = 0;
-                }
+                col[i][j] = mix(rho < 0.5 ? 0x2A7A14 : 0x1D540D, 0x48A824, (float) (heat * (0.55 + 0.3 * activity)));
+                al[i][j] = i == RINGS ? 0 : (int) (255 * (0.55 + 0.35 * fade));
             }
         }
         for (int i = 0; i < RINGS; i++) {
@@ -259,6 +334,22 @@ public final class KiselClient {
                 put(buffer, m, p[i + 1][j + 1], col[i + 1][j + 1], al[i + 1][j + 1]);
                 put(buffer, m, p[i][j + 1], col[i][j + 1], al[i][j + 1]);
             }
+        }
+    }
+
+    /** A soft, slightly lumpy glowing blob lying flat on the surface. */
+    private static void blob(VertexConsumer buffer, Matrix4f m, Vec3 c, double radius, int rgb, int alpha, int seed, float time) {
+        if (alpha <= 2) return;
+        int n = 14;
+        for (int i = 0; i < n; i++) {
+            double a0 = Math.PI * 2.0 * i / n;
+            double a1 = Math.PI * 2.0 * (i + 1) / n;
+            double r0 = radius * (0.85 + 0.15 * Math.sin(a0 * 3.0 + seed + time * 0.01));
+            double r1 = radius * (0.85 + 0.15 * Math.sin(a1 * 3.0 + seed + time * 0.01));
+            put(buffer, m, c, rgb, alpha);
+            put(buffer, m, c.add(Math.cos(a0) * r0, 0.0, Math.sin(a0) * r0), rgb, 0);
+            put(buffer, m, c.add(Math.cos(a1) * r1, 0.0, Math.sin(a1) * r1), rgb, 0);
+            put(buffer, m, c.add(Math.cos(a1) * r1, 0.0, Math.sin(a1) * r1), rgb, 0);
         }
     }
 
@@ -278,6 +369,14 @@ public final class KiselClient {
             put(buffer, m, p1, rgb, 0);
             put(buffer, m, p1, rgb, 0);
         }
+    }
+
+    private static int mix(int a, int b, float t) {
+        t = Mth.clamp(t, 0.0f, 1.0f);
+        int r = (int) Mth.lerp(t, (a >> 16) & 0xFF, (b >> 16) & 0xFF);
+        int g = (int) Mth.lerp(t, (a >> 8) & 0xFF, (b >> 8) & 0xFF);
+        int bl = (int) Mth.lerp(t, a & 0xFF, b & 0xFF);
+        return (r << 16) | (g << 8) | bl;
     }
 
     private static void put(VertexConsumer buffer, Matrix4f m, Vec3 p, int rgb, int alpha) {

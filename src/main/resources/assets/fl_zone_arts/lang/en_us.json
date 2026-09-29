@@ -234,5 +234,6 @@
   "subtitles.fl_zone_arts.fog_idle": "Acid fog hisses",
   "subtitles.fl_zone_arts.fog_jet": "Acid vapour bursts out",
   "tuner.fl_zone_arts.push_out": "push-out force",
-  "tuner.fl_zone_arts.jet_interval": "jet interval"
+  "tuner.fl_zone_arts.jet_interval": "jet interval",
+  "tuner.fl_zone_arts.jet_frequency": "jet frequency"
 }

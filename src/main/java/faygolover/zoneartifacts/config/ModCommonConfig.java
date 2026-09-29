@@ -101,6 +101,7 @@ public final class ModCommonConfig {
     public static final ForgeConfigSpec.DoubleValue KISEL_INTERVAL_SECONDS;
     public static final ForgeConfigSpec.DoubleValue KISEL_DAMAGE;
     public static final ForgeConfigSpec.IntValue KISEL_INTENSITY;
+    public static final ForgeConfigSpec.DoubleValue KISEL_ITEM_SECONDS;
 
     public static final ForgeConfigSpec.DoubleValue FOG_JET_SECONDS;
     public static final ForgeConfigSpec.DoubleValue FOG_JET_DAMAGE;
@@ -282,8 +283,9 @@ public final class ModCommonConfig {
         GRAVI_CHASE_RADIUS = b.defineInRange("chaseRadius", 12.0, 0.0, 128.0);
         GRAVI_LEASH = b.comment("How far from its nearest route point it may go while chasing, blocks.")
                 .defineInRange("leash", 20.0, 1.0, 256.0);
-        GRAVI_POPS_PER_SECOND = b.comment("Pops on the surfaces around it per second at effects 3 (x effects / 3). The size is",
-                        "only how far from it they may appear.")
+        GRAVI_POPS_PER_SECOND = b.comment("Its footprints: pops on the floor (now and then a wall or ceiling right beside) under",
+                        "and a little ahead of it, left and right in turn, per second at effects 3 (x effects / 3; a quarter",
+                        "of that while it stands still). The size is how far they scatter and reach.")
                 .defineInRange("popsPerSecond", 2.0, 0.0, 20.0);
         GRAVI_SELF_POP_SECONDS = b.comment("While it hangs inside its prey: a pop right by itself (in the air too) this often, seconds. 0 = never.")
                 .defineInRange("selfPopSeconds", 1.5, 0.0, 60.0);
@@ -413,6 +415,8 @@ public final class ModCommonConfig {
                 .defineInRange("intervalSeconds", 0.5, 0.1, 60.0);
         KISEL_DAMAGE = b.defineInRange("damage", 1.5, 0.0, 1000.0);
         KISEL_INTENSITY = b.defineInRange("intensity", 3, 1, 50);
+        KISEL_ITEM_SECONDS = b.comment("How long it takes to dissolve one item of a dropped stack, seconds.")
+                .defineInRange("itemSeconds", 5.0, 0.5, 600.0);
         b.pop();
 
         b.comment("Acid Fog: a dense greenish haze over the ground, hard to see by day. Now and then a jet of vapour",

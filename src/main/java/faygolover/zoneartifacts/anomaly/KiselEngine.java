@@ -11,6 +11,7 @@ import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import faygolover.zoneartifacts.config.ModCommonConfig;
 import faygolover.zoneartifacts.network.AnomalySyncHandler;
 
 import java.util.List;
@@ -26,6 +27,8 @@ public final class KiselEngine {
 
     private static final Map<AnomalyInstance, Integer> CALM = new WeakHashMap<>();
     private static final Map<AnomalyInstance, Integer> HISS = new WeakHashMap<>();
+    /** How long each item has been soaking (items dissolve slowly, one at a time). */
+    private static final Map<ItemEntity, Integer> SOAK = new WeakHashMap<>();
 
     private KiselEngine() {
     }
@@ -70,17 +73,32 @@ public final class KiselEngine {
             HISS.put(instance, hiss - 1);
         }
 
-        int t = instance.pulseTicks() + 1;
-        instance.setPulseTicks(t);
-        if (t < AnomalyDefaults.ticks(instance.cooldownSeconds()) || in.isEmpty()) return;
-        instance.setPulseTicks(0);
+        // Items: each soaks on its own clock, fuming now and then, and loses one at a time.
+        int itemTicks = Math.max(1, AnomalyDefaults.ticks(ModCommonConfig.KISEL_ITEM_SECONDS.get()));
         for (Entity e : in) {
-            if (e instanceof ItemEntity item) {
+            if (!(e instanceof ItemEntity item)) continue;
+            int soak = SOAK.getOrDefault(item, 0) + 1;
+            if (soak % 15 == 0) {
+                level.sendParticles(ParticleTypes.SMOKE, item.getX(), item.getY() + 0.1, item.getZ(), 1, 0.05, 0.03, 0.05, 0.005);
+            }
+            if (soak >= itemTicks) {
+                soak = 0;
                 ItemStack stack = item.getItem().copy();
                 stack.shrink(1);
                 if (stack.isEmpty()) item.discard();
                 else item.setItem(stack);
                 level.sendParticles(ParticleTypes.SMOKE, item.getX(), item.getY() + 0.1, item.getZ(), 3, 0.08, 0.05, 0.08, 0.01);
+            }
+            SOAK.put(item, soak);
+        }
+
+        int t = instance.pulseTicks() + 1;
+        instance.setPulseTicks(t);
+        if (t < AnomalyDefaults.ticks(instance.cooldownSeconds()) || in.isEmpty()) return;
+        instance.setPulseTicks(0);
+        for (Entity e : in) {
+            if (e instanceof ItemEntity) {
+                continue;
             } else if (e instanceof Projectile) {
                 level.sendParticles(ParticleTypes.SMOKE, e.getX(), e.getY(), e.getZ(), 4, 0.08, 0.05, 0.08, 0.01);
                 e.discard();

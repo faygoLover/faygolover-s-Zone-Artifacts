@@ -31,6 +31,12 @@ public class ZoneLoopSound extends AbstractTickableSoundInstance {
         this.pitch = 1.0f;
     }
 
+    /** Plays it at another pitch (so several of the same anomaly don't sound in unison). */
+    public ZoneLoopSound pitch(float pitch) {
+        this.pitch = pitch;
+        return this;
+    }
+
     @Override
     public void tick() {
         if (!alive.getAsBoolean()) {

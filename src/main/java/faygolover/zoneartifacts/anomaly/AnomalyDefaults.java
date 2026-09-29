@@ -90,7 +90,7 @@ public final class AnomalyDefaults {
      *  force), cooldown and damage not for the harmless, always-on Podushka; targeting never. */
     public static boolean tunable(ResourceLocation typeId, TunerKind kind) {
         return switch (kind) {
-            case SPEED -> AnomalyTypeIds.isGravity(typeId) || AnomalyTypeIds.LIFT.equals(typeId);
+            case SPEED -> AnomalyTypeIds.isGravity(typeId) || AnomalyTypeIds.LIFT.equals(typeId) || AnomalyTypeIds.ACID_FOG.equals(typeId);
             case COOLDOWN, DAMAGE -> !AnomalyTypeIds.PODUSHKA.equals(typeId) && !AnomalyTypeIds.LIFT.equals(typeId);
             case TARGETING -> false;
             default -> true;
@@ -103,6 +103,7 @@ public final class AnomalyDefaults {
         if (kind == TunerKind.COOLDOWN && (AnomalyTypeIds.isThermal(typeId) || AnomalyTypeIds.KISEL.equals(typeId))) return "tuner.fl_zone_arts.damage_interval";
         if (kind == TunerKind.COOLDOWN && AnomalyTypeIds.ACID_FOG.equals(typeId)) return "tuner.fl_zone_arts.jet_interval";
         if (kind == TunerKind.SPEED && AnomalyTypeIds.LIFT.equals(typeId)) return "tuner.fl_zone_arts.push_out";
+        if (kind == TunerKind.SPEED && AnomalyTypeIds.ACID_FOG.equals(typeId)) return "tuner.fl_zone_arts.jet_frequency";
         if (kind == TunerKind.SPEED && AnomalyTypeIds.isGravity(typeId)) {
             return AnomalyTypeIds.PODUSHKA.equals(typeId) ? "tuner.fl_zone_arts.bounce_height" : "tuner.fl_zone_arts.force";
         }

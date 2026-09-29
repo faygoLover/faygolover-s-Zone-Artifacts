@@ -8,6 +8,7 @@ import faygolover.zoneartifacts.network.GraviPopPacket;
 import faygolover.zoneartifacts.network.ModNetwork;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.EntityType;
@@ -46,6 +47,13 @@ public class GraviEntity extends TeslaEntity {
     private final Map<UUID, Long> lastHit = new HashMap<>();
     private double surfaceBudget;
     private int selfPopTimer;
+    /** Where it has been heading lately (the footprints go this way). */
+    private Vec3 heading = new Vec3(1, 0, 0);
+    @javax.annotation.Nullable
+    private Vec3 lastCenter;
+    private int stepSide = 1;
+    /** How far it went over roughly the last second (standing still, it barely steps). */
+    private double recentTravel = 1.0;
 
     public GraviEntity(EntityType<? extends TeslaEntity> type, Level level) {
         super(type, level);
@@ -97,11 +105,20 @@ public class GraviEntity extends TeslaEntity {
         long now = level.getGameTime();
         Vec3 c = center();
         double size = Math.max(1.0, getSize());
+        if (lastCenter != null) {
+            Vec3 motion = c.subtract(lastCenter);
+            double moved = motion.length();
+            if (moved > 1.0E-4 && moved < 4.0) heading = heading.scale(0.8).add(motion.scale(0.2 / moved)).normalize();
+            recentTravel = recentTravel * 0.95 + Math.min(moved, 1.0);
+        }
+        lastCenter = c;
 
         // Pops on the surfaces around it (the size is only how far): as many as the effects tuner says.
         double perSecond = Math.min(Gravi.MAX_POPS_PER_SECOND,
                 ModCommonConfig.GRAVI_POPS_PER_SECOND.get() * Math.max(1, getIntensity()) / 3.0);
-        surfaceBudget += perSecond / 20.0;
+        // Standing still, it only shifts from foot to foot now and then.
+        double moving = Mth.clamp(recentTravel / 1.0, 0.25, 1.0);
+        surfaceBudget += perSecond * moving / 20.0;
         while (surfaceBudget >= 1.0) {
             surfaceBudget -= 1.0;
             surfacePop(level, c, size, now);
@@ -133,24 +150,51 @@ public class GraviEntity extends TeslaEntity {
         return false;
     }
 
-    /** A pop on a real surface around it — never in mid-air: not from inside a block (it flies
-     *  through walls), not right at itself, and never inside a block. */
+    /**
+     * A pop on a real surface near it, laid like a footprint: a little ahead of where it is going,
+     * to the left and to the right in turn, with some scatter — so a chain of them reads as steps
+     * coming closer. Mostly on the floor under it, but now and then (or when there is no floor within
+     * reach) on a wall or the ceiling beside the step instead. Never in mid-air or inside a block.
+     */
     private void surfacePop(ServerLevel level, Vec3 c, double size, long now) {
-        if (!level.getBlockState(BlockPos.containing(c)).getCollisionShape(level, BlockPos.containing(c)).isEmpty()) return;
-        for (int attempt = 0; attempt < 3; attempt++) {
-            Vec3 dir = new Vec3(random.nextGaussian(), random.nextGaussian(), random.nextGaussian());
-            if (dir.lengthSqr() < 1.0E-6) continue;
-            dir = dir.normalize();
-            BlockHitResult hit = Razlom.clipBlocks(level, c, c.add(dir.scale(size)));
-            if (hit.getType() == HitResult.Type.MISS) continue;
-            if (hit.getLocation().distanceToSqr(c) < 0.5 * 0.5) continue;
-            Vec3 normal = Vec3.atLowerCornerOf(hit.getDirection().getNormal());
-            Vec3 at = hit.getLocation().add(normal.scale(0.3));
-            BlockPos atPos = BlockPos.containing(at);
-            if (!level.getBlockState(atPos).getCollisionShape(level, atPos).isEmpty()) continue;
-            schedule(level, at, normal, level.getBlockState(hit.getBlockPos()), now);
-            return;
+        Vec3 side = heading.cross(new Vec3(0, 1, 0));
+        if (side.lengthSqr() < 1.0E-4) side = new Vec3(1, 0, 0);
+        side = side.normalize();
+        stepSide = -stepSide;
+        double scatter = 0.12 + 0.08 * size;
+        Vec3 flat = new Vec3(heading.x, 0.0, heading.z);
+        Vec3 ahead = flat.lengthSqr() < 1.0E-4 ? Vec3.ZERO : flat.normalize().scale(0.35);
+        Vec3 from = c.add(ahead).add(side.scale(stepSide * 0.3))
+                .add(random.nextGaussian() * scatter, random.nextGaussian() * scatter * 0.5, random.nextGaussian() * scatter);
+        if (!level.getBlockState(BlockPos.containing(from)).getCollisionShape(level, BlockPos.containing(from)).isEmpty()) {
+            from = c;
+            if (!level.getBlockState(BlockPos.containing(c)).getCollisionShape(level, BlockPos.containing(c)).isEmpty()) return;
         }
+        double reach = 1.5 + size;
+        BlockHitResult floor = Razlom.clipBlocks(level, from, from.add(0.0, -reach, 0.0));
+        BlockHitResult other = null;
+        double otherDist = Double.MAX_VALUE;
+        for (Vec3 dir : new Vec3[]{new Vec3(1, 0, 0), new Vec3(-1, 0, 0), new Vec3(0, 0, 1), new Vec3(0, 0, -1), new Vec3(0, 1, 0)}) {
+            BlockHitResult hit = Razlom.clipBlocks(level, from, from.add(dir.scale(reach)));
+            if (hit.getType() == HitResult.Type.MISS) continue;
+            double d = hit.getLocation().distanceToSqr(from);
+            if (d < otherDist) {
+                otherDist = d;
+                other = hit;
+            }
+        }
+        boolean hasFloor = floor.getType() != HitResult.Type.MISS;
+        BlockHitResult hit;
+        // A wall or ceiling only when it is right beside the step (so the trail doesn't jump about).
+        boolean closeOther = other != null && otherDist <= 1.3 * 1.3;
+        if (hasFloor && (!closeOther || random.nextFloat() >= Gravi.OFF_FLOOR_CHANCE)) hit = floor;
+        else if (other != null) hit = other;
+        else return;
+        Vec3 normal = Vec3.atLowerCornerOf(hit.getDirection().getNormal());
+        Vec3 at = hit.getLocation().add(normal.scale(0.3));
+        BlockPos atPos = BlockPos.containing(at);
+        if (!level.getBlockState(atPos).getCollisionShape(level, atPos).isEmpty()) return;
+        schedule(level, at, normal, level.getBlockState(hit.getBlockPos()), now);
     }
 
     private void schedule(ServerLevel level, Vec3 pos, Vec3 normal, BlockState surface, long now) {

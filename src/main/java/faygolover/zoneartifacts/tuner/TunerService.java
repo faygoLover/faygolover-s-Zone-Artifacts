@@ -78,8 +78,8 @@ public final class TunerService {
             }
             case SPEED -> {
                 // The gravitational anomalies' force (Podushka: bounce height).
-                // (The Lift's push-out may go down to nothing.)
-                double min = AnomalyTypeIds.LIFT.equals(typeId) ? 0.0 : 0.1;
+                // (The Lift's push-out and the Acid Fog's jets may go down to nothing.)
+                double min = AnomalyTypeIds.LIFT.equals(typeId) || AnomalyTypeIds.ACID_FOG.equals(typeId) ? 0.0 : 0.1;
                 instance.setSpeed(round(clamp(instance.speed() + step, min, ModCommonConfig.MAX_SPEED_MULTIPLIER.get()), 10));
                 value = "x" + fmt1(instance.speed());
                 standard = "x1.0";

@@ -234,5 +234,6 @@
   "subtitles.fl_zone_arts.fog_idle": "Кислотный туман шипит",
   "subtitles.fl_zone_arts.fog_jet": "Выброс кислотного пара",
   "tuner.fl_zone_arts.push_out": "сила выталкивания",
-  "tuner.fl_zone_arts.jet_interval": "интервал выбросов"
+  "tuner.fl_zone_arts.jet_interval": "интервал выбросов",
+  "tuner.fl_zone_arts.jet_frequency": "частота выбросов"
 }
