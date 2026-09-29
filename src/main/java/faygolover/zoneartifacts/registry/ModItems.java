@@ -78,6 +78,14 @@ public class ModItems {
     public static final RegistryObject<Item> POPPY_PLACER = placer("poppy_field_placer", AnomalyTypeIds.POPPY);
     public static final RegistryObject<Item> RUST_PLACER = placer("rust_placer", AnomalyTypeIds.RUST);
 
+    public static final RegistryObject<Item> BUBBLES_PLACER = placer("soap_bubbles_placer", AnomalyTypeIds.BUBBLES);
+    public static final RegistryObject<Item> KHLOPUSHKA_PLACER = placer("khlopushka_placer", AnomalyTypeIds.KHLOPUSHKA);
+    public static final RegistryObject<Item> FIREFLY_PLACER = placer("svetlyachok_placer", AnomalyTypeIds.FIREFLY);
+    public static final RegistryObject<Item> KAMERTON_PLACER = placer("kamerton_placer", AnomalyTypeIds.KAMERTON);
+    public static final RegistryObject<Item> FANTOM_PLACER = placer("fantom_light_placer", AnomalyTypeIds.FANTOM);
+    public static final RegistryObject<Item> WEB_PLACER = ITEMS.register("pautina_placer",
+            () -> new faygolover.zoneartifacts.item.WebPlacerItem(new Item.Properties().stacksTo(1)));
+
     public static final RegistryObject<Item> EZHIK = ITEMS.register("ezhik",
             () -> new PukhBlockItem(ModBlocks.EZHIK.get(), new Item.Properties()));
 

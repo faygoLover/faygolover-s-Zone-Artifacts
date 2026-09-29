@@ -22,6 +22,11 @@ public class AnomalyInstance {
     /** Force multiplier of the gravitational anomalies (Plesh: throw, Voronka/Karusel: pull,
      *  Podushka: launch height). 1.0 for everything else. */
     private double speed = 1.0;
+    /** The targeting tuner's value where a zone anomaly uses it (Khlopushka: how far its flash
+     *  blinds; Firefly: how high it flies). */
+    private double range;
+    /** Which way the GM faced when placing it (Phantom Light: which way its rows face), degrees. */
+    private float yaw;
 
     private transient int cooldownTicks;
     /** Gravity: random seed of the current phase (orbits, throw directions), sent to clients. */
@@ -50,8 +55,10 @@ public class AnomalyInstance {
 
     /** A new anomaly of {@code typeId} with that type's defaults from the common config. */
     public static AnomalyInstance create(ResourceLocation typeId, BlockPos pos) {
-        return new AnomalyInstance(typeId, pos.immutable(), AnomalyDefaults.size(typeId),
+        AnomalyInstance instance = new AnomalyInstance(typeId, pos.immutable(), AnomalyDefaults.size(typeId),
                 AnomalyDefaults.cooldownSeconds(typeId), AnomalyDefaults.damage(typeId), AnomalyDefaults.intensity(typeId));
+        instance.range = AnomalyDefaults.range(typeId);
+        return instance;
     }
 
     public ResourceLocation typeId() {
@@ -168,6 +175,22 @@ public class AnomalyInstance {
         this.speed = speed;
     }
 
+    public double range() {
+        return range;
+    }
+
+    public void setRange(double range) {
+        this.range = range;
+    }
+
+    public float yaw() {
+        return yaw;
+    }
+
+    public void setYaw(float yaw) {
+        this.yaw = yaw;
+    }
+
     public int phaseSeed() {
         return phaseSeed;
     }
@@ -187,6 +210,8 @@ public class AnomalyInstance {
         tag.putDouble("speed", speed);
         tag.putFloat("damage", damage);
         tag.putInt("intensity", intensity);
+        tag.putDouble("range", range);
+        tag.putFloat("yaw", yaw);
         return tag;
     }
 
@@ -202,6 +227,8 @@ public class AnomalyInstance {
         int intensity = tag.contains("intensity") ? tag.getInt("intensity") : AnomalyDefaults.intensity(typeId);
         AnomalyInstance instance = new AnomalyInstance(typeId, pos, size, cooldown, damage, intensity);
         if (tag.contains("speed")) instance.speed = tag.getDouble("speed");
+        instance.range = tag.contains("range") ? tag.getDouble("range") : AnomalyDefaults.range(typeId);
+        if (tag.contains("yaw")) instance.yaw = tag.getFloat("yaw");
         return instance;
     }
 }

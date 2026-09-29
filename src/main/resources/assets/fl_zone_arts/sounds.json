@@ -316,5 +316,59 @@
       "fl_zone_arts:rust_crackle"
     ],
     "subtitle": "subtitles.fl_zone_arts.rust_crackle"
+  },
+  "bubble_pop": {
+    "subtitle": "subtitles.fl_zone_arts.bubble_pop",
+    "sounds": [
+      "fl_zone_arts:bubble_pop1",
+      "fl_zone_arts:bubble_pop2"
+    ]
+  },
+  "khlopushka_charge": {
+    "subtitle": "subtitles.fl_zone_arts.khlopushka_charge",
+    "sounds": [
+      "fl_zone_arts:khlopushka_charge"
+    ]
+  },
+  "khlopushka_bang": {
+    "subtitle": "subtitles.fl_zone_arts.khlopushka_bang",
+    "sounds": [
+      {
+        "name": "fl_zone_arts:khlopushka_bang",
+        "attenuation_distance": 48
+      }
+    ]
+  },
+  "khlopushka_ring": {
+    "subtitle": "subtitles.fl_zone_arts.khlopushka_ring",
+    "sounds": [
+      "fl_zone_arts:khlopushka_ring"
+    ]
+  },
+  "kamerton_ring": {
+    "subtitle": "subtitles.fl_zone_arts.kamerton_ring",
+    "sounds": [
+      "fl_zone_arts:kamerton_ring"
+    ]
+  },
+  "kamerton_cut": {
+    "subtitle": "subtitles.fl_zone_arts.kamerton_cut",
+    "sounds": [
+      "fl_zone_arts:kamerton_cut1",
+      "fl_zone_arts:kamerton_cut2"
+    ]
+  },
+  "kamerton_shatter": {
+    "subtitle": "subtitles.fl_zone_arts.kamerton_shatter",
+    "sounds": [
+      "fl_zone_arts:kamerton_shatter"
+    ]
+  },
+  "web_snap": {
+    "subtitle": "subtitles.fl_zone_arts.web_snap",
+    "sounds": [
+      "fl_zone_arts:web_snap1",
+      "fl_zone_arts:web_snap2"
+    ]
   }
 }

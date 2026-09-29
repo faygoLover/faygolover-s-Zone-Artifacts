@@ -2,6 +2,7 @@
   "replace": false,
   "values": [
     "fl_zone_arts:anomaly_swamp",
-    "fl_zone_arts:anomaly_sleep"
+    "fl_zone_arts:anomaly_sleep",
+    "fl_zone_arts:anomaly_web"
   ]
 }

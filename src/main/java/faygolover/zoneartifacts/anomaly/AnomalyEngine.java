@@ -59,7 +59,14 @@ public class AnomalyEngine {
                 PoppyEngine.tick(serverLevel, instance);
             } else if (AnomalyTypeIds.RUST.equals(instance.typeId())) {
                 RustEngine.tick(serverLevel, instance);
-            } else if (AnomalyTypeIds.DYMKA.equals(instance.typeId()) || AnomalyTypeIds.SUMRAK.equals(instance.typeId())) {
+            } else if (AnomalyTypeIds.BUBBLES.equals(instance.typeId())) {
+                BubbleEngine.tick(serverLevel, instance);
+            } else if (AnomalyTypeIds.KHLOPUSHKA.equals(instance.typeId())) {
+                KhlopushkaEngine.tick(serverLevel, instance);
+            } else if (AnomalyTypeIds.KAMERTON.equals(instance.typeId())) {
+                KamertonEngine.tick(serverLevel, instance);
+            } else if (AnomalyTypeIds.DYMKA.equals(instance.typeId()) || AnomalyTypeIds.SUMRAK.equals(instance.typeId())
+                    || AnomalyTypeIds.FIREFLY.equals(instance.typeId()) || AnomalyTypeIds.FANTOM.equals(instance.typeId())) {
                 // Purely the clients' (fog, darkness, sound).
             } else if (AnomalyTypeIds.LIFT.equals(instance.typeId())) {
                 LiftEngine.tick(serverLevel, instance);

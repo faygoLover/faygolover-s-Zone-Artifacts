@@ -152,6 +152,42 @@ public final class ModCommonConfig {
     public static final ForgeConfigSpec.DoubleValue EZHIK_SIZE;
     public static final ForgeConfigSpec.IntValue EZHIK_INTENSITY;
 
+    // wave 3, part 2 (0.1.34.0)
+    public static final ForgeConfigSpec.DoubleValue BUBBLES_SIZE;
+    public static final ForgeConfigSpec.DoubleValue BUBBLES_FIRST_SECONDS;
+    public static final ForgeConfigSpec.DoubleValue BUBBLES_DAMAGE;
+    public static final ForgeConfigSpec.IntValue BUBBLES_COUNT;
+    public static final ForgeConfigSpec.DoubleValue BUBBLES_RESPAWN_SECONDS;
+
+    public static final ForgeConfigSpec.DoubleValue KHLOP_SIZE;
+    public static final ForgeConfigSpec.DoubleValue KHLOP_INTERVAL;
+    public static final ForgeConfigSpec.DoubleValue KHLOP_DAMAGE;
+    public static final ForgeConfigSpec.IntValue KHLOP_INTENSITY;
+    public static final ForgeConfigSpec.DoubleValue KHLOP_RANGE;
+    public static final ForgeConfigSpec.DoubleValue KHLOP_CHARGE_SECONDS;
+    public static final ForgeConfigSpec.DoubleValue KHLOP_RADIUS;
+    public static final ForgeConfigSpec.DoubleValue KHLOP_BLIND_SECONDS;
+
+    public static final ForgeConfigSpec.DoubleValue FIREFLY_SIZE;
+    public static final ForgeConfigSpec.IntValue FIREFLY_COUNT;
+    public static final ForgeConfigSpec.DoubleValue FIREFLY_HEIGHT;
+
+    public static final ForgeConfigSpec.DoubleValue KAMERTON_SIZE;
+    public static final ForgeConfigSpec.DoubleValue KAMERTON_DAMAGE;
+    public static final ForgeConfigSpec.DoubleValue KAMERTON_INTERVAL;
+    public static final ForgeConfigSpec.DoubleValue KAMERTON_SPRINT_MULTIPLIER;
+    public static final ForgeConfigSpec.IntValue KAMERTON_INTENSITY;
+
+    public static final ForgeConfigSpec.DoubleValue WEB_DAMAGE;
+    public static final ForgeConfigSpec.DoubleValue WEB_REGROW_SECONDS;
+    public static final ForgeConfigSpec.IntValue WEB_INTENSITY;
+    public static final ForgeConfigSpec.ConfigValue<java.util.List<? extends String>> WEB_LIGHT_ITEMS;
+
+    public static final ForgeConfigSpec.DoubleValue FANTOM_SIZE;
+    public static final ForgeConfigSpec.IntValue FANTOM_INTENSITY;
+    public static final ForgeConfigSpec.DoubleValue FANTOM_GONE_AT;
+    public static final ForgeConfigSpec.DoubleValue FANTOM_FULL_AT;
+
     public static final ForgeConfigSpec.IntValue LIFT_INTENSITY;
     public static final ForgeConfigSpec.DoubleValue LIFT_HOVER_HEIGHT;
     public static final ForgeConfigSpec.DoubleValue LIFT_PUSH_OUT_SECONDS;
@@ -566,6 +602,76 @@ public final class ModCommonConfig {
                 "block, slowly growing, shrinking, trembling and pulsing. Harmless.").push("ezhik");
         EZHIK_SIZE = b.comment("Radius of the patch, blocks (the size tuner).").defineInRange("radius", 1.0, 0.3, 4.0);
         EZHIK_INTENSITY = b.comment("How many spikes (the effects tuner).").defineInRange("intensity", 3, 1, 50);
+        b.pop();
+
+        b.comment("Soap bubbles: gravitational knots drifting in the zone like soap bubbles, pushing off each other and off",
+                "blocks. One touching anything (not just being near) charges for a quarter second and bursts: a blow to all",
+                "around and the other bubbles in reach burst too (a chain, also across neighbouring zones). Snowballs, arrows",
+                "and hits burst them as well. They come back one by one after the first spawn pause (cooldown tuner).",
+                "Effects tuner = how many; damage tuner = damage and blast radius; speed tuner = how fast they drift.").push("soapBubbles");
+        BUBBLES_SIZE = b.comment("Size of a newly placed zone, blocks.").defineInRange("size", 6.0, 1.0, 128.0);
+        BUBBLES_FIRST_SECONDS = b.comment("Pause before the first bubble appears, seconds (the cooldown tuner).")
+                .defineInRange("firstSpawnSeconds", 10.0, 0.0, 3600.0);
+        BUBBLES_DAMAGE = b.comment("Damage of a burst at its middle, half-hearts; the blast radius grows with it (the damage tuner).")
+                .defineInRange("damage", 4.0, 0.0, 1000.0);
+        BUBBLES_COUNT = b.comment("How many bubbles (the effects tuner).").defineInRange("count", 5, 1, 50);
+        BUBBLES_RESPAWN_SECONDS = b.comment("A new bubble every this many seconds until there are enough.")
+                .defineInRange("respawnSeconds", 2.0, 0.1, 600.0);
+        b.pop();
+
+        b.comment("Khlopushka: every interval (cooldown tuner), if a player is in the zone, a glowing clot appears in the open",
+                "in front of a random one of them, gathers itself for chargeSeconds (/ speed tuner) and blasts: heat damage",
+                "(damage tuner) to everyone within blastRadius (full up close, a third at the edge), and a blinding flash for",
+                "whoever was looking at it closer than the targeting tuner (10). Effects tuner = how hard and long it blinds.").push("khlopushka");
+        KHLOP_SIZE = b.comment("Size of a newly placed zone, blocks.").defineInRange("size", 8.0, 1.0, 128.0);
+        KHLOP_INTERVAL = b.comment("Seconds between clots (the cooldown tuner).").defineInRange("intervalSeconds", 12.0, 1.0, 3600.0);
+        KHLOP_DAMAGE = b.comment("Heat damage up close, half-hearts (the damage tuner).").defineInRange("damage", 8.0, 0.0, 1000.0);
+        KHLOP_INTENSITY = b.defineInRange("intensity", 3, 1, 50);
+        KHLOP_RANGE = b.comment("It blinds those looking at it closer than this, blocks (the targeting tuner).")
+                .defineInRange("blindRange", 10.0, 1.0, 64.0);
+        KHLOP_CHARGE_SECONDS = b.comment("How long it gathers itself at speed x1, seconds.").defineInRange("chargeSeconds", 2.0, 0.2, 60.0);
+        KHLOP_RADIUS = b.comment("Radius of the heat damage, blocks.").defineInRange("blastRadius", 3.0, 0.5, 16.0);
+        KHLOP_BLIND_SECONDS = b.comment("How long the flash blinds at effects 3, seconds.").defineInRange("blindSeconds", 5.0, 0.5, 60.0);
+        b.pop();
+
+        b.comment("Firefly: small wandering lights (effects tuner = how many) no higher than the targeting tuner above the",
+                "ground; the speed tuner = how fast they wander. Harmless.").push("firefly");
+        FIREFLY_SIZE = b.comment("Size of a newly placed zone, blocks.").defineInRange("size", 8.0, 1.0, 128.0);
+        FIREFLY_COUNT = b.comment("How many lights (the effects tuner).").defineInRange("count", 5, 1, 50);
+        FIREFLY_HEIGHT = b.comment("Highest above the ground, blocks (the targeting tuner).").defineInRange("height", 2.5, 0.2, 32.0);
+        b.pop();
+
+        b.comment("Kamerton: a ball of razor-sharp glass needles pointing at its middle, ringing quietly. Sneaking through does",
+                "nothing; walking cuts (damage every hitInterval, the cooldown tuner), running cuts harder. Projectiles",
+                "shatter on it. Effects tuner = how dense the needles are.").push("kamerton");
+        KAMERTON_SIZE = b.comment("Size of a newly placed ball, blocks (its diameter).").defineInRange("size", 5.0, 1.0, 64.0);
+        KAMERTON_DAMAGE = b.comment("Damage of a cut while walking, half-hearts (the damage tuner).").defineInRange("damage", 2.0, 0.0, 1000.0);
+        KAMERTON_INTERVAL = b.comment("Seconds between cuts while moving in it (the cooldown tuner).")
+                .defineInRange("hitIntervalSeconds", 0.5, 0.1, 60.0);
+        KAMERTON_SPRINT_MULTIPLIER = b.comment("Running cuts this many times harder.").defineInRange("sprintMultiplier", 2.0, 1.0, 20.0);
+        KAMERTON_INTENSITY = b.defineInRange("intensity", 3, 1, 50);
+        b.pop();
+
+        b.comment("Web: thin threads stretched between points (placed with its own tool). Barely visible in the dark, they glint",
+                "in light, and in the beam of a light held in hand (lightItems). A thread cuts through any armour (damage)",
+                "and snaps where it touched flesh; it grows back after regrowSeconds. Doesn't hold anyone back; snowballs",
+                "fly through.").push("web");
+        WEB_DAMAGE = b.comment("Damage of a thread, half-hearts, ignoring armour (the damage tuner).").defineInRange("damage", 6.0, 0.0, 1000.0);
+        WEB_REGROW_SECONDS = b.comment("A snapped thread grows back after this long, seconds (the cooldown tuner).")
+                .defineInRange("regrowSeconds", 30.0, 1.0, 36000.0);
+        WEB_INTENSITY = b.comment("How brightly the threads glint (the effects tuner).").defineInRange("intensity", 3, 1, 50);
+        WEB_LIGHT_ITEMS = b.comment("Items that, held in hand and pointed at a thread, make it glint (flashlights of any mod).")
+                .defineListAllowEmpty(java.util.List.of("lightItems"), () -> java.util.List.of("minecraft:torch", "minecraft:soul_torch",
+                        "minecraft:lantern", "minecraft:soul_lantern", "minecraft:glowstone", "minecraft:shroomlight",
+                        "minecraft:sea_lantern", "minecraft:redstone_torch"), o -> o instanceof String);
+        b.pop();
+
+        b.comment("Phantom light: flickering blue lights tightly set in 5 evenly spaced upright lines (the outer two shorter),",
+                "facing the way the GM looked when placing it. They fade as one comes near and are gone at goneAt.").push("phantomLight");
+        FANTOM_SIZE = b.comment("Size (width and height of the rows), blocks.").defineInRange("size", 4.0, 1.0, 64.0);
+        FANTOM_INTENSITY = b.comment("How many lights in a line (the effects tuner).").defineInRange("intensity", 3, 1, 50);
+        FANTOM_GONE_AT = b.comment("Closer than this they are gone, blocks.").defineInRange("goneAt", 16.0, 0.0, 256.0);
+        FANTOM_FULL_AT = b.comment("Farther than this they shine fully, blocks.").defineInRange("fullAt", 30.0, 1.0, 512.0);
         b.pop();
 
         b.push("effects");

@@ -1,0 +1,6 @@
+{
+  "message_id": "fl_zone_arts.anomaly_web",
+  "scaling": "never",
+  "exhaustion": 0.1,
+  "effects": "hurt"
+}

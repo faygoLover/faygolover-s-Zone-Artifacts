@@ -38,6 +38,19 @@ public final class AnomalyTypeIds {
     /** Rust: rusty moss, dust, now and then a red-hot patch ({@link RustEngine}). */
     public static final ResourceLocation RUST = new ResourceLocation(ZoneArtifacts.MODID, "rust");
 
+    /** Soap bubbles: drifting gravitational knots that burst at a touch ({@link BubbleEngine}). */
+    public static final ResourceLocation BUBBLES = new ResourceLocation(ZoneArtifacts.MODID, "soap_bubbles");
+    /** Khlopushka: a glowing clot before one's eyes that flashes and blasts ({@link KhlopushkaEngine}). */
+    public static final ResourceLocation KHLOPUSHKA = new ResourceLocation(ZoneArtifacts.MODID, "khlopushka");
+    /** Firefly: wandering lights, harmless (client only). */
+    public static final ResourceLocation FIREFLY = new ResourceLocation(ZoneArtifacts.MODID, "svetlyachok");
+    /** Kamerton: a ball of glass needles that cut whoever doesn't creep through ({@link KamertonEngine}). */
+    public static final ResourceLocation KAMERTON = new ResourceLocation(ZoneArtifacts.MODID, "kamerton");
+    /** Phantom light: rows of flickering blue lights that fade as one comes near (client only). */
+    public static final ResourceLocation FANTOM = new ResourceLocation(ZoneArtifacts.MODID, "fantom_light");
+    /** The Web is no zone ({@link WebSavedData}); its id only names it (and routes tuner clicks). */
+    public static final ResourceLocation WEB = new ResourceLocation(ZoneArtifacts.MODID, "pautina");
+
     private AnomalyTypeIds() {
     }
 

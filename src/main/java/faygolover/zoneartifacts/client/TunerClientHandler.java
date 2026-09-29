@@ -141,6 +141,16 @@ public final class TunerClientHandler {
             bestDistSq = point.get().distanceSq();
         }
 
+        // A thread of a Web (sent as a zone click of the Web type, the web's id in x).
+        if (player instanceof net.minecraft.client.player.LocalPlayer local) {
+            faygolover.zoneartifacts.client.web.WebClient.Hit web = faygolover.zoneartifacts.client.web.WebClient.pick(local, 12.0);
+            if (web != null && web.distanceSq() < bestDistSq) {
+                best = new Target(new SyncAnomaliesPacket.Entry(faygolover.zoneartifacts.anomaly.AnomalyTypeIds.WEB,
+                        new BlockPos(web.webId(), 0, 0), 1.0f, 1, false, false, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f), null);
+                bestDistSq = web.distanceSq();
+            }
+        }
+
         // Burning Fluff: its base or its hanging strands (which are no block, so the ray would go
         // straight through them to whatever is behind).
         BlockPos fluff = null;

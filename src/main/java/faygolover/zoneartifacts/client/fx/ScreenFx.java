@@ -127,6 +127,10 @@ public final class ScreenFx {
         if (black > 0.004f) {
             graphics.fill(0, 0, width, height, argb(black, 0, 0, 0));
         }
+        float flash = faygolover.zoneartifacts.client.khlopushka.KhlopushkaClient.flash(partial);
+        if (flash > 0.004f) {
+            graphics.fill(0, 0, width, height, argb(Math.min(1.0f, flash), 255, 255, 250));
+        }
         float lids = PoppyClient.eyelids(partial);
         if (lids > 0.004f && lids < 0.999f) eyelids(graphics, lids, width, height);
     }

@@ -10,7 +10,7 @@ public final class ModNetwork {
     /** Bump whenever packets are added, removed or changed, so a client and server on different
      *  mod versions get a clear "incompatible" message at login instead of odd behaviour.
      *  2 = Tesla (0.1.2.0), 3 = tuners, no datapacks (0.1.3.0). */
-    private static final String PROTOCOL_VERSION = "13";
+    private static final String PROTOCOL_VERSION = "14";
 
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(ZoneArtifacts.MODID, "main"),
@@ -70,6 +70,17 @@ public final class ModNetwork {
                 PoppyPacket::encode, PoppyPacket::decode, PoppyPacket::handle);
         CHANNEL.registerMessage(id++, RustPacket.class,
                 RustPacket::encode, RustPacket::decode, RustPacket::handle);
+        // Soap bubbles, Khlopushka, Web (0.1.34.0)
+        CHANNEL.registerMessage(id++, BubblePopPacket.class,
+                BubblePopPacket::encode, BubblePopPacket::decode, BubblePopPacket::handle);
+        CHANNEL.registerMessage(id++, KhlopushkaPacket.class,
+                KhlopushkaPacket::encode, KhlopushkaPacket::decode, KhlopushkaPacket::handle);
+        CHANNEL.registerMessage(id++, SyncWebsPacket.class,
+                SyncWebsPacket::encode, SyncWebsPacket::decode, SyncWebsPacket::handle);
+        CHANNEL.registerMessage(id++, WebStrandPacket.class,
+                WebStrandPacket::encode, WebStrandPacket::decode, WebStrandPacket::handle);
+        CHANNEL.registerMessage(id++, WebEditPacket.class,
+                WebEditPacket::encode, WebEditPacket::decode, WebEditPacket::handle);
     }
 
     private ModNetwork() {

@@ -45,6 +45,11 @@ public final class TunerService {
     public static void tuneAnomaly(ServerPlayer player, TunerKind kind, boolean increase, boolean sneaking,
                                    ResourceLocation typeId, BlockPos pos) {
         if (!holds(player, kind)) return;
+        if (AnomalyTypeIds.WEB.equals(typeId)) {
+            // A web isn't a zone: its id rides in the position's x.
+            tuneWeb(player, kind, increase, sneaking, pos.getX());
+            return;
+        }
         ServerLevel level = player.serverLevel();
         AnomalySavedData data = AnomalySavedData.get(level);
 
@@ -101,6 +106,11 @@ public final class TunerService {
                 instance.setDamage((float) round(clamp(instance.damage() + step, 0.0, ModCommonConfig.MAX_DAMAGE.get()), 2));
                 value = fmt1(instance.damage());
                 standard = fmt1(AnomalyDefaults.damage(typeId));
+            }
+            case TARGETING -> {
+                instance.setRange(round(clamp(instance.range() + step, 0.5, 64.0), 10));
+                value = fmt1(instance.range()) + " бл.";
+                standard = fmt1(AnomalyDefaults.range(typeId)) + " бл.";
             }
             default -> {
                 return;
@@ -217,6 +227,45 @@ public final class TunerService {
                 return;
             }
         }
+        report(player, name, Component.translatable(setting), value, standard);
+    }
+
+    private static void tuneWeb(ServerPlayer player, TunerKind kind, boolean increase, boolean sneaking, int webId) {
+        ServerLevel level = player.serverLevel();
+        faygolover.zoneartifacts.anomaly.WebSavedData data = faygolover.zoneartifacts.anomaly.WebSavedData.get(level);
+        faygolover.zoneartifacts.anomaly.WebSavedData.Web web = data.get(webId);
+        if (web == null || web.distanceSqTo(player.getEyePosition()) > MAX_CLICK_DISTANCE * MAX_CLICK_DISTANCE * 4) return;
+        Component name = Component.translatable("anomaly.fl_zone_arts.pautina");
+        double step = kind.step(sneaking) * (increase ? 1 : -1);
+        String value;
+        String standard;
+        String setting = kind.translationKey();
+        switch (kind) {
+            case DAMAGE -> {
+                web.damage = (float) round(clamp(web.damage + step, 0.0, ModCommonConfig.MAX_DAMAGE.get()), 2);
+                value = fmt1(web.damage);
+                standard = fmt1(ModCommonConfig.WEB_DAMAGE.get());
+            }
+            case COOLDOWN -> {
+                web.regrowSeconds = round(clamp(web.regrowSeconds + step, 1.0, ModCommonConfig.MAX_COOLDOWN_SECONDS.get()), 10);
+                value = seconds(web.regrowSeconds);
+                standard = seconds(ModCommonConfig.WEB_REGROW_SECONDS.get());
+                setting = "tuner.fl_zone_arts.regrow";
+            }
+            case INTENSITY -> {
+                web.intensity = (int) clamp(web.intensity + step, 1, ModCommonConfig.MAX_INTENSITY.get());
+                value = String.valueOf(web.intensity);
+                standard = String.valueOf(ModCommonConfig.WEB_INTENSITY.get());
+                setting = "tuner.fl_zone_arts.glint";
+            }
+            default -> {
+                player.displayClientMessage(Component.translatable("message.fl_zone_arts.tuner.not_applicable",
+                        name, Component.translatable(kind.translationKey())), true);
+                return;
+            }
+        }
+        data.setDirty();
+        faygolover.zoneartifacts.network.SyncWebsPacket.broadcast(level);
         report(player, name, Component.translatable(setting), value, standard);
     }
 

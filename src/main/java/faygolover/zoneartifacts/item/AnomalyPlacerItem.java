@@ -83,7 +83,9 @@ public class AnomalyPlacerItem extends Item {
             }
         }
 
-        data.add(AnomalyInstance.create(anomalyTypeId, pos));
+        AnomalyInstance instance = AnomalyInstance.create(anomalyTypeId, pos);
+        if (player != null) instance.setYaw(player.getYRot());
+        data.add(instance);
         notify(player, Component.translatable("message.fl_zone_arts.anomaly.placed",
                 Component.translatable(AnomalyDefaults.nameKey(anomalyTypeId)), pos.toShortString()));
         AnomalySyncHandler.broadcast(serverLevel);

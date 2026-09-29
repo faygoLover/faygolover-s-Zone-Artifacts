@@ -59,6 +59,14 @@ public final class ModSounds {
     public static final RegistryObject<SoundEvent> RUST_BLAST = register("rust_blast");
     public static final RegistryObject<SoundEvent> RUST_HISS = register("rust_hiss");
     public static final RegistryObject<SoundEvent> RUST_CRACKLE = register("rust_crackle");
+    public static final RegistryObject<SoundEvent> BUBBLE_POP = register("bubble_pop");
+    public static final RegistryObject<SoundEvent> KHLOPUSHKA_CHARGE = register("khlopushka_charge");
+    public static final RegistryObject<SoundEvent> KHLOPUSHKA_BANG = register("khlopushka_bang");
+    public static final RegistryObject<SoundEvent> KHLOPUSHKA_RING = register("khlopushka_ring");
+    public static final RegistryObject<SoundEvent> KAMERTON_RING = register("kamerton_ring");
+    public static final RegistryObject<SoundEvent> KAMERTON_CUT = register("kamerton_cut");
+    public static final RegistryObject<SoundEvent> KAMERTON_SHATTER = register("kamerton_shatter");
+    public static final RegistryObject<SoundEvent> WEB_SNAP = register("web_snap");
 
     private static RegistryObject<SoundEvent> register(String name) {
         ResourceLocation id = new ResourceLocation(ZoneArtifacts.MODID, name);

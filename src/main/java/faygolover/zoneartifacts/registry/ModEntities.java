@@ -70,6 +70,15 @@ public final class ModEntities {
                     .updateInterval(1)
                     .build(new ResourceLocation(ZoneArtifacts.MODID, "gravi").toString()));
 
+    /** A soap bubble: a small knot of gravity drifting in its zone (not saved; its zone makes more). */
+    public static final RegistryObject<EntityType<faygolover.zoneartifacts.anomaly.BubbleEntity>> BUBBLE = ENTITY_TYPES.register("soap_bubble",
+            () -> EntityType.Builder.<faygolover.zoneartifacts.anomaly.BubbleEntity>of(faygolover.zoneartifacts.anomaly.BubbleEntity::new, MobCategory.MISC)
+                    .sized(0.8f, 0.8f)
+                    .fireImmune()
+                    .clientTrackingRange(6)
+                    .updateInterval(1)
+                    .build(new ResourceLocation(ZoneArtifacts.MODID, "soap_bubble").toString()));
+
     private ModEntities() {
     }
 }

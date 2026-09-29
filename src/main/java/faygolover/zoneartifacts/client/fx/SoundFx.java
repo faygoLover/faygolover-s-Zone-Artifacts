@@ -48,7 +48,7 @@ public final class SoundFx {
         if (!ZoneArtifacts.MODID.equals(id.getNamespace())) return false;
         String p = id.getPath();
         return p.equals("sumrak_drone") || p.equals("psi_hum") || p.startsWith("psi_whisper") || p.equals("poppy_hum")
-                || p.startsWith("dymka_distant");
+                || p.startsWith("dymka_distant") || p.equals("khlopushka_ring");
     }
 
     @SubscribeEvent(priority = EventPriority.LOW)
@@ -63,11 +63,13 @@ public final class SoundFx {
     }
 
     private static boolean anyNearby() {
-        return DymkaClient.present() || SumrakClient.present() || SwampClient.darkness(1.0f) > 0.0f || PoppyClient.hearing() < 1.0f;
+        return DymkaClient.present() || SumrakClient.present() || SwampClient.darkness(1.0f) > 0.0f || PoppyClient.hearing() < 1.0f
+                || faygolover.zoneartifacts.client.khlopushka.KhlopushkaClient.hearing() < 1.0f;
     }
 
     static float volume(SoundInstance s) {
-        float v = DymkaClient.hearing() * SwampClient.hearing() * PoppyClient.hearing();
+        float v = DymkaClient.hearing() * SwampClient.hearing() * PoppyClient.hearing()
+                * faygolover.zoneartifacts.client.khlopushka.KhlopushkaClient.hearing();
         v *= SumrakClient.hearing(s.isRelative(), s.getX(), s.getY(), s.getZ());
         return v;
     }
