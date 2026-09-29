@@ -38,7 +38,9 @@ public final class TunerClientHandler {
 
     private static final int REPEAT_TICKS = 4;
 
-    private static long lastActionTick = Long.MIN_VALUE;
+    /** Far in the past, but not Long.MIN_VALUE: {@code now - Long.MIN_VALUE} overflows to a
+     *  negative number, which made every click look like "too soon" and silently dropped it. */
+    private static long lastActionTick = -1_000_000L;
 
     private TunerClientHandler() {
     }

@@ -33,10 +33,10 @@ import java.util.WeakHashMap;
  *     {@code maxEffectIntensity}): each a closed jagged ring through 5–7 points on a shell around
  *     the center, tilted at random. No loose ends, so it reads as one knot of discharges. Each loop
  *     re-forms on its own short timer and crackles every tick.</li>
- *     <li><b>Grabbing arcs</b> — a few short discharges from the ball onto nearby block surfaces,
- *     within twice the ball's radius, re-latching as it flies. Found by a handful of short raycasts
- *     per tick (only while no arc is attached to that slot), so they cost next to nothing. Purely
- *     visual.</li>
+ *     <li><b>Grabbing arcs</b> — now and then a discharge grows from the ball's center onto a nearby
+ *     block surface (within twice the ball's radius) and holds on for a second or so, stretching
+ *     behind the Tesla if it flies on. Found by a few short raycasts, only when a slot is due to
+ *     latch again, so they cost next to nothing. Purely visual.</li>
  * </ul>
  * While spawning the whole thing grows from a point.
  */
@@ -52,9 +52,17 @@ public class TeslaRenderer extends EntityRenderer<TeslaEntity> {
     private static final double JITTER = 0.28;
     private static final float LOOP_HALF_WIDTH = 0.022f;
 
-    private static final int MIN_GRAB_LIFE = 3;
-    private static final int MAX_GRAB_LIFE = 6;
+    /** Grabbing arcs appear rarely but linger: each lives 12–24 ticks, then its slot rests 8–20
+     *  ticks before latching on again. */
+    private static final int MIN_GRAB_LIFE = 12;
+    private static final int MAX_GRAB_LIFE = 24;
+    private static final int MIN_GRAB_PAUSE = 8;
+    private static final int MAX_GRAB_PAUSE = 20;
     private static final int GRAB_SEARCH_TRIES = 4;
+
+    /** A latched arc stays even after the Tesla flies out of the latching radius, stretching
+     *  behind it; only past this many radii (say, a very fast Tesla) is it dropped early. */
+    private static final double GRAB_MAX_STRETCH = 4.0;
 
     private static final Map<TeslaEntity, Ball> BALLS = new WeakHashMap<>();
 
@@ -113,15 +121,15 @@ public class TeslaRenderer extends EntityRenderer<TeslaEntity> {
 
         for (Grab grab : ball.grabs) {
             if (grab == null) continue;
+            // Grows from the very center of the ball, which it keeps following as the Tesla moves,
+            // while the other end stays fixed on the block it latched onto.
             Vec3 hitLocal = grab.hitWorld.subtract(lerpPos);
-            Vec3 dir = hitLocal.subtract(center);
-            double len = dir.length();
-            if (len < 1.0E-3) continue;
-            Vec3 from = center.add(dir.scale(SHELL_RADIUS * scale / len));
+            if (hitLocal.distanceToSqr(center) < 1.0E-6) continue;
             float life = Mth.clamp((float) (now - grab.startTick + partialTick) / (grab.expiresAt - grab.startTick), 0.0f, 1.0f);
-            int alpha = (int) (255 * (1.0f - life * life));
+            int alpha = life < 0.7f ? 255 : (int) (255 * (1.0f - (life - 0.7f) / 0.3f));
             RandomSource rand = RandomSource.create(grab.seed ^ (now * 0xBF58476D1CE4E5B9L));
-            Vec3[] path = LightningDraw.jittered(from, hitLocal, rand, 4, 0.22);
+            int segments = Mth.clamp((int) Math.ceil(hitLocal.distanceTo(center) * 3), 4, 12);
+            Vec3[] path = LightningDraw.jittered(center, hitLocal, rand, segments, 0.18);
             LightningDraw.ribbon(matrix, buffer, path, width * 0.8f, 185, 222, 255, alpha, camLocal);
         }
 
@@ -135,6 +143,7 @@ public class TeslaRenderer extends EntityRenderer<TeslaEntity> {
     private static final class Ball {
         final List<Loop> loops = new ArrayList<>();
         Grab[] grabs = new Grab[0];
+        long[] nextSearch = new long[0];
         final RandomSource random = RandomSource.create();
         long lastUpdate = Long.MIN_VALUE;
 
@@ -157,15 +166,27 @@ public class TeslaRenderer extends EntityRenderer<TeslaEntity> {
 
             // Roughly one grabbing arc per two points of intensity: 2 at the default 3.
             int grabCount = grabbing ? Math.max(1, (intensity + 1) / 2) : 0;
-            if (grabs.length != grabCount) grabs = new Grab[grabCount];
+            if (grabs.length != grabCount) {
+                grabs = new Grab[grabCount];
+                nextSearch = new long[grabCount];
+                // Stagger the slots so the arcs don't all latch on at the same moment.
+                for (int i = 0; i < grabCount; i++) nextSearch[i] = now + random.nextInt(MAX_GRAB_PAUSE + 1);
+            }
             if (grabCount == 0) return;
 
             Vec3 center = entity.center();
             double reach = entity.getSize(); // twice the ball's radius (size / 2)
             for (int i = 0; i < grabs.length; i++) {
                 Grab g = grabs[i];
-                boolean stale = g == null || now >= g.expiresAt || g.hitWorld.distanceTo(center) > reach * 1.1;
-                if (stale) grabs[i] = findGrab(entity, center, reach, now);
+                if (g != null) {
+                    if (now >= g.expiresAt || g.hitWorld.distanceTo(center) > reach * GRAB_MAX_STRETCH) {
+                        grabs[i] = null;
+                        nextSearch[i] = now + MIN_GRAB_PAUSE + random.nextInt(MAX_GRAB_PAUSE - MIN_GRAB_PAUSE + 1);
+                    }
+                } else if (now >= nextSearch[i]) {
+                    grabs[i] = findGrab(entity, center, reach, now);
+                    if (grabs[i] == null) nextSearch[i] = now + 2; // nothing solid in reach — look again shortly
+                }
             }
         }
 

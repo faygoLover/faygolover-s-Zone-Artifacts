@@ -39,7 +39,7 @@ public final class TeslaClientHandler {
     /** Game time of the last left-click event we saw. Holding the button re-fires the event every
      *  tick; only a click that follows a gap of 2+ ticks counts as a new press, so holding LMB can
      *  never chew through a route point after point. */
-    private static long lastLeftClickTick = Long.MIN_VALUE;
+    private static long lastLeftClickTick = -1_000_000L; // not Long.MIN_VALUE: now - MIN_VALUE overflows
 
     private TeslaClientHandler() {
     }
