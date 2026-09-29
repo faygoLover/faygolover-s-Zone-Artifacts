@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "speed": 0.22,
+  "aggro_radius": 10.0,
+  "damage_type": "fl_zone_arts:anomaly_shock",
+  "damage": 4.0,
+  "respawn_ticks": 80,
+  "grow_ticks": 20,
+  "electrify_ticks": 20,
+  "arc": {
+    "bundle_count": 5,
+    "points_per_bundle": 6,
+    "min_lifetime_ticks": 3,
+    "max_lifetime_ticks": 6,
+    "color": "B8E8FF",
+    "radius": 0.42
+  },
+  "bump": {
+    "bolt_count": 6,
+    "reach": 2.5,
+    "duration_ticks": 6
+  },
+  "idle": {
+    "sound": "fl_zone_arts:tesla_idle",
+    "sound_volume": 0.5,
+    "sound_pitch": 1.0
+  },
+  "impact": {
+    "blast_sound": "fl_zone_arts:electra_blast_living",
+    "blast_volume": 0.6,
+    "blast_pitch": 1.0,
+    "hit_sounds": ["fl_zone_arts:electra_hit", "fl_zone_arts:electra_hit1"],
+    "hit_volume": 0.8,
+    "hit_pitch": 1.0
+  }
+}

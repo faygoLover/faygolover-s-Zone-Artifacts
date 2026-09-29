@@ -28,6 +28,12 @@ public final class ModNetwork {
                 AnomalyStrikePacket::encode, AnomalyStrikePacket::decode, AnomalyStrikePacket::handle);
         CHANNEL.registerMessage(id++, SyncAnomalyCooldownPacket.class,
                 SyncAnomalyCooldownPacket::encode, SyncAnomalyCooldownPacket::decode, SyncAnomalyCooldownPacket::handle);
+        CHANNEL.registerMessage(id++, TeslaElectrifyPacket.class,
+                TeslaElectrifyPacket::encode, TeslaElectrifyPacket::decode, TeslaElectrifyPacket::handle);
+        CHANNEL.registerMessage(id++, TeslaBumpPacket.class,
+                TeslaBumpPacket::encode, TeslaBumpPacket::decode, TeslaBumpPacket::handle);
+        CHANNEL.registerMessage(id++, SyncTeslaTypesPacket.class,
+                SyncTeslaTypesPacket::encode, SyncTeslaTypesPacket::decode, SyncTeslaTypesPacket::handle);
     }
 
     private ModNetwork() {

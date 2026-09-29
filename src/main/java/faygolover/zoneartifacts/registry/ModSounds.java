@@ -23,6 +23,7 @@ public final class ModSounds {
     public static final RegistryObject<SoundEvent> ELECTRA_BLAST_LIVING = register("electra_blast_living");
     public static final RegistryObject<SoundEvent> ELECTRA_HIT = register("electra_hit");
     public static final RegistryObject<SoundEvent> ELECTRA_HIT1 = register("electra_hit1");
+    public static final RegistryObject<SoundEvent> TESLA_IDLE = register("tesla_idle");
 
     private static RegistryObject<SoundEvent> register(String name) {
         ResourceLocation id = new ResourceLocation(ZoneArtifacts.MODID, name);

@@ -18,5 +18,9 @@
   "electra_hit1": {
     "subtitle": "subtitles.fl_zone_arts.electra_hit",
     "sounds": ["fl_zone_arts:electra_hit1"]
+  },
+  "tesla_idle": {
+    "subtitle": "subtitles.fl_zone_arts.tesla_idle",
+    "sounds": ["fl_zone_arts:tesla_idle"]
   }
 }
