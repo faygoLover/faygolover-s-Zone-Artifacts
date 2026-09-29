@@ -3,6 +3,7 @@ package faygolover.zoneartifacts.client;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import faygolover.zoneartifacts.ZoneArtifacts;
+import faygolover.zoneartifacts.entity.TeslaWaypointEntity;
 import faygolover.zoneartifacts.item.TeslaRouteToolItem;
 import faygolover.zoneartifacts.network.SyncTeslaRoutesPacket;
 import net.minecraft.client.Camera;
@@ -37,7 +38,10 @@ public class TeslaRouteHighlightRenderer {
 
     private static final double VISIBLE_RADIUS = 48.0;
     private static final float LINE_HALF_WIDTH = 0.03f;
-    private static final double WAYPOINT_BOX_INFLATE = 0.03;
+    /** Half-size of the drawn waypoint box, matching {@link TeslaWaypointEntity}'s actual (small,
+     * sub-block) clickable size — the box shown here is meant to read as "this is the real target",
+     * not a full-block marker. */
+    private static final double WAYPOINT_BOX_HALF_SIZE = TeslaWaypointEntity.size() / 2.0;
 
     /** In-progress chain: warm amber, reading as "still being built." */
     private static final int CHAIN_ARGB = 0xFFFFC966;
@@ -95,7 +99,10 @@ public class TeslaRouteHighlightRenderer {
 
         VertexConsumer lines = bufferSource.getBuffer(RenderType.lines());
         for (BlockPos pos : waypoints) {
-            AABB box = new AABB(pos).inflate(WAYPOINT_BOX_INFLATE);
+            Vec3 center = Vec3.atCenterOf(pos);
+            AABB box = new AABB(
+                    center.x - WAYPOINT_BOX_HALF_SIZE, center.y - WAYPOINT_BOX_HALF_SIZE, center.z - WAYPOINT_BOX_HALF_SIZE,
+                    center.x + WAYPOINT_BOX_HALF_SIZE, center.y + WAYPOINT_BOX_HALF_SIZE, center.z + WAYPOINT_BOX_HALF_SIZE);
             LevelRenderer.renderLineBox(poseStack, lines, box, r / 255f, g / 255f, b / 255f, a);
         }
         bufferSource.endBatch(RenderType.lines());

@@ -186,9 +186,14 @@ public class TeslaEntity extends Entity {
 
     /** Any entity overlapping her this tick pops her: a living one gets the full damage+electrify
      *  treatment ({@link #strike}); anything else (a boat, an item frame, dropped loot...) still
-     *  ends this instance, just without anything to damage (see {@link #pop}). */
+     *  ends this instance, just without anything to damage (see {@link #pop}). {@link
+     *  TeslaWaypointEntity} markers are excluded on purpose - she always spawns and passes directly
+     *  through her own route's markers (they sit exactly on her waypoints), and those are a purely
+     *  technical click target for the route tool, not something her "touch anything and pop" rule is
+     *  meant to react to. */
     private boolean tryHitNearby(ServerLevel level, TeslaType type) {
-        List<Entity> hits = level.getEntities(this, this.getBoundingBox(), entity -> true);
+        List<Entity> hits = level.getEntities(this, this.getBoundingBox(),
+                entity -> !(entity instanceof TeslaWaypointEntity));
         if (hits.isEmpty()) return false;
 
         Entity hit = hits.get(0);

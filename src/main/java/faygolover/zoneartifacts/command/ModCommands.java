@@ -9,6 +9,7 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -59,7 +60,8 @@ public class ModCommands {
                         .executes(ctx -> {
                             int affected = 0;
                             for (ServerPlayer player : ctx.getSource().getServer().getPlayerList().getPlayers()) {
-                                if (TeslaRouteInteractionHandler.clearAllChains(player)) {
+                                if (player.level() instanceof ServerLevel level
+                                        && TeslaRouteInteractionHandler.clearAllChains(level, player)) {
                                     affected++;
                                 }
                             }

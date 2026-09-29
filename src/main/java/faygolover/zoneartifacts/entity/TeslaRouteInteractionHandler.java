@@ -5,6 +5,7 @@ import faygolover.zoneartifacts.item.TeslaRouteToolItem;
 import faygolover.zoneartifacts.network.TeslaRouteSyncHandler;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceLocation;
@@ -13,6 +14,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraftforge.event.entity.player.AttackEntityEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.event.server.ServerStoppingEvent;
@@ -23,25 +25,26 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 
 /**
- * All click handling for {@link TeslaRouteToolItem}. The actual point-by-point state machine lives
- * in {@link #handleRightClick} / {@link #handleLeftClick}, both {@code public static} so the same
- * logic can be driven two ways per click type: directly from {@link PlayerInteractEvent.RightClickBlock}
- * / {@code LeftClickBlock} below when the click lands on a real block, or — once a route is finished
- * and its marker blocks get broken (a Tesla bumps into them until the GM clears them; see the route
- * tool's own item description), leaving a waypoint floating in open air that those two events can
- * never see — through a fallback specific to each click type. Right-click's fallback,
- * {@link #onRightClickItem} below, runs fully server-side via {@code TeslaRouteTargeting}, since
- * {@code RightClickItem} reaches the server directly. Left-click's fallback needs one extra step:
- * {@code LeftClickEmpty} is a client-only event, so {@code ClientTeslaRouteInputHandler} resolves the
- * target client-side (see {@code TeslaRouteClientTargeting}) and sends {@code TeslaRouteClickPacket}
- * for the server to act on. Exactly the same split Electra's placer already uses (compare
- * {@code AnomalyInteractionHandler} + {@code ClientAnomalyInputHandler}).
+ * All click handling for {@link TeslaRouteToolItem} - rebuilt around one rule: a click either lands
+ * on a real, ordinary block (placing a <em>new</em> point) or on an existing point's own {@link
+ * TeslaWaypointEntity} marker (acting on that <em>existing</em> point), and which one it is is
+ * always resolved by Minecraft's own exact, single-target interaction system - never by raytracing
+ * an area, inflating a hitbox, or otherwise guessing what the player probably meant.
  * <p>
- * The full state machine, as specified:
+ * New point: {@link #onRightClickBlock} places it one block off the clicked face (see {@link
+ * #placedPos}), so the point itself - and later, the Tesla that ends up there - is never embedded in
+ * the solid block that was clicked to aim it. A {@link TeslaWaypointEntity} marker is spawned there
+ * immediately (see {@link TeslaWaypointMarkers}), which is what makes it clickable as an
+ * <em>existing</em> point from then on.
+ * <p>
+ * Existing point: {@link #onEntityInteract} (right-click - continues/closes) and {@link
+ * #onAttackEntity} (left-click - removes) fire only for an actual {@link TeslaWaypointEntity}, so
+ * there is nothing to resolve at all; the entity clicked <em>is</em> the point.
+ * <p>
+ * The state machine itself (unchanged from spec):
  * <ol>
  *   <li>Right-click a block with no chain in progress -> starts a new chain there.</li>
  *   <li>Right-click a block with a chain in progress -> appends it, announcing its number in this
@@ -52,23 +55,21 @@ import java.util.UUID;
  *       points it has (even just the one) -> a real, persisted {@link TeslaRoute}, and its Tesla
  *       starts patrolling immediately.</li>
  *   <li>Left-click any point of a finished route, with no chain in progress -> deletes that whole
- *       route.</li>
- *   <li>Left-click a point of the chain being built -> removes just that point (the list closing
- *       back up around the gap on its own), unless it's the chain's start, which scraps the whole
- *       chain instead.</li>
+ *       route (and every one of its markers).</li>
+ *   <li>Left-click a point of the chain being built -> removes just that point and its marker (the
+ *       list closing back up around the gap on its own), unless it's the chain's start, which scraps
+ *       the whole chain (and all its markers) instead.</li>
  *   <li>Left-click a point belonging to a different, already-finished route while building -> no-op.</li>
  *   <li>Left-click a plain block that's part of no route -> nothing happens.</li>
  * </ol>
  * Every message that does get written also names the current chain's start-point coordinates, so a
  * GM who wanders off mid-build can always tell where to click to cancel or close it.
  * <p>
- * Forge fires both {@code RightClickBlock} and {@code RightClickItem} once per hand — including an
- * empty off-hand — and the two firings for the same physical click can land in the very same server
- * tick (see e.g. MinecraftForge issue #5508); a per-hand filter turned out not to reliably tell them
- * apart. {@link #firstOfTick} sidesteps the question of *why* entirely: it just remembers the last
- * {@code (tick, pos)} this player's click logic actually ran for, separately for left- and
- * right-click, and skips anything that matches it again — regardless of which event (or which of the
- * two fallback paths above) it came in through.
+ * Forge fires both {@code RightClickBlock} and {@code EntityInteractSpecific} once per hand -
+ * including an empty off-hand - and the two firings for the same physical click can land in the very
+ * same server tick (see e.g. MinecraftForge issue #5508). {@link #firstOfTick} sidesteps this: it
+ * remembers the last {@code (tick, pos)} this player's click logic actually ran for, separately for
+ * left- and right-click, and skips anything that matches it again.
  */
 @Mod.EventBusSubscriber(modid = ZoneArtifacts.MODID)
 public class TeslaRouteInteractionHandler {
@@ -79,6 +80,10 @@ public class TeslaRouteInteractionHandler {
     private static final Map<UUID, ClickKey> lastRightClick = new HashMap<>();
     private static final Map<UUID, ClickKey> lastLeftClick = new HashMap<>();
 
+    // ---- entry points ---------------------------------------------------
+
+    /** A real block, clicked to place a brand new point - see the class javadoc for why the point
+     *  itself lands one block off the clicked face rather than on the block clicked. */
     @SubscribeEvent
     public static void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
         Player player = event.getEntity();
@@ -88,52 +93,65 @@ public class TeslaRouteInteractionHandler {
         if (event.isCancelable()) {
             event.setCanceled(true);
         }
-        handleRightClick(level, player, event.getPos().immutable());
+
+        BlockPos pos = placedPos(event.getPos(), event.getFace());
+        handleRightClick(level, player, pos);
     }
 
+    /** A real block, left-clicked - per rule 9 this never does anything on its own (an existing
+     *  point is only ever removed by clicking its {@link TeslaWaypointEntity} marker directly, see
+     *  {@link #onAttackEntity}), but the block-break itself is still cancelled while the tool is
+     *  held, same as right-click. */
     @SubscribeEvent
     public static void onLeftClickBlock(PlayerInteractEvent.LeftClickBlock event) {
         Player player = event.getEntity();
+        if (TeslaRouteToolItem.heldStack(player) == null) return;
+        if (event.isCancelable()) {
+            event.setCanceled(true);
+        }
+    }
+
+    /** An existing point's own marker, right-clicked - rules 3, 4 and 5. */
+    @SubscribeEvent
+    public static void onEntityInteract(PlayerInteractEvent.EntityInteractSpecific event) {
+        Player player = event.getEntity();
         if (!(player.level() instanceof ServerLevel level)) return;
         if (TeslaRouteToolItem.heldStack(player) == null) return;
+        if (!(event.getTarget() instanceof TeslaWaypointEntity marker)) return;
 
         if (event.isCancelable()) {
             event.setCanceled(true);
         }
-        handleLeftClick(level, player, event.getPos().immutable());
+        handleRightClick(level, player, marker.waypointPos());
     }
 
-    /** The right-click counterpart of {@code ClientTeslaRouteInputHandler}'s left-click fallback:
-     *  fires whenever there's no real block under the cursor at all (a floating, already-uncovered
-     *  waypoint, or simply a near-miss on a real one), and — unlike left-click — reaches the server
-     *  directly, so {@link TeslaRouteTargeting} can resolve the target itself with no client packet
-     *  involved. When even the generous fallback finds nothing and a chain is in progress, says so
-     *  instead of leaving the GM wondering whether the click registered at all. */
+    /** An existing point's own marker, left-clicked (attacked) - rules 6, 7 and 8. Attacking is
+     *  inherently main-hand-only in vanilla, so unlike the two right-click paths above this one was
+     *  never at risk of double-firing per hand - the {@link #firstOfTick} guard still applies for
+     *  uniformity, not because it's been observed to be needed here. */
     @SubscribeEvent
-    public static void onRightClickItem(PlayerInteractEvent.RightClickItem event) {
+    public static void onAttackEntity(AttackEntityEvent event) {
         Player player = event.getEntity();
         if (!(player.level() instanceof ServerLevel level)) return;
-        ItemStack stack = TeslaRouteToolItem.heldStack(player);
-        if (stack == null) return;
+        if (TeslaRouteToolItem.heldStack(player) == null) return;
+        if (!(event.getTarget() instanceof TeslaWaypointEntity marker)) return;
 
-        Optional<BlockPos> hit = TeslaRouteTargeting.pick(level, player);
-        if (hit.isPresent()) {
-            if (event.isCancelable()) {
-                event.setCanceled(true);
-            }
-            handleRightClick(level, player, hit.get());
-            return;
-        }
-
-        List<BlockPos> chain = TeslaRouteToolItem.getChain(stack);
-        if (!chain.isEmpty()) {
-            notify(player, "Нет цели в досягаемости. Начало: ", chain.get(0));
-        }
+        event.setCanceled(true);
+        handleLeftClick(level, player, marker.waypointPos());
     }
 
-    /** Right-click state machine (rules 1, 2, 3, 4, 5 above). Public so {@code
-     *  TeslaRouteClickPacket} can drive it too. */
-    public static void handleRightClick(ServerLevel level, Player player, BlockPos pos) {
+    /** The point one block off {@code clickedPos} in the direction of {@code clickedFace} - the
+     *  same "on top of / beside the block you clicked" spot vanilla itself places a torch or sign
+     *  at, chosen specifically so a freshly placed point (and, once the route closes, the Tesla that
+     *  spawns there) is never sitting inside the solid block that was clicked to place it. */
+    private static BlockPos placedPos(BlockPos clickedPos, Direction clickedFace) {
+        return clickedPos.relative(clickedFace).immutable();
+    }
+
+    // ---- state machine ----------------------------------------------------
+
+    /** Right-click state machine (rules 1, 2, 3, 4, 5 above). */
+    private static void handleRightClick(ServerLevel level, Player player, BlockPos pos) {
         ItemStack stack = TeslaRouteToolItem.heldStack(player);
         if (stack == null) return;
         if (!firstOfTick(lastRightClick, player, level, pos)) return;
@@ -144,6 +162,7 @@ public class TeslaRouteInteractionHandler {
         if (chain.isEmpty()) {
             chain.add(pos);
             TeslaRouteToolItem.setChain(stack, chain);
+            TeslaWaypointMarkers.spawn(level, pos);
             notify(player, "Начало: ", pos);
             return;
         }
@@ -171,12 +190,12 @@ public class TeslaRouteInteractionHandler {
 
         chain.add(pos);
         TeslaRouteToolItem.setChain(stack, chain);
+        TeslaWaypointMarkers.spawn(level, pos);
         notify(player, "Точка " + chain.size() + ": ", pos, ". Начало: ", start);
     }
 
-    /** Left-click state machine (rules 6, 7, 8, 9 above). Public so {@code TeslaRouteClickPacket}
-     *  can drive it too. */
-    public static void handleLeftClick(ServerLevel level, Player player, BlockPos pos) {
+    /** Left-click state machine (rules 6, 7, 8, 9 above). */
+    private static void handleLeftClick(ServerLevel level, Player player, BlockPos pos) {
         ItemStack stack = TeslaRouteToolItem.heldStack(player);
         if (stack == null) return;
         if (!firstOfTick(lastLeftClick, player, level, pos)) return;
@@ -188,10 +207,11 @@ public class TeslaRouteInteractionHandler {
             if (route != null) {
                 int waypointCount = route.waypoints().size();
                 TeslaSavedData.get(level).removeRoute(level, route.id());
+                TeslaWaypointMarkers.discardAll(level, route.waypoints());
                 TeslaRouteSyncHandler.broadcast(level);
                 notify(player, "Маршрут #" + route.id() + " удалён (" + waypointCount + " т.)");
             }
-            // Plain block, no route involved at all - nothing happens, nothing to say.
+            // A marker with no chain and no route under it can't exist - nothing else to do here.
             return;
         }
 
@@ -199,11 +219,13 @@ public class TeslaRouteInteractionHandler {
         int index = chain.indexOf(pos);
         if (index >= 0) {
             if (index == 0) {
+                TeslaWaypointMarkers.discardAll(level, chain);
                 TeslaRouteToolItem.clearChain(stack);
                 notify(player, "Отменено. ", start, " свободна");
             } else {
                 chain.remove(index);
                 TeslaRouteToolItem.setChain(stack, chain);
+                TeslaWaypointMarkers.discardAt(level, pos);
                 notify(player, "Убрана ", pos, " (начало ", start, ", ост. " + chain.size() + ")");
             }
             return;
@@ -213,7 +235,8 @@ public class TeslaRouteInteractionHandler {
         if (otherRoute != null) {
             notify(player, "Занято маршрутом #" + otherRoute.id() + ". Начало: ", start);
         }
-        // Plain block while building - nothing happens, nothing to say.
+        // A marker while building, belonging to neither the current chain nor any finished route,
+        // can't exist - nothing else to do here.
     }
 
     /** True the first time this {@code (gameTime, pos)} pair is seen for this player's right- or
@@ -225,19 +248,26 @@ public class TeslaRouteInteractionHandler {
         return !key.equals(previous);
     }
 
-    /** Clears any in-progress (not yet finished) chain from every route tool in the player's whole
-     *  inventory, not just their hands - called on logout, dimension change, and server shutdown so
-     *  an abandoned build never lingers, and by {@code /fl_zone_arts tesla_reset_chains} on demand.
-     *  A finished, persisted {@link TeslaRoute} is never touched by this. Returns whether anything
-     *  was actually cleared, purely for that command's own feedback message. */
-    public static boolean clearAllChains(Player player) {
+    // ---- cleanup ----------------------------------------------------------
+
+    /** Clears any in-progress (not yet finished) chain - and discards its markers - from every route
+     *  tool in the player's whole inventory, not just their hands - called on logout, dimension
+     *  change, and server shutdown so an abandoned build never lingers, and by {@code
+     *  /fl_zone_arts tesla_reset_chains} on demand. A finished, persisted {@link TeslaRoute} is never
+     *  touched by this. Returns whether anything was actually cleared, purely for that command's own
+     *  feedback message. */
+    public static boolean clearAllChains(ServerLevel level, Player player) {
         boolean cleared = false;
         Inventory inventory = player.getInventory();
         for (int i = 0; i < inventory.getContainerSize(); i++) {
             ItemStack stack = inventory.getItem(i);
-            if (stack.getItem() instanceof TeslaRouteToolItem && !TeslaRouteToolItem.getChain(stack).isEmpty()) {
-                TeslaRouteToolItem.clearChain(stack);
-                cleared = true;
+            if (stack.getItem() instanceof TeslaRouteToolItem) {
+                List<BlockPos> chain = TeslaRouteToolItem.getChain(stack);
+                if (!chain.isEmpty()) {
+                    TeslaWaypointMarkers.discardAll(level, chain);
+                    TeslaRouteToolItem.clearChain(stack);
+                    cleared = true;
+                }
             }
         }
         return cleared;
@@ -245,20 +275,28 @@ public class TeslaRouteInteractionHandler {
 
     @SubscribeEvent
     public static void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
-        clearAllChains(event.getEntity());
+        if (event.getEntity().level() instanceof ServerLevel level) {
+            clearAllChains(level, event.getEntity());
+        }
     }
 
     @SubscribeEvent
     public static void onPlayerChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
-        clearAllChains(event.getEntity());
+        if (event.getEntity().level() instanceof ServerLevel level) {
+            clearAllChains(level, event.getEntity());
+        }
     }
 
     @SubscribeEvent
     public static void onServerStopping(ServerStoppingEvent event) {
         for (ServerPlayer player : event.getServer().getPlayerList().getPlayers()) {
-            clearAllChains(player);
+            if (player.level() instanceof ServerLevel level) {
+                clearAllChains(level, player);
+            }
         }
     }
+
+    // ---- messaging ----------------------------------------------------------
 
     /** Builds and sends a short actionbar message. Each {@code parts} entry is either a plain
      *  {@code String} appended as-is, or a {@link BlockPos} appended highlighted in color - the
