@@ -30,8 +30,6 @@
     "color": "B8E8FF"
   },
   "trigger_effect": {
-    "particle": "minecraft:electric_spark",
-    "particle_count": 30,
     "living_sound": "fl_zone_arts:electra_blast_living",
     "projectile_sound": "fl_zone_arts:electra_blast_nut",
     "sound_volume": 0.6,

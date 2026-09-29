@@ -1,9 +1,10 @@
 package faygolover.zoneartifacts.anomaly;
 
 import faygolover.zoneartifacts.ZoneArtifacts;
+import faygolover.zoneartifacts.network.AnomalyStrikePacket;
 import faygolover.zoneartifacts.network.AnomalySyncHandler;
+import faygolover.zoneartifacts.network.ModNetwork;
 import net.minecraft.core.Holder;
-import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
@@ -21,6 +22,7 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.registries.ForgeRegistries;
 
 import java.util.ArrayList;
@@ -70,19 +72,6 @@ public class AnomalyEngine {
         // PASSIVE_FIELD / PHASED: not implemented yet, see AnomalyTrigger's javadoc.
     }
 
-    /** Used for the one-shot trigger burst, where a diffuse mid-air flash reads fine. */
-    private static void spawnParticlesInVolume(ServerLevel level, AABB aabb, ResourceLocation particleId, int count) {
-        if (!(ForgeRegistries.PARTICLE_TYPES.getValue(particleId) instanceof SimpleParticleType particleType)) {
-            return;
-        }
-        for (int i = 0; i < count; i++) {
-            double x = lerp(level.random.nextDouble(), aabb.minX, aabb.maxX);
-            double y = lerp(level.random.nextDouble(), aabb.minY, aabb.maxY);
-            double z = lerp(level.random.nextDouble(), aabb.minZ, aabb.maxZ);
-            level.sendParticles(particleType, x, y, z, 1, 0, 0, 0, 0.0);
-        }
-    }
-
     private static void playSound(ServerLevel level, AABB aabb, ResourceLocation soundId, float volume, float pitch) {
         double x = (aabb.minX + aabb.maxX) / 2.0;
         double y = (aabb.minY + aabb.maxY) / 2.0;
@@ -97,10 +86,6 @@ public class AnomalyEngine {
         SoundEvent sound = ForgeRegistries.SOUND_EVENTS.getValue(soundId);
         if (sound == null) return;
         level.playSound(null, pos.x, pos.y, pos.z, sound, SoundSource.AMBIENT, volume, pitch);
-    }
-
-    private static double lerp(double t, double min, double max) {
-        return min + (max - min) * t;
     }
 
     // ---- burst trigger -----------------------------------------------------
@@ -118,7 +103,9 @@ public class AnomalyEngine {
             // Cooldown just fully ended: the client-side idle-loop and arc-visual handlers decide
             // whether to run based on this synced "on cooldown" flag, so it needs telling the
             // instant this flips or they'd stay dark even though the server side has moved on.
-            AnomalySyncHandler.broadcast(level);
+            // A single instance's cooldown flag flipping doesn't need re-sending every anomaly in
+            // the dimension — see broadcastCooldown's javadoc.
+            AnomalySyncHandler.broadcastCooldown(level, instance, false);
         }
 
         if (cooldown > 0) {
@@ -131,24 +118,25 @@ public class AnomalyEngine {
         if (hits.isEmpty()) return;
 
         List<LivingEntity> hitLiving = new ArrayList<>();
-        boolean projectileTripped = false;
+        List<Projectile> hitProjectiles = new ArrayList<>();
         for (Entity entity : hits) {
             if (entity instanceof LivingEntity living) {
                 if (applyDamage(level, instance, type, living)) {
                     hitLiving.add(living);
                 }
-            } else if (entity instanceof Projectile) {
-                // Thrown items (snowballs, eggs, ...) just trip the anomaly, they take no damage.
-                projectileTripped = true;
+            } else if (entity instanceof Projectile projectile) {
+                // Thrown items (snowballs, eggs, ...) just trip the anomaly, they take no damage,
+                // but they're still a valid strike target — see playTriggerEffect.
+                hitProjectiles.add(projectile);
             }
         }
 
-        if (!hitLiving.isEmpty() || projectileTripped) {
-            playTriggerEffect(level, aabb, type, hitLiving, projectileTripped);
+        if (!hitLiving.isEmpty() || !hitProjectiles.isEmpty()) {
+            playTriggerEffect(level, instance, aabb, type, hitLiving, hitProjectiles);
             instance.setCooldownTicks(type.trigger().cooldownTicks());
             // Cooldown just started: tell the client right away so it can stop the idle loop and
             // arcs the moment the anomaly fires, rather than waiting for some unrelated future sync.
-            AnomalySyncHandler.broadcast(level);
+            AnomalySyncHandler.broadcastCooldown(level, instance, true);
         }
     }
 
@@ -184,15 +172,23 @@ public class AnomalyEngine {
      * {@code livingSound} if someone got shocked this burst, {@code projectileSound} if only a
      * thrown item tripped it — and on a living hit, one of {@code hitSounds} additionally plays
      * from each hurt entity's own position (a close-up "zap" layered over the center-based blast),
-     * picked at random per target for variety. The particle burst always plays either way.
+     * picked at random per target for variety. The visual side is no longer a particle burst: one
+     * {@link AnomalyStrikePacket} goes out per struck living entity <em>and</em> per tripped
+     * projectile, so the client draws arcs from the zone's own points converging on whatever
+     * actually set the anomaly off — a thrown snowball gets struck too, not the zone's center.
      */
-    private static void playTriggerEffect(ServerLevel level, AABB aabb, AnomalyType type,
-                                           List<LivingEntity> hitLiving, boolean projectileTripped) {
+    private static void playTriggerEffect(ServerLevel level, AnomalyInstance instance, AABB aabb, AnomalyType type,
+                                           List<LivingEntity> hitLiving, List<Projectile> hitProjectiles) {
         AnomalyTriggerEffect trigger = type.triggerEffect();
         if (trigger == null) return;
 
-        if (trigger.particle() != null) {
-            spawnParticlesInVolume(level, aabb, trigger.particle(), trigger.particleCount());
+        for (LivingEntity target : hitLiving) {
+            ModNetwork.CHANNEL.send(PacketDistributor.DIMENSION.with(level::dimension),
+                    new AnomalyStrikePacket(instance.typeId(), instance.pos(), instance.level(), target.getId()));
+        }
+        for (Projectile projectile : hitProjectiles) {
+            ModNetwork.CHANNEL.send(PacketDistributor.DIMENSION.with(level::dimension),
+                    new AnomalyStrikePacket(instance.typeId(), instance.pos(), instance.level(), projectile.getId()));
         }
 
         boolean livingHit = !hitLiving.isEmpty();

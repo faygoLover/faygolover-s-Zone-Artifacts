@@ -16,11 +16,11 @@ import java.util.List;
  *     hurt entity's own position</em> rather than the zone's center — a close-up "zap" layered on
  *     top of the center-based blast — with one chosen at random per hit for variety.</li>
  * </ul>
- * {@code particle} always plays regardless of which sound branch fires.
+ * There's no particle field anymore — the visual half of a trigger is lightning bolts striking
+ * from the zone's own (surface) points onto whatever it hit, driven client-side by {@code
+ * AnomalyArcRenderer#onStrike} via {@code AnomalyStrikePacket}, not by anything configured here.
  */
 public record AnomalyTriggerEffect(
-        @Nullable ResourceLocation particle,
-        int particleCount,
         @Nullable ResourceLocation livingSound,
         @Nullable ResourceLocation projectileSound,
         float soundVolume,

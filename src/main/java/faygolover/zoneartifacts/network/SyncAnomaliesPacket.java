@@ -72,10 +72,11 @@ public class SyncAnomaliesPacket {
         ctx.get().setPacketHandled(true);
     }
 
-    /** {@code onCooldown} drives the client-side idle-loop sound handler ({@code
-     *  AnomalyAmbientSoundHandler}): the ambient sound stops the instant this flips to true and
-     *  resumes the instant it flips back, independent of the (still server-side-only) particle
-     *  tick rate. */
+    /** {@code onCooldown} drives both the client-side idle-loop sound handler ({@code
+     *  AnomalyAmbientSoundHandler}) and the ambient lightning arcs ({@code AnomalyArcRenderer}):
+     *  both stop the instant this flips to true and resume the instant it flips back. In practice
+     *  this flag is usually kept current by the much lighter {@link SyncAnomalyCooldownPacket}
+     *  rather than a full resend of this packet — see that class's javadoc. */
     public record Entry(ResourceLocation typeId, BlockPos pos, int level, boolean onCooldown) {
     }
 }

@@ -24,6 +24,10 @@ public final class ModNetwork {
                 SyncAnomalyTypeShapesPacket::encode, SyncAnomalyTypeShapesPacket::decode, SyncAnomalyTypeShapesPacket::handle);
         CHANNEL.registerMessage(id++, RemoveAnomalyPacket.class,
                 RemoveAnomalyPacket::encode, RemoveAnomalyPacket::decode, RemoveAnomalyPacket::handle);
+        CHANNEL.registerMessage(id++, AnomalyStrikePacket.class,
+                AnomalyStrikePacket::encode, AnomalyStrikePacket::decode, AnomalyStrikePacket::handle);
+        CHANNEL.registerMessage(id++, SyncAnomalyCooldownPacket.class,
+                SyncAnomalyCooldownPacket::encode, SyncAnomalyCooldownPacket::decode, SyncAnomalyCooldownPacket::handle);
     }
 
     private ModNetwork() {

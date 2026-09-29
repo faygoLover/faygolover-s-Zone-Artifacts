@@ -209,15 +209,6 @@ public class AnomalyTypeManager extends SimpleJsonResourceReloadListener {
     private static AnomalyTriggerEffect parseTriggerEffect(JsonObject obj) {
         String path = "trigger_effect";
 
-        ResourceLocation particle = null;
-        if (obj.has("particle")) {
-            particle = ResourceLocation.tryParse(obj.get("particle").getAsString());
-            if (particle == null) {
-                throw new AnomalyTypeParseException(path + ".particle", "not a valid resource location");
-            }
-        }
-        int particleCount = getInt(obj, "particle_count", 1);
-
         ResourceLocation livingSound = parseOptionalSound(obj, "living_sound", path);
         ResourceLocation projectileSound = parseOptionalSound(obj, "projectile_sound", path);
         float soundVolume = obj.has("sound_volume") ? obj.get("sound_volume").getAsFloat() : 1.0f;
@@ -239,7 +230,7 @@ public class AnomalyTypeManager extends SimpleJsonResourceReloadListener {
         float hitSoundVolume = obj.has("hit_sound_volume") ? obj.get("hit_sound_volume").getAsFloat() : 1.0f;
         float hitSoundPitch = obj.has("hit_sound_pitch") ? obj.get("hit_sound_pitch").getAsFloat() : 1.0f;
 
-        return new AnomalyTriggerEffect(particle, particleCount, livingSound, projectileSound,
+        return new AnomalyTriggerEffect(livingSound, projectileSound,
                 soundVolume, soundPitch, List.copyOf(hitSounds), hitSoundVolume, hitSoundPitch);
     }
 
