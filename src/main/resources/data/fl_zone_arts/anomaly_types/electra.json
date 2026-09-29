@@ -21,10 +21,7 @@
     "particle": "minecraft:electric_spark",
     "particle_count": 6,
     "interval_ticks": 5,
-    "glow_particle": "minecraft:glow",
-    "glow_particle_count": 2,
     "sound": "fl_zone_arts:electra_idle",
-    "sound_interval_ticks": 60,
     "sound_volume": 0.4,
     "sound_pitch": 1.0
   },

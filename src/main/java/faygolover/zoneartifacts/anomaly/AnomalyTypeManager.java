@@ -180,23 +180,12 @@ public class AnomalyTypeManager extends SimpleJsonResourceReloadListener {
                 throw new AnomalyTypeParseException(path + ".sound", "not a valid resource location");
             }
         }
-        ResourceLocation glowParticle = null;
-        if (obj.has("glow_particle")) {
-            glowParticle = ResourceLocation.tryParse(obj.get("glow_particle").getAsString());
-            if (glowParticle == null) {
-                throw new AnomalyTypeParseException(path + ".glow_particle", "not a valid resource location");
-            }
-        }
-
         int particleCount = getInt(obj, "particle_count", 1);
         int intervalTicks = getInt(obj, "interval_ticks", 0);
-        int soundIntervalTicks = getInt(obj, "sound_interval_ticks", 0);
         float soundVolume = obj.has("sound_volume") ? obj.get("sound_volume").getAsFloat() : 1.0f;
         float soundPitch = obj.has("sound_pitch") ? obj.get("sound_pitch").getAsFloat() : 1.0f;
-        int glowParticleCount = getInt(obj, "glow_particle_count", 1);
 
-        return new AnomalyVisualSound(particle, particleCount, intervalTicks, sound, soundIntervalTicks, soundVolume, soundPitch,
-                glowParticle, glowParticleCount);
+        return new AnomalyVisualSound(particle, particleCount, intervalTicks, sound, soundVolume, soundPitch);
     }
 
     private static AnomalyTriggerEffect parseTriggerEffect(JsonObject obj) {

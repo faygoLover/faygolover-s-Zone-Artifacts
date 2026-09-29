@@ -1,6 +1,7 @@
 package faygolover.zoneartifacts.anomaly;
 
 import faygolover.zoneartifacts.ZoneArtifacts;
+import faygolover.zoneartifacts.network.AnomalySyncHandler;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
@@ -61,18 +62,29 @@ public class AnomalyEngine {
             return;
         }
 
-        // While on cooldown, the anomaly should read as completely "spent" — no hum, no sparks —
-        // until the recovery period fully ends. tickBurst (below) is what counts cooldownTicks
-        // down; checking it here, before that happens this tick, means ambient stays silent for
-        // the entire cooldown window and resumes on the same tick it reaches zero.
-        if (instance.cooldownTicks() <= 0) {
-            tickAmbient(level, instance, type);
-        }
+        boolean wasOnCooldown = instance.cooldownTicks() > 0;
 
+        // tickBurst runs first so cooldownTicks reflects *this* tick's state before we decide
+        // whether ambient gets to run — see its javadoc for why the field has to be updated every
+        // tick rather than only while actively counting down.
         if (type.trigger().type() == AnomalyTrigger.TriggerType.BURST) {
             tickBurst(level, instance, type);
         }
         // PASSIVE_FIELD / PHASED: not implemented yet, see AnomalyTrigger's javadoc.
+
+        boolean onCooldown = instance.cooldownTicks() > 0;
+        if (wasOnCooldown && !onCooldown) {
+            // Cooldown just ended: bring the hum/sparks back right away instead of waiting out
+            // whatever was left on their interval timers when they got paused mid-count.
+            instance.setAmbientParticleTicker(0);
+            instance.setAmbientSoundTicker(0);
+        }
+
+        // While on cooldown, the anomaly should read as completely "spent" — no hum, no sparks —
+        // until the recovery period fully ends.
+        if (!onCooldown) {
+            tickAmbient(level, instance, type);
+        }
     }
 
     // ---- ambient (always-on) visual/sound ---------------------------------
@@ -81,24 +93,21 @@ public class AnomalyEngine {
         AnomalyVisualSound ambient = type.ambient();
         if (ambient == null) return;
 
-        AABB aabb = AnomalyGeometry.zoneAabb(instance, type);
-
+        // Note: ambient.sound() isn't played from here. A one-shot server broadcast like this
+        // can't be un-fired once sent — vanilla has no "stop that sound" counterpart to
+        // ServerLevel.playSound — so a long idle hum kept playing to the end even after the
+        // anomaly triggered or was removed. The idle loop is now run entirely client-side as a
+        // real, stoppable SoundInstance (see AnomalyAmbientSoundHandler), driven by the
+        // onCooldown flag synced in SyncAnomaliesPacket and the sound info synced in
+        // SyncAnomalyTypeShapesPacket. This method only ever handles particles now.
         if (ambient.particle() != null && ambient.intervalTicks() > 0) {
+            AABB aabb = AnomalyGeometry.zoneAabb(instance, type);
             int t = instance.ambientParticleTicker() - 1;
             if (t <= 0) {
                 spawnParticlesOnSurfaces(level, aabb, ambient);
                 t = ambient.intervalTicks();
             }
             instance.setAmbientParticleTicker(t);
-        }
-
-        if (ambient.sound() != null && ambient.soundIntervalTicks() > 0) {
-            int t = instance.ambientSoundTicker() - 1;
-            if (t <= 0) {
-                playSound(level, aabb, ambient.sound(), ambient.soundVolume(), ambient.soundPitch());
-                t = ambient.soundIntervalTicks();
-            }
-            instance.setAmbientSoundTicker(t);
         }
     }
 
@@ -110,29 +119,16 @@ public class AnomalyEngine {
      * open air), it simply spawns nothing that tick rather than falling back to mid-air points.
      */
     private static void spawnParticlesOnSurfaces(ServerLevel level, AABB aabb, AnomalyVisualSound visual) {
+        if (!(ForgeRegistries.PARTICLE_TYPES.getValue(visual.particle()) instanceof SimpleParticleType particleType)) {
+            return;
+        }
+
         List<Vec3Point> surfacePoints = findSurfacePoints(level, aabb);
         if (surfacePoints.isEmpty()) return;
 
-        if (ForgeRegistries.PARTICLE_TYPES.getValue(visual.particle()) instanceof SimpleParticleType particleType) {
-            for (int i = 0; i < visual.particleCount(); i++) {
-                Vec3Point p = surfacePoints.get(level.random.nextInt(surfacePoints.size()));
-                level.sendParticles(particleType, p.x(), p.y(), p.z(), 1, 0, 0, 0, 0.0);
-            }
-        }
-
-        // Faint glow riding the same surface points as the sparks ("это же искры" — they should
-        // give off a little light-like shimmer, not just pop and vanish). This is a particle
-        // effect, not a real light-engine change: an actual dynamic light source would mean either
-        // placing real light-emitting blocks (which would show up to other players as a weird
-        // floating torch and touch real world/chunk state — too heavy-handed for something this
-        // transient) or block-level relighting math outside plain Forge API. A soft glow particle
-        // gets the "these surfaces are faintly lit" read cheaply and safely on a live server.
-        if (visual.glowParticle() != null && visual.glowParticleCount() > 0
-                && ForgeRegistries.PARTICLE_TYPES.getValue(visual.glowParticle()) instanceof SimpleParticleType glowType) {
-            for (int i = 0; i < visual.glowParticleCount(); i++) {
-                Vec3Point p = surfacePoints.get(level.random.nextInt(surfacePoints.size()));
-                level.sendParticles(glowType, p.x(), p.y(), p.z(), 1, 0, 0, 0, 0.0);
-            }
+        for (int i = 0; i < visual.particleCount(); i++) {
+            Vec3Point p = surfacePoints.get(level.random.nextInt(surfacePoints.size()));
+            level.sendParticles(particleType, p.x(), p.y(), p.z(), 1, 0, 0, 0, 0.0);
         }
     }
 
@@ -222,9 +218,27 @@ public class AnomalyEngine {
     // ---- burst trigger -----------------------------------------------------
 
     private static void tickBurst(ServerLevel level, AnomalyInstance instance, AnomalyType type) {
-        int cooldown = instance.cooldownTicks() - 1;
+        boolean wasOnCooldown = instance.cooldownTicks() > 0;
+
+        // Always write the decremented value back, even once it reaches 0: previously this only
+        // called setCooldownTicks while still counting down (cooldown > 0), so the stored field
+        // froze at 1 forever after the tick it hit zero — tickBurst's own local "cooldown > 0"
+        // check kept recomputing 1 - 1 = 0 every tick (so burst detection still worked), but
+        // instance.cooldownTicks() itself never became <= 0 again. That silently broke the new
+        // ambient cooldown-gate in tickInstance: it reads instance.cooldownTicks() directly, so it
+        // saw a permanent "1" and never let ambient particles/sound resume after the first fire.
+        int cooldown = Math.max(0, instance.cooldownTicks() - 1);
+        instance.setCooldownTicks(cooldown);
+
+        if (wasOnCooldown && cooldown == 0) {
+            // Cooldown just fully ended: the client-side idle-loop handler (AnomalyAmbientSoundHandler)
+            // decides whether to play based on this synced "on cooldown" flag, so it needs telling
+            // the instant this flips or the ambient hum would stay silent even though the server
+            // itself has already resumed spawning particles/sound.
+            AnomalySyncHandler.broadcast(level);
+        }
+
         if (cooldown > 0) {
-            instance.setCooldownTicks(cooldown);
             return;
         }
 
@@ -249,6 +263,9 @@ public class AnomalyEngine {
         if (!hitLiving.isEmpty() || projectileTripped) {
             playTriggerEffect(level, aabb, type, hitLiving, projectileTripped);
             instance.setCooldownTicks(type.trigger().cooldownTicks());
+            // Cooldown just started: tell the client right away so it can stop the idle loop the
+            // moment the anomaly fires, rather than waiting for some unrelated future sync.
+            AnomalySyncHandler.broadcast(level);
         }
     }
 

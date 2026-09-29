@@ -2,6 +2,7 @@ package faygolover.zoneartifacts.network;
 
 import faygolover.zoneartifacts.anomaly.AnomalyType;
 import faygolover.zoneartifacts.anomaly.AnomalyTypeManager;
+import faygolover.zoneartifacts.anomaly.AnomalyVisualSound;
 import faygolover.zoneartifacts.client.ClientAnomalyTypeCache;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
@@ -16,25 +17,36 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * Server -> client, sent once on login: every loaded anomaly type's per-level sizes. This is the
- * piece that lets the client size a preview/highlight box at all — datapack content
- * ({@code AnomalyTypeManager}) only ever loads server-side, so on a real dedicated server the
- * client would otherwise have no idea how big "level 2" is.
+ * Server -> client, sent once on login: every loaded anomaly type's per-level sizes, plus its
+ * ambient sound (if any). This is the piece that lets the client size a preview/highlight box and
+ * run the looping idle sound at all — datapack content ({@code AnomalyTypeManager}) only ever
+ * loads server-side, so on a real dedicated server the client would otherwise have no idea how big
+ * "level 2" is or what Electra is supposed to sound like.
  */
 public class SyncAnomalyTypeShapesPacket {
 
     private final Map<ResourceLocation, List<Integer>> sizesByLevelByType;
+    private final Map<ResourceLocation, AmbientSoundInfo> ambientSoundByType;
 
-    public SyncAnomalyTypeShapesPacket(Map<ResourceLocation, List<Integer>> sizesByLevelByType) {
+    public SyncAnomalyTypeShapesPacket(Map<ResourceLocation, List<Integer>> sizesByLevelByType,
+                                        Map<ResourceLocation, AmbientSoundInfo> ambientSoundByType) {
         this.sizesByLevelByType = sizesByLevelByType;
+        this.ambientSoundByType = ambientSoundByType;
     }
 
     public static SyncAnomalyTypeShapesPacket ofAllLoadedTypes() {
-        Map<ResourceLocation, List<Integer>> map = new HashMap<>();
+        Map<ResourceLocation, List<Integer>> sizes = new HashMap<>();
+        Map<ResourceLocation, AmbientSoundInfo> sounds = new HashMap<>();
         for (Map.Entry<ResourceLocation, AnomalyType> entry : AnomalyTypeManager.all().entrySet()) {
-            map.put(entry.getKey(), entry.getValue().shape().sizesByLevel());
+            AnomalyType type = entry.getValue();
+            sizes.put(entry.getKey(), type.shape().sizesByLevel());
+
+            AnomalyVisualSound ambient = type.ambient();
+            if (ambient != null && ambient.sound() != null) {
+                sounds.put(entry.getKey(), new AmbientSoundInfo(ambient.sound(), ambient.soundVolume(), ambient.soundPitch()));
+            }
         }
-        return new SyncAnomalyTypeShapesPacket(map);
+        return new SyncAnomalyTypeShapesPacket(sizes, sounds);
     }
 
     public static void encode(SyncAnomalyTypeShapesPacket packet, FriendlyByteBuf buf) {
@@ -46,27 +58,53 @@ public class SyncAnomalyTypeShapesPacket {
                 buf.writeVarInt(size);
             }
         }
+
+        buf.writeVarInt(packet.ambientSoundByType.size());
+        for (Map.Entry<ResourceLocation, AmbientSoundInfo> entry : packet.ambientSoundByType.entrySet()) {
+            buf.writeResourceLocation(entry.getKey());
+            buf.writeResourceLocation(entry.getValue().soundId());
+            buf.writeFloat(entry.getValue().volume());
+            buf.writeFloat(entry.getValue().pitch());
+        }
     }
 
     public static SyncAnomalyTypeShapesPacket decode(FriendlyByteBuf buf) {
         int typeCount = buf.readVarInt();
-        Map<ResourceLocation, List<Integer>> map = new HashMap<>();
+        Map<ResourceLocation, List<Integer>> sizes = new HashMap<>();
         for (int i = 0; i < typeCount; i++) {
             ResourceLocation id = buf.readResourceLocation();
             int levelCount = buf.readVarInt();
-            List<Integer> sizes = new ArrayList<>(levelCount);
+            List<Integer> levelSizes = new ArrayList<>(levelCount);
             for (int j = 0; j < levelCount; j++) {
-                sizes.add(buf.readVarInt());
+                levelSizes.add(buf.readVarInt());
             }
-            map.put(id, sizes);
+            sizes.put(id, levelSizes);
         }
-        return new SyncAnomalyTypeShapesPacket(map);
+
+        int soundCount = buf.readVarInt();
+        Map<ResourceLocation, AmbientSoundInfo> sounds = new HashMap<>();
+        for (int i = 0; i < soundCount; i++) {
+            ResourceLocation typeId = buf.readResourceLocation();
+            ResourceLocation soundId = buf.readResourceLocation();
+            float volume = buf.readFloat();
+            float pitch = buf.readFloat();
+            sounds.put(typeId, new AmbientSoundInfo(soundId, volume, pitch));
+        }
+
+        return new SyncAnomalyTypeShapesPacket(sizes, sounds);
     }
 
     public static void handle(SyncAnomalyTypeShapesPacket packet, Supplier<NetworkEvent.Context> ctx) {
         ctx.get().enqueueWork(() ->
-                DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> ClientAnomalyTypeCache.set(packet.sizesByLevelByType))
+                DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () ->
+                        ClientAnomalyTypeCache.set(packet.sizesByLevelByType, packet.ambientSoundByType))
         );
         ctx.get().setPacketHandled(true);
+    }
+
+    /** Just enough of {@code AnomalyVisualSound} for the client to run the looping idle sound
+     *  itself (see {@code AnomalyAmbientSoundHandler}) without needing the rest of the — otherwise
+     *  server-only — {@code AnomalyType}. */
+    public record AmbientSoundInfo(ResourceLocation soundId, float volume, float pitch) {
     }
 }

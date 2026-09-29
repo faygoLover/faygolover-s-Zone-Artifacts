@@ -35,7 +35,7 @@ public class SyncAnomaliesPacket {
     public static SyncAnomaliesPacket of(ResourceKey<Level> dimension, List<AnomalyInstance> instances) {
         List<Entry> entries = new ArrayList<>(instances.size());
         for (AnomalyInstance instance : instances) {
-            entries.add(new Entry(instance.typeId(), instance.pos(), instance.level()));
+            entries.add(new Entry(instance.typeId(), instance.pos(), instance.level(), instance.cooldownTicks() > 0));
         }
         return new SyncAnomaliesPacket(dimension, entries);
     }
@@ -47,6 +47,7 @@ public class SyncAnomaliesPacket {
             buf.writeResourceLocation(entry.typeId());
             buf.writeBlockPos(entry.pos());
             buf.writeVarInt(entry.level());
+            buf.writeBoolean(entry.onCooldown());
         }
     }
 
@@ -58,7 +59,8 @@ public class SyncAnomaliesPacket {
             ResourceLocation typeId = buf.readResourceLocation();
             BlockPos pos = buf.readBlockPos();
             int level = buf.readVarInt();
-            entries.add(new Entry(typeId, pos, level));
+            boolean onCooldown = buf.readBoolean();
+            entries.add(new Entry(typeId, pos, level, onCooldown));
         }
         return new SyncAnomaliesPacket(dimension, entries);
     }
@@ -70,6 +72,10 @@ public class SyncAnomaliesPacket {
         ctx.get().setPacketHandled(true);
     }
 
-    public record Entry(ResourceLocation typeId, BlockPos pos, int level) {
+    /** {@code onCooldown} drives the client-side idle-loop sound handler ({@code
+     *  AnomalyAmbientSoundHandler}): the ambient sound stops the instant this flips to true and
+     *  resumes the instant it flips back, independent of the (still server-side-only) particle
+     *  tick rate. */
+    public record Entry(ResourceLocation typeId, BlockPos pos, int level, boolean onCooldown) {
     }
 }
