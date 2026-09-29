@@ -113,7 +113,7 @@ public final class ChemClient {
             if (!Double.isFinite(start.x)) continue;
             double out01 = Math.sin(Math.PI * phase);
             double rise = Math.min(1.0, out01 * 1.6);
-            double dist = (0.22 + (0.38 + 0.2 * orbit.nextDouble()) * rise) * size;
+            double dist = (0.2 + (0.17 + 0.1 * orbit.nextDouble()) * rise) * size; // close round the clot
             double angle = phase * Math.PI * 2.0 * (1.0 + orbit.nextInt(2)) * (orbit.nextBoolean() ? 1 : -1);
             Vec3 dir = rotate(start, axis, angle);
             double r = (0.05 + 0.03 * orbit.nextDouble()) * size * (0.4 + 0.6 * rise);
