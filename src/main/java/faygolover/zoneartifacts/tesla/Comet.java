@@ -22,6 +22,8 @@ public final class Comet {
     public static final float IDLE_PITCH = 1.0f;
 
     public static final ResourceLocation EXPLODE_SOUND = id("comet_explode");
+    /** The Cold Comet uses the same sounds, lower. */
+    public static final float COLD_PITCH = 0.72f;
     /** Above 1 only widens how far it is heard (16 blocks per 1.0). */
     public static final float EXPLODE_VOLUME = 2.0f;
 

@@ -1,6 +1,8 @@
 package faygolover.zoneartifacts.tesla;
 
 import faygolover.zoneartifacts.anomaly.AnomalyCombat;
+import faygolover.zoneartifacts.anomaly.ColdEffects;
+import faygolover.zoneartifacts.anomaly.Thermal;
 import faygolover.zoneartifacts.config.ModCommonConfig;
 import faygolover.zoneartifacts.network.CometBurstPacket;
 import faygolover.zoneartifacts.network.ModNetwork;
@@ -34,11 +36,19 @@ import java.util.List;
  * The Comet: a fireball flying a route. Everything about flying, chasing and respawning is the
  * Tesla's ({@link TeslaEntity}); only the impact differs — see {@link Comet} and {@link #explode}.
  * Client side it sheds a light trail of sparks and flames.
+ * <p>
+ * {@link ColdCometEntity} is the same in soul fire: where this one burns, that one freezes
+ * ({@link ColdEffects}) — see {@link #isCold()}.
  */
 public class CometEntity extends TeslaEntity {
 
     public CometEntity(EntityType<? extends TeslaEntity> type, Level level) {
         super(type, level);
+    }
+
+    /** Soul fire: freezes instead of burning, cold colours and particles. */
+    public boolean isCold() {
+        return false;
     }
 
     @Override
@@ -69,7 +79,8 @@ public class CometEntity extends TeslaEntity {
         double core = Comet.CORE_RADIUS * size;
         double blast = Comet.BLAST_RADIUS * size;
         RandomSource random = level.random;
-        int igniteSeconds = ModCommonConfig.COMET_IGNITE_SECONDS.get();
+        boolean cold = isCold();
+        int igniteSeconds = cold ? ModCommonConfig.COLD_COMET_FREEZE_SECONDS.get() : ModCommonConfig.COMET_IGNITE_SECONDS.get();
 
         // ---- entities: push, damage, fire ----
         AABB box = new AABB(c, c).inflate(blast);
@@ -92,11 +103,13 @@ public class CometEntity extends TeslaEntity {
 
             if (e instanceof LivingEntity living && AnomalyCombat.isValidTeslaTarget(living)) {
                 float damage = route.damage() * (direct ? 1.0f : Comet.EDGE_DAMAGE + (1.0f - Comet.EDGE_DAMAGE) * (float) falloff);
-                AnomalyCombat.hurt(level, living, Comet.DAMAGE_TYPE, damage);
+                AnomalyCombat.hurt(level, living, cold ? Thermal.COLD_DAMAGE_TYPE : Comet.DAMAGE_TYPE, damage);
             }
 
             boolean ignite = direct || d <= core || random.nextDouble() < Comet.OUTER_ENTITY_IGNITE_CHANCE;
-            if (ignite && igniteSeconds > 0 && !e.fireImmune()
+            if (cold) {
+                if (ignite) ColdEffects.freeze(e, igniteSeconds);
+            } else if (ignite && igniteSeconds > 0 && !e.fireImmune()
                     && !(e instanceof Player player && player.isCreative())) {
                 e.setSecondsOnFire(igniteSeconds);
             }
@@ -105,11 +118,12 @@ public class CometEntity extends TeslaEntity {
         // ---- blocks: a few fires around the impact, never any damage ----
         // The impact spot itself first, then random spots: likelier near the center, never more
         // than a handful (2 + 2 x size) in total.
-        if (ModCommonConfig.COMET_IGNITES_BLOCKS.get()) {
+        // (The Cold Comet: the same few spots get frozen instead — ice, snow, fires put out.)
+        if (cold ? ModCommonConfig.COLD_COMET_ALTERS_BLOCKS.get() : ModCommonConfig.COMET_IGNITES_BLOCKS.get()) {
             int maxFires = 2 + (int) Math.round(2.0 * size);
             BlockPos origin = BlockPos.containing(c);
             int fires = 0;
-            if (ignite(level, origin)) fires++;
+            if (alter(level, origin, cold)) fires++;
 
             double scan = Math.min(blast, Comet.MAX_BLOCK_RADIUS);
             double coreScan = Math.min(core, Comet.MAX_BLOCK_RADIUS);
@@ -135,14 +149,18 @@ public class CometEntity extends TeslaEntity {
             }
             for (BlockPos pos : candidates) {
                 if (fires >= maxFires) break;
-                if (ignite(level, pos)) fires++;
+                if (alter(level, pos, cold)) fires++;
             }
         }
 
         ModNetwork.CHANNEL.send(PacketDistributor.TRACKING_ENTITY.with(() -> this),
-                new CometBurstPacket(c, normal, getSize(), route.intensity()));
-        AnomalyCombat.playSound(level, c, Comet.EXPLODE_SOUND, Comet.EXPLODE_VOLUME);
+                new CometBurstPacket(c, normal, getSize(), route.intensity(), cold));
+        AnomalyCombat.playSound(level, c, Comet.EXPLODE_SOUND, Comet.EXPLODE_VOLUME, cold ? Comet.COLD_PITCH : 1.0f);
         die();
+    }
+
+    private static boolean alter(ServerLevel level, BlockPos pos, boolean cold) {
+        return cold ? ColdEffects.chill(level, pos) : ignite(level, pos);
     }
 
     /** Fire in an empty spot where fire can stand; unlit campfires and candles light up.
@@ -182,7 +200,13 @@ public class CometEntity extends TeslaEntity {
             Vec3 dir = new Vec3(random.nextGaussian(), random.nextGaussian(), random.nextGaussian()).normalize();
             Vec3 p = c.add(dir.scale(radius * (0.7 + random.nextDouble() * 0.4)));
             Vec3 v = dir.scale(0.01 + random.nextDouble() * 0.02).subtract(motion.scale(0.15)).add(0, 0.01, 0);
-            if (random.nextInt(3) == 0) {
+            if (isCold()) {
+                if (random.nextInt(3) == 0) {
+                    this.level().addParticle(ParticleTypes.SNOWFLAKE, p.x, p.y, p.z, v.x, v.y, v.z);
+                } else {
+                    this.level().addParticle(ParticleTypes.SOUL_FIRE_FLAME, p.x, p.y, p.z, v.x * 0.5, v.y * 0.5, v.z * 0.5);
+                }
+            } else if (random.nextInt(3) == 0) {
                 this.level().addParticle(ParticleTypes.SMALL_FLAME, p.x, p.y, p.z, v.x, v.y, v.z);
             } else {
                 this.level().addParticle(ModParticles.EMBER.get(), p.x, p.y, p.z, v.x, v.y + 0.01, v.z);
@@ -190,7 +214,8 @@ public class CometEntity extends TeslaEntity {
         }
         if (random.nextInt(6) == 0) {
             Vec3 p = motion.lengthSqr() < 1.0E-8 ? c : c.subtract(motion.normalize().scale(radius));
-            this.level().addParticle(ModParticles.HEAT_SMOKE.get(), p.x, p.y, p.z, 0.0, 0.02, 0.0);
+            this.level().addParticle(isCold() ? ModParticles.FROST_MIST.get() : ModParticles.HEAT_SMOKE.get(),
+                    p.x, p.y, p.z, 0.0, 0.02, 0.0);
         }
     }
 }

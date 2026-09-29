@@ -25,7 +25,7 @@ import java.util.WeakHashMap;
 
 /**
  * The Comet: a blazing point at the center that slowly shifts between orange and yellow, wrapped
- * in a halo, with
+ * in a halo (the Cold Comet: the same in soul-fire blue and cyan), with
  * <ul>
  *     <li><b>prominences</b> — arches of flame that rise off the surface and sink back (as many as
  *     the intensity, capped by the player's {@code maxEffectIntensity}), slowly turning with the
@@ -47,6 +47,12 @@ public class CometRenderer extends EntityRenderer<CometEntity> {
     private static final int YELLOW = FireDraw.argb(255, 255, 210, 60);
     private static final int DEEP_RED = FireDraw.argb(255, 220, 45, 10);
     private static final int HOT_WHITE = FireDraw.argb(245, 255, 246, 205);
+
+    // The Cold Comet's soul fire: the same roles, in blue and cyan.
+    private static final int SOUL_BLUE = FireDraw.argb(255, 40, 150, 230);
+    private static final int SOUL_CYAN = FireDraw.argb(255, 110, 240, 250);
+    private static final int SOUL_DEEP = FireDraw.argb(255, 25, 60, 170);
+    private static final int SOUL_WHITE = FireDraw.argb(245, 230, 255, 255);
 
     private static final int MIN_PROMINENCE_LIFE = 25;
     private static final int MAX_PROMINENCE_LIFE = 60;
@@ -82,6 +88,12 @@ public class CometRenderer extends EntityRenderer<CometEntity> {
         }
         if (grow < 0.02f) return;
 
+        boolean cold = entity.isCold();
+        int cBase = cold ? SOUL_BLUE : ORANGE;
+        int cBright = cold ? SOUL_CYAN : YELLOW;
+        int cDeep = cold ? SOUL_DEEP : DEEP_RED;
+        int cHot = cold ? SOUL_WHITE : HOT_WHITE;
+
         float size = entity.getSize();
         double scale = grow * size;
         double radius = RADIUS * scale;
@@ -101,7 +113,7 @@ public class CometRenderer extends EntityRenderer<CometEntity> {
 
         // Colour of the moment: orange drifting to yellow and back.
         float shift = 0.5f + 0.5f * Mth.sin(time * 0.05f + ball.phase);
-        int body = FireDraw.mix(ORANGE, YELLOW, shift);
+        int body = FireDraw.mix(cBase, cBright, shift);
         float spin = time * ball.spinSpeed;
 
         // ---- prominences: arches rising from the surface and sinking back ----
@@ -126,8 +138,8 @@ public class CometRenderer extends EntityRenderer<CometEntity> {
                 points[k] = center.add(dir.scale(radius * (0.92 + (p.height * rise + wobble) * bump)));
                 outer[k] = 0.045f * widthScale * (0.5f + 0.5f * (float) bump);
                 inner[k] = 0.018f * widthScale * (0.5f + 0.5f * (float) bump);
-                outerColor[k] = FireDraw.fade(FireDraw.mix(DEEP_RED, body, (float) bump * 0.6f), 0.6f * fade);
-                innerColor[k] = FireDraw.fade(FireDraw.mix(body, HOT_WHITE, (float) bump * 0.5f), 0.9f * fade);
+                outerColor[k] = FireDraw.fade(FireDraw.mix(cDeep, body, (float) bump * 0.6f), 0.6f * fade);
+                innerColor[k] = FireDraw.fade(FireDraw.mix(body, cHot, (float) bump * 0.5f), 0.9f * fade);
             }
             FireDraw.ribbon(matrix, buffer, points, outer, outerColor, cam);
             FireDraw.ribbon(matrix, buffer, points, inner, innerColor, cam);
@@ -146,7 +158,7 @@ public class CometRenderer extends EntityRenderer<CometEntity> {
             ring[k] = center.add(rotate(u.scale(Math.cos(angle) * r).add(v.scale(Math.sin(angle) * r)), ball.axis, spin * 0.5f));
             float flicker = 0.55f + 0.45f * Mth.sin((float) (angle * 2.0) + time * 0.3f);
             ringWidth[k] = 0.02f * widthScale;
-            ringColor[k] = FireDraw.fade(FireDraw.mix(DEEP_RED, body, flicker), 0.45f * flicker);
+            ringColor[k] = FireDraw.fade(FireDraw.mix(cDeep, body, flicker), 0.45f * flicker);
         }
         FireDraw.ribbon(matrix, buffer, ring, ringWidth, ringColor, cam);
 
@@ -166,7 +178,7 @@ public class CometRenderer extends EntityRenderer<CometEntity> {
                 for (int k = 0; k < points.length; k++) {
                     float s = k / (float) (points.length - 1);
                     widths[k] = 0.06f * widthScale * (1.0f - s) * (1.0f - 0.3f * t);
-                    colors[k] = FireDraw.fade(FireDraw.mix(FireDraw.mix(body, HOT_WHITE, 0.4f), DEEP_RED, s), alpha * (1.0f - 0.6f * s));
+                    colors[k] = FireDraw.fade(FireDraw.mix(FireDraw.mix(body, cHot, 0.4f), cDeep, s), alpha * (1.0f - 0.6f * s));
                 }
                 FireDraw.ribbon(matrix, buffer, points, widths, colors, cam);
             }
@@ -174,11 +186,11 @@ public class CometRenderer extends EntityRenderer<CometEntity> {
 
         // ---- the glowing core, last: the render type writes depth ----
         float pulse = 1.0f + 0.07f * Mth.sin(time * 0.7f + ball.phase);
-        FireDraw.glow(matrix, buffer, center, 0.8 * scale * pulse, cam, FireDraw.fade(FireDraw.mix(DEEP_RED, body, 0.5f), 0.45f), 20);
+        FireDraw.glow(matrix, buffer, center, 0.8 * scale * pulse, cam, FireDraw.fade(FireDraw.mix(cDeep, body, 0.5f), 0.45f), 20);
         FireDraw.glow(matrix, buffer, center, 0.48 * scale * pulse, cam, FireDraw.fade(body, 0.75f), 18);
         Vec3 toCam = cam.subtract(center).normalize();
         FireDraw.glow(matrix, buffer, center.add(toCam.scale(0.02 * size)), 0.2 * scale * pulse, cam,
-                FireDraw.mix(HOT_WHITE, YELLOW, 0.3f * shift), 14);
+                FireDraw.mix(cHot, cBright, 0.3f * shift), 14);
     }
 
     /** Rotates {@code v} around the unit {@code axis} by {@code angle} radians (Rodrigues). */

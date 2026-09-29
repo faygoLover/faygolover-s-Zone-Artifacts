@@ -14,7 +14,7 @@ public class RazlomLoopSound extends AbstractTickableSoundInstance {
 
     private final BlockPos pos;
 
-    public RazlomLoopSound(BlockPos pos, SoundEvent sound, Vec3 at) {
+    public RazlomLoopSound(BlockPos pos, SoundEvent sound, Vec3 at, float pitch) {
         super(sound, SoundSource.AMBIENT, RandomSource.create());
         this.pos = pos;
         this.looping = true;
@@ -24,6 +24,7 @@ public class RazlomLoopSound extends AbstractTickableSoundInstance {
         this.y = at.y;
         this.z = at.z;
         this.volume = Razlom.IDLE_VOLUME;
+        this.pitch = pitch;
     }
 
     @Override

@@ -1,6 +1,7 @@
 package faygolover.zoneartifacts.registry;
 
 import faygolover.zoneartifacts.ZoneArtifacts;
+import faygolover.zoneartifacts.tesla.ColdCometEntity;
 import faygolover.zoneartifacts.tesla.CometEntity;
 import faygolover.zoneartifacts.tesla.Tesla;
 import faygolover.zoneartifacts.tesla.TeslaEntity;
@@ -38,6 +39,15 @@ public final class ModEntities {
                     .clientTrackingRange(8)
                     .updateInterval(1)
                     .build(new ResourceLocation(ZoneArtifacts.MODID, "comet").toString()));
+
+    /** The Cold Comet (soul fire), drawn by the same renderer in cold colours. */
+    public static final RegistryObject<EntityType<ColdCometEntity>> COLD_COMET = ENTITY_TYPES.register("cold_comet",
+            () -> EntityType.Builder.<ColdCometEntity>of(ColdCometEntity::new, MobCategory.MISC)
+                    .sized(Tesla.BASE_HITBOX, Tesla.BASE_HITBOX)
+                    .fireImmune()
+                    .clientTrackingRange(8)
+                    .updateInterval(1)
+                    .build(new ResourceLocation(ZoneArtifacts.MODID, "cold_comet").toString()));
 
     private ModEntities() {
     }

@@ -18,7 +18,8 @@ import javax.annotation.Nullable;
 import java.util.List;
 
 /**
- * Server side of the Razlom, called from {@link AnomalyEngine} every tick.
+ * Server side of the Razlom and the Cold Razlom (soul fire: cold damage and freezing instead of
+ * fire damage and burning, frozen spots instead of fires), called from {@link AnomalyEngine} every tick.
  * <ol>
  *     <li><b>Idle</b>: waits for a living being in its zone (not a spectator, not a player in
  *     creative) or, failing that, a flying projectile (a snowball, an arrow...) — like the Electra,
@@ -151,6 +152,8 @@ public final class RazlomEngine {
 
     /** Burns whoever the arc passes through; with a small chance, starts a fire where it lands. */
     private static void burn(ServerLevel level, AnomalyInstance instance, Vec3 flame) {
+        // The Cold Razlom's soul fire freezes where this one burns.
+        boolean cold = AnomalyTypeIds.COLD_RAZLOM.equals(instance.typeId());
         Razlom.Arc arc = Razlom.arc(level, flame, instance.jetAim(), 1.0);
         List<Vec3> points = arc.points();
         double blockChance = ModCommonConfig.RAZLOM_BLOCK_IGNITE_CHANCE.get();
@@ -167,15 +170,20 @@ public final class RazlomEngine {
             // Hits land every few ticks on purpose: don't let vanilla's half-second of
             // invulnerability swallow them.
             victim.invulnerableTime = 0;
-            AnomalyCombat.hurt(level, victim, Thermal.HEAT_DAMAGE_TYPE, instance.damage());
-            int ignite = ModCommonConfig.RAZLOM_IGNITE_SECONDS.get();
-            if (ignite > 0 && !victim.fireImmune()) victim.setSecondsOnFire(ignite);
-            if (level.random.nextDouble() < blockChance) igniteNear(level, victim.blockPosition());
+            if (cold) {
+                AnomalyCombat.hurt(level, victim, Thermal.COLD_DAMAGE_TYPE, instance.damage());
+                ColdEffects.freeze(victim, ModCommonConfig.COLD_RAZLOM_FREEZE_SECONDS.get());
+            } else {
+                AnomalyCombat.hurt(level, victim, Thermal.HEAT_DAMAGE_TYPE, instance.damage());
+                int ignite = ModCommonConfig.RAZLOM_IGNITE_SECONDS.get();
+                if (ignite > 0 && !victim.fireImmune()) victim.setSecondsOnFire(ignite);
+            }
+            if (level.random.nextDouble() < blockChance) igniteNear(level, victim.blockPosition(), cold);
         }
 
         // The stream splashing onto a block (a miss, the ground, or something in the way).
         if (!hitSomeone && arc.hit() != null && level.random.nextDouble() < blockChance) {
-            igniteSpot(level, arc.hit().getBlockPos().relative(arc.hit().getDirection()));
+            igniteSpot(level, arc.hit().getBlockPos().relative(arc.hit().getDirection()), cold);
         }
     }
 
@@ -198,14 +206,16 @@ public final class RazlomEngine {
     }
 
     /** A fire on a free spot right around {@code feet} (a few tries). */
-    private static void igniteNear(ServerLevel level, BlockPos feet) {
+    private static void igniteNear(ServerLevel level, BlockPos feet, boolean cold) {
         for (int attempt = 0; attempt < 4; attempt++) {
             BlockPos pos = feet.offset(level.random.nextInt(3) - 1, 0, level.random.nextInt(3) - 1);
-            if (igniteSpot(level, pos)) return;
+            if (igniteSpot(level, pos, cold)) return;
         }
     }
 
-    private static boolean igniteSpot(ServerLevel level, BlockPos pos) {
+    /** Fire on a free spot — or, for the Cold Razlom, the spot freezes ({@link ColdEffects#chill}). */
+    private static boolean igniteSpot(ServerLevel level, BlockPos pos, boolean cold) {
+        if (cold) return ColdEffects.chill(level, pos);
         if (!level.isLoaded(pos) || !level.getBlockState(pos).isAir()) return false;
         if (!BaseFireBlock.canBePlacedAt(level, pos, Direction.UP)) return false;
         level.setBlockAndUpdate(pos, BaseFireBlock.getState(level, pos));

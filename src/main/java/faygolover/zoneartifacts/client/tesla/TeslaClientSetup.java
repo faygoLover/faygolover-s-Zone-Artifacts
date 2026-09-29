@@ -2,6 +2,7 @@ package faygolover.zoneartifacts.client.tesla;
 
 import faygolover.zoneartifacts.ZoneArtifacts;
 import faygolover.zoneartifacts.registry.ModEntities;
+import faygolover.zoneartifacts.tesla.CometEntity;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.EntityRenderersEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -19,5 +20,6 @@ public final class TeslaClientSetup {
     public static void onRegisterRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(ModEntities.TESLA.get(), TeslaRenderer::new);
         event.registerEntityRenderer(ModEntities.COMET.get(), CometRenderer::new);
+        event.<CometEntity>registerEntityRenderer(ModEntities.COLD_COMET.get(), CometRenderer::new);
     }
 }

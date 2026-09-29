@@ -20,7 +20,7 @@ public class RazlomJetSound extends AbstractTickableSoundInstance {
     private final BlockPos pos;
     private boolean fading;
 
-    public RazlomJetSound(BlockPos pos, SoundEvent sound, Vec3 at) {
+    public RazlomJetSound(BlockPos pos, SoundEvent sound, Vec3 at, float pitch) {
         super(sound, SoundSource.HOSTILE, RandomSource.create());
         this.pos = pos;
         this.looping = false;
@@ -30,6 +30,7 @@ public class RazlomJetSound extends AbstractTickableSoundInstance {
         this.y = at.y;
         this.z = at.z;
         this.volume = Razlom.JET_VOLUME;
+        this.pitch = pitch;
     }
 
     @Override

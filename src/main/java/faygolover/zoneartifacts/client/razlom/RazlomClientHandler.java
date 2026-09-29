@@ -11,6 +11,7 @@ import faygolover.zoneartifacts.registry.ModParticles;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.util.Mth;
@@ -126,6 +127,11 @@ public final class RazlomClientHandler {
             return entry;
         }
 
+        /** The Cold Razlom: soul fire, frost instead of embers and smoke. */
+        public boolean cold() {
+            return AnomalyTypeIds.COLD_RAZLOM.equals(entry.typeId());
+        }
+
         public List<Crack> cracks() {
             return cracks;
         }
@@ -208,7 +214,7 @@ public final class RazlomClientHandler {
         Set<BlockPos> seen = new HashSet<>();
 
         for (SyncAnomaliesPacket.Entry entry : ClientAnomalyCache.entriesFor(level.dimension())) {
-            if (!AnomalyTypeIds.RAZLOM.equals(entry.typeId())) continue;
+            if (!AnomalyTypeIds.isRazlom(entry.typeId())) continue;
             if (Vec3.atCenterOf(entry.pos()).distanceToSqr(cam) > VISIBLE_RADIUS * VISIBLE_RADIUS) continue;
             seen.add(entry.pos());
             State state = STATES.computeIfAbsent(entry.pos(), p -> {
@@ -244,7 +250,7 @@ public final class RazlomClientHandler {
             if (resting != state.wasResting) {
                 Vec3 f = state.flame;
                 for (int i = 0; i < (resting ? 6 : 4); i++) {
-                    level.addParticle(resting ? ParticleTypes.SMOKE : ParticleTypes.FLAME,
+                    level.addParticle(resting ? ParticleTypes.SMOKE : state.cold() ? ParticleTypes.SOUL_FIRE_FLAME : ParticleTypes.FLAME,
                             f.x + (RANDOM.nextDouble() - 0.5) * 0.15, f.y, f.z + (RANDOM.nextDouble() - 0.5) * 0.15,
                             (RANDOM.nextDouble() - 0.5) * 0.02, 0.03 + RANDOM.nextDouble() * 0.03, (RANDOM.nextDouble() - 0.5) * 0.02);
                 }
@@ -298,7 +304,7 @@ public final class RazlomClientHandler {
         if (state.loop == null || state.loop.isStopped()) {
             SoundEvent hum = ForgeRegistries.SOUND_EVENTS.getValue(Razlom.IDLE_SOUND);
             if (hum != null) {
-                state.loop = new RazlomLoopSound(state.entry.pos(), hum, state.flame);
+                state.loop = new RazlomLoopSound(state.entry.pos(), hum, state.flame, state.cold() ? Razlom.COLD_PITCH : 1.0f);
                 mc.getSoundManager().play(state.loop);
             }
         }
@@ -307,7 +313,7 @@ public final class RazlomClientHandler {
         if (jetting && (state.jetSound == null || state.jetSound.isStopped() || state.jetSound.isFading())) {
             SoundEvent blow = ForgeRegistries.SOUND_EVENTS.getValue(Razlom.JET_SOUND);
             if (blow != null) {
-                state.jetSound = new RazlomJetSound(state.entry.pos(), blow, state.flame);
+                state.jetSound = new RazlomJetSound(state.entry.pos(), blow, state.flame, state.cold() ? Razlom.COLD_PITCH : 1.0f);
                 mc.getSoundManager().play(state.jetSound);
             }
         }
@@ -319,7 +325,8 @@ public final class RazlomClientHandler {
 
         // The hovering flame: small flames licking upwards (none while it's out).
         if (state.flameLevel > 0.5f && RANDOM.nextFloat() < 0.22f) {
-            level.addParticle(ParticleTypes.SMALL_FLAME, f.x + (RANDOM.nextDouble() - 0.5) * 0.12, f.y - 0.05,
+            level.addParticle(state.cold() ? ParticleTypes.SOUL_FIRE_FLAME : ParticleTypes.SMALL_FLAME,
+                    f.x + (RANDOM.nextDouble() - 0.5) * 0.12, f.y - 0.05,
                     f.z + (RANDOM.nextDouble() - 0.5) * 0.12, 0.0, 0.012 + RANDOM.nextDouble() * 0.01, 0.0);
         }
 
@@ -330,7 +337,10 @@ public final class RazlomClientHandler {
             int i = RANDOM.nextInt(crack.xs.length);
             if (crack.ys[i] != null) {
                 boolean smoke = RANDOM.nextInt(4) == 0;
-                level.addParticle(smoke ? ModParticles.HEAT_SMOKE.get() : ModParticles.EMBER.get(),
+                ParticleOptions particle = state.cold()
+                        ? (smoke ? ModParticles.FROST_MIST.get() : ParticleTypes.SNOWFLAKE)
+                        : (smoke ? ModParticles.HEAT_SMOKE.get() : ModParticles.EMBER.get());
+                level.addParticle(particle,
                         crack.xs[i], crack.ys[i] + 0.03, crack.zs[i], 0.0, 0.008 + RANDOM.nextDouble() * 0.01, 0.0);
             }
         }
@@ -351,11 +361,11 @@ public final class RazlomClientHandler {
                 if (tangent.lengthSqr() < 1.0E-8) continue;
                 Vec3 spread = new Vec3(RANDOM.nextGaussian(), RANDOM.nextGaussian(), RANDOM.nextGaussian()).scale(0.02);
                 Vec3 v = tangent.normalize().scale(0.1 + RANDOM.nextDouble() * 0.12).add(spread);
-                level.addParticle(ParticleTypes.FLAME, p.x, p.y, p.z, v.x, v.y, v.z);
+                level.addParticle(state.cold() ? ParticleTypes.SOUL_FIRE_FLAME : ParticleTypes.FLAME, p.x, p.y, p.z, v.x, v.y, v.z);
             }
             if (RANDOM.nextInt(3) == 0 && points.size() > 1) {
                 Vec3 p = points.get(1 + RANDOM.nextInt(points.size() - 1));
-                level.addParticle(ModParticles.HEAT_SMOKE.get(), p.x, p.y, p.z, 0.0, 0.03, 0.0);
+                level.addParticle(state.cold() ? ModParticles.FROST_MIST.get() : ModParticles.HEAT_SMOKE.get(), p.x, p.y, p.z, 0.0, 0.03, 0.0);
             }
             if (arc.hit() != null && extend >= 1.0f) {
                 // Splash: flames bouncing off the surface, a puff of smoke now and then.
@@ -364,10 +374,10 @@ public final class RazlomClientHandler {
                 for (int i = 0; i < 2; i++) {
                     Vec3 v = normal.scale(0.03 + RANDOM.nextDouble() * 0.04)
                             .add(RANDOM.nextGaussian() * 0.04, 0.02, RANDOM.nextGaussian() * 0.04);
-                    level.addParticle(ParticleTypes.FLAME, hit.x, hit.y, hit.z, v.x, v.y, v.z);
+                    level.addParticle(state.cold() ? ParticleTypes.SOUL_FIRE_FLAME : ParticleTypes.FLAME, hit.x, hit.y, hit.z, v.x, v.y, v.z);
                 }
                 if (RANDOM.nextInt(4) == 0) {
-                    level.addParticle(ParticleTypes.SMOKE, hit.x, hit.y + 0.1, hit.z, 0.0, 0.04, 0.0);
+                    level.addParticle(state.cold() ? ParticleTypes.SNOWFLAKE : ParticleTypes.SMOKE, hit.x, hit.y + 0.1, hit.z, 0.0, 0.04, 0.0);
                 }
             }
         }

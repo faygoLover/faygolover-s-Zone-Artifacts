@@ -50,9 +50,13 @@ public final class AnomalyCombat {
     }
 
     public static void playSound(ServerLevel level, Vec3 pos, ResourceLocation soundId, float volume) {
+        playSound(level, pos, soundId, volume, 1.0f);
+    }
+
+    public static void playSound(ServerLevel level, Vec3 pos, ResourceLocation soundId, float volume, float pitch) {
         SoundEvent sound = ForgeRegistries.SOUND_EVENTS.getValue(soundId);
         if (sound == null) return;
-        level.playSound(null, pos.x, pos.y, pos.z, sound, SoundSource.AMBIENT, volume, 1.0f);
+        level.playSound(null, pos.x, pos.y, pos.z, sound, SoundSource.AMBIENT, volume, pitch);
     }
 
     public static void playRandom(ServerLevel level, Vec3 pos, List<ResourceLocation> sounds, float volume) {

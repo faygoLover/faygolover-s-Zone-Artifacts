@@ -57,6 +57,21 @@ public final class ModCommonConfig {
     public static final ForgeConfigSpec.IntValue COMET_IGNITE_SECONDS;
     public static final ForgeConfigSpec.BooleanValue COMET_IGNITES_BLOCKS;
 
+    // cold comet
+    public static final ForgeConfigSpec.DoubleValue COLD_COMET_BASE_SPEED;
+    public static final ForgeConfigSpec.IntValue COLD_COMET_RESPAWN_SECONDS;
+    public static final ForgeConfigSpec.DoubleValue COLD_COMET_DAMAGE;
+    public static final ForgeConfigSpec.IntValue COLD_COMET_INTENSITY;
+    public static final ForgeConfigSpec.DoubleValue COLD_COMET_CHASE_RADIUS;
+    public static final ForgeConfigSpec.IntValue COLD_COMET_FREEZE_SECONDS;
+    public static final ForgeConfigSpec.BooleanValue COLD_COMET_ALTERS_BLOCKS;
+
+    // cold razlom
+    public static final ForgeConfigSpec.IntValue COLD_RAZLOM_COOLDOWN_SECONDS;
+    public static final ForgeConfigSpec.DoubleValue COLD_RAZLOM_DAMAGE;
+    public static final ForgeConfigSpec.IntValue COLD_RAZLOM_INTENSITY;
+    public static final ForgeConfigSpec.IntValue COLD_RAZLOM_FREEZE_SECONDS;
+
     // razlom
     public static final ForgeConfigSpec.IntValue RAZLOM_COOLDOWN_SECONDS;
     public static final ForgeConfigSpec.DoubleValue RAZLOM_DAMAGE;
@@ -155,6 +170,31 @@ public final class ModCommonConfig {
                 .defineInRange("igniteSeconds", 4, 0, 60);
         COMET_IGNITES_BLOCKS = b.comment("The explosion sets fire around the impact (never breaks blocks).")
                 .define("ignitesBlocks", true);
+        b.pop();
+
+        b.comment("Cold Comet: the Comet in soul fire. Freezes instead of burning (vanilla freezing + Slowness II),",
+                "and instead of fires leaves ice, snow and put-out flames around the impact.").push("coldComet");
+        COLD_COMET_BASE_SPEED = b.comment("Standard speed (x1.0) in blocks per tick.")
+                .defineInRange("baseSpeed", 0.15, 0.01, 2.0);
+        COLD_COMET_RESPAWN_SECONDS = b.defineInRange("respawnSeconds", 6, 1, 3600);
+        COLD_COMET_DAMAGE = b.comment("Explosion damage at the center, half-hearts (30 % at the edge).")
+                .defineInRange("damage", 5.0, 0.0, 1000.0);
+        COLD_COMET_INTENSITY = b.defineInRange("intensity", 3, 1, 50);
+        COLD_COMET_CHASE_RADIUS = b.defineInRange("chaseRadius", 12.0, 0.0, 128.0);
+        COLD_COMET_FREEZE_SECONDS = b.comment("How long entities caught by the explosion stay frozen, seconds.")
+                .defineInRange("freezeSeconds", 4, 0, 60);
+        COLD_COMET_ALTERS_BLOCKS = b.comment("The explosion freezes a few spots around the impact (never breaks blocks).")
+                .define("altersBlocks", true);
+        b.pop();
+
+        b.comment("Defaults for a newly placed Cold Razlom (soul-fire rift). Jet timing, reach, aim speed and",
+                "block chance are shared with the Razlom section.").push("coldRazlom");
+        COLD_RAZLOM_COOLDOWN_SECONDS = b.defineInRange("cooldownSeconds", 4, 1, 3600);
+        COLD_RAZLOM_DAMAGE = b.comment("Damage per jet hit, half-hearts.")
+                .defineInRange("damage", 1.5, 0.0, 1000.0);
+        COLD_RAZLOM_INTENSITY = b.defineInRange("intensity", 3, 1, 50);
+        COLD_RAZLOM_FREEZE_SECONDS = b.comment("How long a target hit by the jet stays frozen, seconds.")
+                .defineInRange("freezeSeconds", 3, 0, 60);
         b.pop();
 
         b.comment("Defaults for a newly placed Razlom (rift). Its cooldown is the pause after a fire jet.").push("razlom");

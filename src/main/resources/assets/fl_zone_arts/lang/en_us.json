@@ -110,5 +110,21 @@
   "item.fl_zone_arts.damage_tuner.desc.1": "Step 0.5, with Shift 2.",
   "item.fl_zone_arts.targeting_tuner.desc.0": "How far a Tesla or Comet",
   "item.fl_zone_arts.targeting_tuner.desc.1": "spots an artifact carrier.",
-  "item.fl_zone_arts.targeting_tuner.desc.2": "Step 1, with Shift 5; 0 = never chases."
+  "item.fl_zone_arts.targeting_tuner.desc.2": "Step 1, with Shift 5; 0 = never chases.",
+  "anomaly.fl_zone_arts.cold_comet": "Cold Comet",
+  "anomaly.fl_zone_arts.cold_razlom": "Cold Razlom",
+  "item.fl_zone_arts.cold_comet_placer": "Cold Comet Route Placer",
+  "item.fl_zone_arts.cold_razlom_placer": "Anomaly Placer: Cold Razlom",
+  "entity.fl_zone_arts.cold_comet": "Cold Comet",
+  "item.fl_zone_arts.cold_comet_placer.desc.0": "Route for a Cold Comet, a soul-fire ball",
+  "item.fl_zone_arts.cold_comet_placer.desc.1": "that explodes on impact",
+  "item.fl_zone_arts.cold_comet_placer.desc.2": "and freezes everything around.",
+  "item.fl_zone_arts.cold_comet_placer.desc.3": "Right-click a block: add a point,",
+  "item.fl_zone_arts.cold_comet_placer.desc.4": "right-click the first point: close the route.",
+  "item.fl_zone_arts.cold_comet_placer.desc.5": "Left-click a point: remove it or the route.",
+  "item.fl_zone_arts.cold_razlom_placer.desc.0": "Soul-fire cracks with a flame above them.",
+  "item.fl_zone_arts.cold_razlom_placer.desc.1": "Hits whoever enters the zone",
+  "item.fl_zone_arts.cold_razlom_placer.desc.2": "with a freezing jet.",
+  "item.fl_zone_arts.cold_razlom_placer.desc.3": "Right-click a block to place,",
+  "item.fl_zone_arts.cold_razlom_placer.desc.4": "left-click the zone to remove."
 }

@@ -75,14 +75,14 @@ public final class TeslaCommands {
                 case GONE -> "аномалии нет (маршрут завис)";
                 case UNKNOWN -> "аномалия в незагруженном чанке";
             };
-            String kindName = route.kind() == RouteKind.COMET ? "Комета" : "Тесла";
+            String kindName = route.kind().displayName();
             lines.add("#" + route.id() + " " + kindName + ": " + route.waypoints().size() + " точ., старт "
                     + TeslaRouteService.formatPos(route.waypoints().get(0)) + " — " + state
                     + String.format(java.util.Locale.ROOT, " [размер %.1f, скорость x%.1f, возрождение %d с, урон %.1f, насыщенность %d, наведение %.1f бл.]",
                     route.size(), route.speedMultiplier(), route.respawnSeconds(), route.damage(), route.intensity(), route.chaseRadius()));
         }
         for (TeslaDrafts.Draft draft : TeslaDrafts.inDimension(level.dimension())) {
-            lines.add("строится " + (draft.kind() == RouteKind.COMET ? "Комета" : "Тесла") + " (" + draft.ownerName() + "): " + draft.points().size() + " точ., старт "
+            lines.add("строится " + draft.kind().displayName() + " (" + draft.ownerName() + "): " + draft.points().size() + " точ., старт "
                     + TeslaRouteService.formatPos(draft.start()));
         }
 

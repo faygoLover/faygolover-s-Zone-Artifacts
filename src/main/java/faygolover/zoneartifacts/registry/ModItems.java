@@ -28,11 +28,17 @@ public class ModItems {
     public static final RegistryObject<Item> RAZLOM_PLACER = ITEMS.register("razlom_placer",
             () -> new AnomalyPlacerItem(AnomalyTypeIds.RAZLOM, new Item.Properties().stacksTo(1)));
 
+    public static final RegistryObject<Item> COLD_RAZLOM_PLACER = ITEMS.register("cold_razlom_placer",
+            () -> new AnomalyPlacerItem(AnomalyTypeIds.COLD_RAZLOM, new Item.Properties().stacksTo(1)));
+
     public static final RegistryObject<Item> TESLA_PLACER = ITEMS.register("tesla_placer",
             () -> new TeslaRoutePlacerItem(RouteKind.TESLA, new Item.Properties().stacksTo(1)));
 
     public static final RegistryObject<Item> COMET_PLACER = ITEMS.register("comet_placer",
             () -> new TeslaRoutePlacerItem(RouteKind.COMET, new Item.Properties().stacksTo(1)));
+
+    public static final RegistryObject<Item> COLD_COMET_PLACER = ITEMS.register("cold_comet_placer",
+            () -> new TeslaRoutePlacerItem(RouteKind.COLD_COMET, new Item.Properties().stacksTo(1)));
 
     public static final RegistryObject<Item> SIZE_TUNER = tuner("size_tuner", TunerKind.SIZE);
     public static final RegistryObject<Item> SPEED_TUNER = tuner("speed_tuner", TunerKind.SPEED);

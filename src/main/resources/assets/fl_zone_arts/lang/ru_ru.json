@@ -110,5 +110,21 @@
   "item.fl_zone_arts.damage_tuner.desc.1": "Шаг 0.5, с Shift — 2.",
   "item.fl_zone_arts.targeting_tuner.desc.0": "С какого расстояния Тесла и Комета",
   "item.fl_zone_arts.targeting_tuner.desc.1": "замечают носителя артефакта.",
-  "item.fl_zone_arts.targeting_tuner.desc.2": "Шаг 1, с Shift — 5; 0 — не преследуют."
+  "item.fl_zone_arts.targeting_tuner.desc.2": "Шаг 1, с Shift — 5; 0 — не преследуют.",
+  "anomaly.fl_zone_arts.cold_comet": "Холодная комета",
+  "anomaly.fl_zone_arts.cold_razlom": "Холодный разлом",
+  "item.fl_zone_arts.cold_comet_placer": "Установщик маршрута «Холодная комета»",
+  "item.fl_zone_arts.cold_razlom_placer": "Установщик аномалии «Холодный разлом»",
+  "entity.fl_zone_arts.cold_comet": "Холодная комета",
+  "item.fl_zone_arts.cold_comet_placer.desc.0": "Маршрут для Холодной кометы — шара",
+  "item.fl_zone_arts.cold_comet_placer.desc.1": "огня душ, взрывающегося при столкновении",
+  "item.fl_zone_arts.cold_comet_placer.desc.2": "и замораживающего всё вокруг.",
+  "item.fl_zone_arts.cold_comet_placer.desc.3": "ПКМ по блоку — точка маршрута,",
+  "item.fl_zone_arts.cold_comet_placer.desc.4": "ПКМ по первой точке — замкнуть его.",
+  "item.fl_zone_arts.cold_comet_placer.desc.5": "ЛКМ по точке — убрать её или весь маршрут.",
+  "item.fl_zone_arts.cold_razlom_placer.desc.0": "Трещины с огнём душ и огонёк над ними.",
+  "item.fl_zone_arts.cold_razlom_placer.desc.1": "Бьёт замораживающей струёй того,",
+  "item.fl_zone_arts.cold_razlom_placer.desc.2": "кто войдёт в зону.",
+  "item.fl_zone_arts.cold_razlom_placer.desc.3": "ПКМ по блоку — поставить,",
+  "item.fl_zone_arts.cold_razlom_placer.desc.4": "ЛКМ по зоне — убрать."
 }

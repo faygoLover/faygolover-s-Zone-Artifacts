@@ -43,11 +43,15 @@ public final class CometEffectRenderer {
     private static final int YELLOW = FireDraw.argb(255, 255, 225, 110);
     private static final int ORANGE = FireDraw.argb(255, 255, 120, 25);
     private static final int DEEP_RED = FireDraw.argb(255, 170, 30, 8);
+    private static final int SOUL_CYAN = FireDraw.argb(255, 170, 245, 255);
+    private static final int SOUL_BLUE = FireDraw.argb(255, 50, 160, 235);
+    private static final int SOUL_DEEP = FireDraw.argb(255, 20, 45, 150);
 
     private record Tongue(Vec3 dir, Vec3 bend, double length) {
     }
 
     private static final class Blast {
+        boolean cold;
         Vec3 center;
         double radius;
         float width;
@@ -60,7 +64,7 @@ public final class CometEffectRenderer {
     private CometEffectRenderer() {
     }
 
-    public static void onBurst(Vec3 center, @Nullable Vec3 normal, float size, int intensity) {
+    public static void onBurst(Vec3 center, @Nullable Vec3 normal, float size, int intensity, boolean cold) {
         Minecraft mc = Minecraft.getInstance();
         ClientLevel level = mc.level;
         if (level == null || mc.player == null) return;
@@ -74,6 +78,7 @@ public final class CometEffectRenderer {
         blast.radius = radius;
         blast.width = 0.12f * (float) Math.sqrt(size);
         blast.startTick = level.getGameTime();
+        blast.cold = cold;
 
         int count = Mth.clamp((int) Math.round(9 * factor), 3, 30);
         for (int i = 0; i < count; i++) {
@@ -98,20 +103,33 @@ public final class CometEffectRenderer {
         int flames = (int) (24 * factor * Math.sqrt(size));
         for (int i = 0; i < flames; i++) {
             Vec3 v = outward(rand, normal).scale(0.08 + rand.nextDouble() * 0.25 * Math.sqrt(size));
-            level.addParticle(ParticleTypes.FLAME, center.x, center.y, center.z, v.x, v.y, v.z);
+            level.addParticle(cold ? ParticleTypes.SOUL_FIRE_FLAME : ParticleTypes.FLAME, center.x, center.y, center.z, v.x, v.y, v.z);
         }
         int sparks = (int) (30 * factor * Math.sqrt(size));
         for (int i = 0; i < sparks; i++) {
             Vec3 v = outward(rand, normal).scale(0.05 + rand.nextDouble() * 0.12);
-            level.addParticle(ModParticles.EMBER.get(), center.x, center.y, center.z, v.x, v.y + 0.02, v.z);
+            if (cold) {
+                level.addParticle(ParticleTypes.SNOWFLAKE, center.x, center.y, center.z, v.x, v.y + 0.02, v.z);
+            } else {
+                level.addParticle(ModParticles.EMBER.get(), center.x, center.y, center.z, v.x, v.y + 0.02, v.z);
+            }
         }
         for (int i = 0; i < 4 + (int) (3 * factor); i++) {
-            level.addParticle(ParticleTypes.LAVA, center.x, center.y, center.z, 0.0, 0.0, 0.0);
+            if (cold) {
+                Vec3 v = outward(rand, normal).scale(0.02).add(0, 0.03, 0);
+                level.addParticle(ParticleTypes.SOUL, center.x, center.y, center.z, v.x, v.y, v.z);
+            } else {
+                level.addParticle(ParticleTypes.LAVA, center.x, center.y, center.z, 0.0, 0.0, 0.0);
+            }
         }
         for (int i = 0; i < 6 + (int) (4 * factor); i++) {
             Vec3 p = center.add(randomUnit(rand).scale(radius * 0.3 * rand.nextDouble()));
             Vec3 v = outward(rand, normal).scale(0.03).add(0, 0.03, 0);
-            level.addParticle(ParticleTypes.LARGE_SMOKE, p.x, p.y, p.z, v.x, v.y, v.z);
+            if (cold) {
+                level.addParticle(ModParticles.FROST_MIST.get(), p.x, p.y, p.z, v.x, v.y, v.z);
+            } else {
+                level.addParticle(ParticleTypes.LARGE_SMOKE, p.x, p.y, p.z, v.x, v.y, v.z);
+            }
         }
     }
 
@@ -145,7 +163,9 @@ public final class CometEffectRenderer {
             }
             float extend = 1.0f - (1.0f - Math.min(1.0f, life * 2.5f)) * (1.0f - Math.min(1.0f, life * 2.5f));
             float alpha = 1.0f - life * life;
-            int body = FireDraw.mix(YELLOW, FireDraw.mix(ORANGE, DEEP_RED, Math.max(0.0f, life * 2.0f - 1.0f)), Math.min(1.0f, life * 2.0f));
+            int bright = blast.cold ? SOUL_CYAN : YELLOW;
+            int deep = blast.cold ? SOUL_DEEP : DEEP_RED;
+            int body = FireDraw.mix(bright, FireDraw.mix(blast.cold ? SOUL_BLUE : ORANGE, deep, Math.max(0.0f, life * 2.0f - 1.0f)), Math.min(1.0f, life * 2.0f));
 
             for (Tongue tongue : blast.tongues) {
                 Vec3[] points = FireDraw.tongue(blast.center, tongue.dir(), tongue.bend(), tongue.length() * extend, 6);
@@ -154,7 +174,7 @@ public final class CometEffectRenderer {
                 for (int k = 0; k < points.length; k++) {
                     float s = k / (float) (points.length - 1);
                     widths[k] = blast.width * (1.0f - 0.8f * s) * (1.0f - 0.5f * life);
-                    colors[k] = FireDraw.fade(FireDraw.mix(body, DEEP_RED, s), alpha * (1.0f - 0.5f * s));
+                    colors[k] = FireDraw.fade(FireDraw.mix(body, deep, s), alpha * (1.0f - 0.5f * s));
                 }
                 FireDraw.ribbon(matrix, buffer, points, widths, colors, cam);
             }
@@ -162,7 +182,7 @@ public final class CometEffectRenderer {
             // The fireball itself last (the render type writes depth).
             double r = blast.radius * (0.25 + 0.45 * extend);
             FireDraw.glow(matrix, buffer, blast.center, r, cam, FireDraw.fade(body, 0.8f * alpha), 24);
-            FireDraw.glow(matrix, buffer, blast.center, r * 0.45, cam, FireDraw.fade(YELLOW, alpha * (1.0f - life)), 18);
+            FireDraw.glow(matrix, buffer, blast.center, r * 0.45, cam, FireDraw.fade(bright, alpha * (1.0f - life)), 18);
         }
 
         bufferSource.endBatch(RenderType.lightning());

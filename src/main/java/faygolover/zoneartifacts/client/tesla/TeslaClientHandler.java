@@ -76,7 +76,8 @@ public final class TeslaClientHandler {
             SoundEvent sound = ForgeRegistries.SOUND_EVENTS.getValue(comet ? Comet.IDLE_SOUND : Tesla.IDLE_SOUND);
             if (sound == null) continue;
             TeslaIdleSound idle = comet
-                    ? new TeslaIdleSound(tesla, sound, Comet.IDLE_VOLUME, Comet.IDLE_PITCH)
+                    ? new TeslaIdleSound(tesla, sound, Comet.IDLE_VOLUME,
+                            ((CometEntity) tesla).isCold() ? Comet.IDLE_PITCH * Comet.COLD_PITCH : Comet.IDLE_PITCH)
                     : new TeslaIdleSound(tesla, sound, Tesla.IDLE_VOLUME, Tesla.IDLE_PITCH);
             IDLE_SOUNDS.put(tesla.getId(), idle);
             mc.getSoundManager().play(idle);

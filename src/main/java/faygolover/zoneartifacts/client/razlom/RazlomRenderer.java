@@ -28,7 +28,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Draws every Razlom in range:
+ * Draws every Razlom in range (the Cold Razlom in soul-fire colours, see {@link Palette}):
  * <ul>
  *     <li><b>cracks</b> — dark jagged bands lying on the ground (plain alpha blending, so they
  *     really darken the blocks), each with a thin glowing seam of fire along its middle (additive),
@@ -42,18 +42,37 @@ import java.util.List;
 @Mod.EventBusSubscriber(modid = ZoneArtifacts.MODID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public final class RazlomRenderer {
 
+    /** Overall size of the hovering flame. */
+    private static final float FLAME_SCALE = 1.35f;
     private static final float DARK_HALF_WIDTH = 0.075f;
     private static final float SEAM_HALF_WIDTH = 0.022f;
     private static final double DARK_LIFT = 0.006;
     private static final double SEAM_LIFT = 0.009;
 
-    private static final int SEAM_HOT = FireDraw.argb(230, 255, 170, 50);
-    private static final int SEAM_DIM = FireDraw.argb(170, 230, 70, 15);
-    private static final int FLAME_OUTER = FireDraw.argb(130, 255, 100, 20);
-    private static final int FLAME_INNER = FireDraw.argb(220, 255, 215, 110);
-    private static final int JET_BASE = FireDraw.argb(235, 255, 235, 170);
-    private static final int JET_MID = FireDraw.argb(200, 255, 140, 30);
-    private static final int JET_TIP = FireDraw.argb(110, 200, 40, 10);
+    /** Colours of one kind of Razlom: fire, or the Cold Razlom's soul fire. {@code dark} is the
+     *  crack's RGB (its alpha varies along the crack). */
+    private record Palette(int seamHot, int seamDim, int flameOuter, int flameInner,
+                           int jetBase, int jetMid, int jetTip, int dark) {
+        int dark(int alpha) {
+            return (Mth.clamp(alpha, 0, 255) << 24) | (dark & 0xFFFFFF);
+        }
+    }
+
+    private static final Palette FIRE = new Palette(
+            FireDraw.argb(230, 255, 170, 50), FireDraw.argb(170, 230, 70, 15),
+            FireDraw.argb(130, 255, 100, 20), FireDraw.argb(220, 255, 215, 110),
+            FireDraw.argb(235, 255, 235, 170), FireDraw.argb(200, 255, 140, 30), FireDraw.argb(110, 200, 40, 10),
+            0x140C08);
+
+    private static final Palette SOUL = new Palette(
+            FireDraw.argb(230, 120, 245, 255), FireDraw.argb(170, 30, 110, 220),
+            FireDraw.argb(130, 40, 150, 235), FireDraw.argb(220, 190, 250, 255),
+            FireDraw.argb(235, 225, 255, 255), FireDraw.argb(200, 60, 200, 245), FireDraw.argb(110, 25, 60, 180),
+            0x080E18);
+
+    private static Palette palette(RazlomClientHandler.State state) {
+        return state.cold() ? SOUL : FIRE;
+    }
 
     private RazlomRenderer() {
     }
@@ -87,6 +106,7 @@ public final class RazlomRenderer {
         buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
 
         for (RazlomClientHandler.State state : RazlomClientHandler.states()) {
+            Palette pal = palette(state);
             float widthScale = (float) Mth.clamp(Math.sqrt(state.entry().size()), 1.0, 2.0);
             for (RazlomClientHandler.Crack crack : state.cracks()) {
                 for (int i = 0; i < crack.xs.length - 1; i++) {
@@ -96,7 +116,7 @@ public final class RazlomRenderer {
                     int aa = (int) (150 + 90 * crack.widths[i]);
                     int ab = (int) (150 + 90 * crack.widths[i + 1]);
                     flatQuad(buffer, matrix, crack, i, crack.ys[i] + DARK_LIFT, wa, wb,
-                            FireDraw.argb(aa, 20, 12, 8), FireDraw.argb(ab, 20, 12, 8));
+                            pal.dark(aa), pal.dark(ab));
                 }
             }
         }
@@ -123,6 +143,7 @@ public final class RazlomRenderer {
         VertexConsumer buffer = bufferSource.getBuffer(RenderType.lightning());
 
         for (RazlomClientHandler.State state : RazlomClientHandler.states()) {
+            Palette pal = palette(state);
             boolean jetting = state.jetActive(now);
             boolean resting = state.entry().onCooldown();
             float level = jetting ? 1.25f : resting ? 0.55f : 1.0f;
@@ -136,8 +157,8 @@ public final class RazlomRenderer {
                     if (!crack.seamCovers(i) || !flatSegment(crack, i)) continue;
                     float pa = 0.75f + 0.25f * Mth.sin(time * 0.08f + i * 0.5f + seed);
                     float pb = 0.75f + 0.25f * Mth.sin(time * 0.08f + (i + 1) * 0.5f + seed);
-                    int ca = FireDraw.fade(FireDraw.mix(SEAM_DIM, SEAM_HOT, crack.widths[i] * pa), level * pa);
-                    int cb = FireDraw.fade(FireDraw.mix(SEAM_DIM, SEAM_HOT, crack.widths[i + 1] * pb), level * pb);
+                    int ca = FireDraw.fade(FireDraw.mix(pal.seamDim(), pal.seamHot(), crack.widths[i] * pa), level * pa);
+                    int cb = FireDraw.fade(FireDraw.mix(pal.seamDim(), pal.seamHot(), crack.widths[i + 1] * pb), level * pb);
                     float wa = SEAM_HALF_WIDTH * widthScale * (0.35f + 0.65f * crack.widths[i]);
                     float wb = SEAM_HALF_WIDTH * widthScale * (0.35f + 0.65f * crack.widths[i + 1]);
                     flatQuadUp(buffer, matrix, crack, i, crack.ys[i] + SEAM_LIFT, wa, wb, ca, cb);
@@ -146,12 +167,12 @@ public final class RazlomRenderer {
 
             Vec3 f = state.flame();
             // The flame is out while resting (it fades out and flares up again).
-            float flameSize = (jetting ? 1.35f : 1.0f) * state.flameLevel(partial);
+            float flameSize = FLAME_SCALE * (jetting ? 1.35f : 1.0f) * state.flameLevel(partial);
 
             // Jet streams: shooting out along the arc, stopped by the first block in the way.
             RazlomClientHandler.Jet jet = state.jet();
             if (jetting && jet != null) {
-                drawJet(mc, matrix, buffer, f, jet.aim(partial), state.jetExtend(now, partial), time,
+                drawJet(mc, matrix, buffer, pal, f, jet.aim(partial), state.jetExtend(now, partial), time,
                         ModClientConfig.effective(state.entry().intensity()), cam);
             }
             if (flameSize < 0.02f) continue;
@@ -167,13 +188,13 @@ public final class RazlomRenderer {
                 for (int i = 0; i < points.length; i++) {
                     float s = i / (float) (points.length - 1);
                     widths[i] = 0.06f * flameSize * (1.0f - s);
-                    colors[i] = FireDraw.fade(FireDraw.mix(FLAME_INNER, FLAME_OUTER, s), 1.0f - 0.5f * s);
+                    colors[i] = FireDraw.fade(FireDraw.mix(pal.flameInner(), pal.flameOuter(), s), 1.0f - 0.5f * s);
                 }
                 FireDraw.ribbon(matrix, buffer, points, widths, colors, cam);
             }
             float flicker = 1.0f + 0.12f * Mth.sin(time * 0.9f + seed) + 0.06f * Mth.sin(time * 2.3f);
-            FireDraw.glow(matrix, buffer, f, 0.34 * flameSize * flicker, cam, FLAME_OUTER, 16);
-            FireDraw.glow(matrix, buffer, f, 0.14 * flameSize * flicker, cam, FLAME_INNER, 12);
+            FireDraw.glow(matrix, buffer, f, 0.34 * flameSize * flicker, cam, pal.flameOuter(), 16);
+            FireDraw.glow(matrix, buffer, f, 0.14 * flameSize * flicker, cam, pal.flameInner(), 12);
         }
 
         bufferSource.endBatch(RenderType.lightning());
@@ -185,7 +206,7 @@ public final class RazlomRenderer {
      * {@code to}, drawn only as far as it has shot out ({@code extend}, 0..1) and cut at the first
      * block in the way; narrow at the flame, wide at the far end.
      */
-    private static void drawJet(Minecraft mc, Matrix4f matrix, VertexConsumer buffer, Vec3 from, Vec3 to, float extend,
+    private static void drawJet(Minecraft mc, Matrix4f matrix, VertexConsumer buffer, Palette pal, Vec3 from, Vec3 to, float extend,
                                 float time, int intensity, Vec3 cam) {
         if (extend <= 0.01f || to.distanceToSqr(from) < 0.0025) return;
         Razlom.Arc arc = Razlom.arc(mc.level, from, to, extend);
@@ -215,7 +236,7 @@ public final class RazlomRenderer {
                 double swirl2 = 0.12 * t * Math.cos(time * 0.8 + t * 7.0 + phase * 1.3);
                 points[i] = path.get(i).add(p1.scale(swirl)).add(p2.scale(swirl2));
                 widths[i] = (float) (0.035 + 0.16 * t) * (s == 0 ? 1.0f : 0.7f);
-                int c = t < 0.35 ? FireDraw.mix(JET_BASE, JET_MID, (float) (t / 0.35)) : FireDraw.mix(JET_MID, JET_TIP, (float) ((t - 0.35) / 0.65));
+                int c = t < 0.35 ? FireDraw.mix(pal.jetBase(), pal.jetMid(), (float) (t / 0.35)) : FireDraw.mix(pal.jetMid(), pal.jetTip(), (float) ((t - 0.35) / 0.65));
                 colors[i] = s == 0 ? c : FireDraw.fade(c, 0.7f);
             }
             FireDraw.ribbon(matrix, buffer, points, widths, colors, cam);

@@ -24,8 +24,10 @@ public class ModCreativeTabs {
                         output.accept(ModItems.ZHARKA_PLACER.get());
                         output.accept(ModItems.INEY_PLACER.get());
                         output.accept(ModItems.RAZLOM_PLACER.get());
+                        output.accept(ModItems.COLD_RAZLOM_PLACER.get());
                         output.accept(ModItems.TESLA_PLACER.get());
                         output.accept(ModItems.COMET_PLACER.get());
+                        output.accept(ModItems.COLD_COMET_PLACER.get());
                         output.accept(ModItems.SIZE_TUNER.get());
                         output.accept(ModItems.SPEED_TUNER.get());
                         output.accept(ModItems.COOLDOWN_TUNER.get());

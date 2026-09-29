@@ -58,6 +58,8 @@ public final class TeslaRouteRenderer {
     private static final int COMPLETE_RGB = 0x46C8FF;
     /** Completed Comet routes: orange instead of the Tesla's cyan. */
     private static final int COMET_COMPLETE_RGB = 0xFF6A1E;
+    /** Completed Cold Comet routes: soul-fire teal. */
+    private static final int COLD_COMET_COMPLETE_RGB = 0x2EE6C8;
     private static final int FILL_ALPHA = 0x60;
     private static final int PREVIEW_ALPHA = 0x28;
 
@@ -148,7 +150,11 @@ public final class TeslaRouteRenderer {
 
     private static int color(SyncTeslaRoutesPacket.Entry route) {
         if (!route.complete()) return DRAFT_RGB;
-        return route.kind() == RouteKind.COMET ? COMET_COMPLETE_RGB : COMPLETE_RGB;
+        return switch (route.kind()) {
+            case COMET -> COMET_COMPLETE_RGB;
+            case COLD_COMET -> COLD_COMET_COMPLETE_RGB;
+            default -> COMPLETE_RGB;
+        };
     }
 
     private static AABB markerBox(SyncTeslaRoutesPacket.Entry route, int index) {

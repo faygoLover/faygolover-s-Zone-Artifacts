@@ -34,9 +34,11 @@ public final class Razlom {
     public static final ResourceLocation IDLE_SOUND = id("zharka_idle");
     public static final float IDLE_VOLUME = 0.35f;
     public static final float JET_IDLE_VOLUME = 0.6f;
+    /** The Cold Razlom plays the same sounds, lower. */
+    public static final float COLD_PITCH = 0.72f;
 
     /** How high the flame hovers over the ground — right above the cracks. */
-    public static final double FLAME_HEIGHT = 0.3;
+    public static final double FLAME_HEIGHT = 0.18;
     /** Points along the jet's curve (for drawing and for checking what blocks it). */
     public static final int JET_SEGMENTS = 12;
     /** The jet doesn't appear at once: it shoots out along its arc over this many ticks, and the
@@ -70,8 +72,8 @@ public final class Razlom {
 
     /**
      * Point {@code t} (0..1) of the jet's arc from the flame to the target: a quadratic curve that
-     * shoots up first and then sideways, reaching the target from below and the side (never
-     * dropping onto it from above). Shared by the server (what the jet hits) and the client.
+     * always shoots upwards first and arcs over to the target like a stream of liquid — never
+     * creeping along the floor. Shared by the server (what the jet hits) and the client.
      */
     public static Vec3 jetPoint(Vec3 from, Vec3 to, double t) {
         Vec3 control = jetControl(from, to);
@@ -79,12 +81,14 @@ public final class Razlom {
         return from.scale(u * u).add(control.scale(2.0 * u * t)).add(to.scale(t * t));
     }
 
-    /** The arc's control point: a third of the way out horizontally, nearly at the target's
-     *  height, a little above the flame at least. */
+    /** The arc's control point: a third of the way out horizontally, above the higher end by
+     *  0.4 blocks plus a quarter of the horizontal distance (capped), so the stream always arches. */
     public static Vec3 jetControl(Vec3 from, Vec3 to) {
-        double rise = Math.max(0.0, to.y - from.y);
-        double y = from.y + rise * 0.95 + 0.25;
-        return new Vec3(from.x + (to.x - from.x) * 0.3, y, from.z + (to.z - from.z) * 0.3);
+        double dx = to.x - from.x;
+        double dz = to.z - from.z;
+        double horizontal = Math.sqrt(dx * dx + dz * dz);
+        double y = Math.max(from.y, to.y) + 0.4 + Math.min(2.0, horizontal * 0.25);
+        return new Vec3(from.x + dx * 0.35, y, from.z + dz * 0.35);
     }
 
     /** Top of the first solid surface in column (x, z), scanning down from {@code fromY} to

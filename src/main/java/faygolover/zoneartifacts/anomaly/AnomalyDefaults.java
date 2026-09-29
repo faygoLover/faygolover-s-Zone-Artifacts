@@ -23,6 +23,7 @@ public final class AnomalyDefaults {
         if (AnomalyTypeIds.ZHARKA.equals(typeId)) return ModCommonConfig.ZHARKA_INTERVAL_SECONDS.get();
         if (AnomalyTypeIds.INEY.equals(typeId)) return ModCommonConfig.INEY_INTERVAL_SECONDS.get();
         if (AnomalyTypeIds.RAZLOM.equals(typeId)) return ModCommonConfig.RAZLOM_COOLDOWN_SECONDS.get().doubleValue();
+        if (AnomalyTypeIds.COLD_RAZLOM.equals(typeId)) return ModCommonConfig.COLD_RAZLOM_COOLDOWN_SECONDS.get().doubleValue();
         return ModCommonConfig.ELECTRA_COOLDOWN_SECONDS.get().doubleValue();
     }
 
@@ -46,6 +47,7 @@ public final class AnomalyDefaults {
         if (AnomalyTypeIds.ZHARKA.equals(typeId)) return ModCommonConfig.ZHARKA_DAMAGE.get().floatValue();
         if (AnomalyTypeIds.INEY.equals(typeId)) return ModCommonConfig.INEY_DAMAGE.get().floatValue();
         if (AnomalyTypeIds.RAZLOM.equals(typeId)) return ModCommonConfig.RAZLOM_DAMAGE.get().floatValue();
+        if (AnomalyTypeIds.COLD_RAZLOM.equals(typeId)) return ModCommonConfig.COLD_RAZLOM_DAMAGE.get().floatValue();
         return ModCommonConfig.ELECTRA_DAMAGE.get().floatValue();
     }
 
@@ -53,6 +55,7 @@ public final class AnomalyDefaults {
         if (AnomalyTypeIds.ZHARKA.equals(typeId)) return ModCommonConfig.ZHARKA_INTENSITY.get();
         if (AnomalyTypeIds.INEY.equals(typeId)) return ModCommonConfig.INEY_INTENSITY.get();
         if (AnomalyTypeIds.RAZLOM.equals(typeId)) return ModCommonConfig.RAZLOM_INTENSITY.get();
+        if (AnomalyTypeIds.COLD_RAZLOM.equals(typeId)) return ModCommonConfig.COLD_RAZLOM_INTENSITY.get();
         return ModCommonConfig.ELECTRA_INTENSITY.get();
     }
 

@@ -12,7 +12,9 @@ import net.minecraft.world.entity.EntityType;
  */
 public enum RouteKind {
     TESLA("tesla"),
-    COMET("comet");
+    COMET("comet"),
+    /** The Comet in soul fire: freezes instead of burning. (New kinds go last: sent by ordinal.) */
+    COLD_COMET("cold_comet");
 
     private final String id;
 
@@ -43,28 +45,58 @@ public enum RouteKind {
 
     public EntityType<? extends TeslaEntity> entityType() {
         if (this == COMET) return ModEntities.COMET.get();
+        if (this == COLD_COMET) return ModEntities.COLD_COMET.get();
         return ModEntities.TESLA.get();
     }
 
     // ---- defaults of a new route (common config) and the speed at x1.0 ------------------
 
     public double baseSpeed() {
-        return this == COMET ? ModCommonConfig.COMET_BASE_SPEED.get() : ModCommonConfig.TESLA_BASE_SPEED.get();
+        return switch (this) {
+            case COMET -> ModCommonConfig.COMET_BASE_SPEED.get();
+            case COLD_COMET -> ModCommonConfig.COLD_COMET_BASE_SPEED.get();
+            default -> ModCommonConfig.TESLA_BASE_SPEED.get();
+        };
     }
 
     public int defaultRespawnSeconds() {
-        return this == COMET ? ModCommonConfig.COMET_RESPAWN_SECONDS.get() : ModCommonConfig.TESLA_RESPAWN_SECONDS.get();
+        return switch (this) {
+            case COMET -> ModCommonConfig.COMET_RESPAWN_SECONDS.get();
+            case COLD_COMET -> ModCommonConfig.COLD_COMET_RESPAWN_SECONDS.get();
+            default -> ModCommonConfig.TESLA_RESPAWN_SECONDS.get();
+        };
     }
 
     public float defaultDamage() {
-        return (this == COMET ? ModCommonConfig.COMET_DAMAGE.get() : ModCommonConfig.TESLA_DAMAGE.get()).floatValue();
+        return switch (this) {
+            case COMET -> ModCommonConfig.COMET_DAMAGE.get().floatValue();
+            case COLD_COMET -> ModCommonConfig.COLD_COMET_DAMAGE.get().floatValue();
+            default -> ModCommonConfig.TESLA_DAMAGE.get().floatValue();
+        };
     }
 
     public int defaultIntensity() {
-        return this == COMET ? ModCommonConfig.COMET_INTENSITY.get() : ModCommonConfig.TESLA_INTENSITY.get();
+        return switch (this) {
+            case COMET -> ModCommonConfig.COMET_INTENSITY.get();
+            case COLD_COMET -> ModCommonConfig.COLD_COMET_INTENSITY.get();
+            default -> ModCommonConfig.TESLA_INTENSITY.get();
+        };
     }
 
     public double defaultChaseRadius() {
-        return this == COMET ? ModCommonConfig.COMET_CHASE_RADIUS.get() : ModCommonConfig.TESLA_CHASE_RADIUS.get();
+        return switch (this) {
+            case COMET -> ModCommonConfig.COMET_CHASE_RADIUS.get();
+            case COLD_COMET -> ModCommonConfig.COLD_COMET_CHASE_RADIUS.get();
+            default -> ModCommonConfig.TESLA_CHASE_RADIUS.get();
+        };
+    }
+
+    /** Russian name for command output. */
+    public String displayName() {
+        return switch (this) {
+            case COMET -> "Комета";
+            case COLD_COMET -> "Холодная комета";
+            default -> "Тесла";
+        };
     }
 }
