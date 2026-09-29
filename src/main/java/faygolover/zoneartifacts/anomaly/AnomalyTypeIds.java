@@ -16,6 +16,10 @@ public final class AnomalyTypeIds {
     public static final ResourceLocation VORONKA = new ResourceLocation(ZoneArtifacts.MODID, "voronka");
     public static final ResourceLocation KARUSEL = new ResourceLocation(ZoneArtifacts.MODID, "karusel");
     public static final ResourceLocation PODUSHKA = new ResourceLocation(ZoneArtifacts.MODID, "podushka");
+    /** Always-on antigravity field; its own engine ({@link LiftEngine}). */
+    public static final ResourceLocation LIFT = new ResourceLocation(ZoneArtifacts.MODID, "lift");
+    /** A jelly puddle that lashes out with pseudopods; its own engine ({@link AmoebaEngine}). */
+    public static final ResourceLocation AMOEBA = new ResourceLocation(ZoneArtifacts.MODID, "amoeba");
 
     private AnomalyTypeIds() {
     }

@@ -19,6 +19,9 @@ import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
+import faygolover.zoneartifacts.block.PukhBlock;
+import net.minecraft.core.BlockPos;
+
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
@@ -90,14 +93,21 @@ public final class TunerClientHandler {
         lastActionTick = now;
 
         boolean sneaking = player.isShiftKeyDown();
-        TunerClickPacket packet = target.anomaly() != null
+        TunerClickPacket packet = target.block() != null
+                ? TunerClickPacket.block(kind, increase, sneaking, target.block())
+                : target.anomaly() != null
                 ? TunerClickPacket.anomaly(kind, increase, sneaking, target.anomaly().typeId(), target.anomaly().pos())
                 : TunerClickPacket.route(kind, increase, sneaking, target.waypoint().routeId(), target.waypoint().index(), target.waypoint().pos());
         ModNetwork.CHANNEL.sendToServer(packet);
     }
 
-    /** What a tuner click would hit: exactly one of the two fields is set. */
-    public record Target(@Nullable SyncAnomaliesPacket.Entry anomaly, @Nullable TeslaGeometry.WaypointRef waypoint) {
+    /** What a tuner click would hit: exactly one of the fields is set (a zone, a route point, or
+     *  a block anomaly such as Burning Fluff). */
+    public record Target(@Nullable SyncAnomaliesPacket.Entry anomaly, @Nullable TeslaGeometry.WaypointRef waypoint,
+                         @Nullable BlockPos block) {
+        public Target(@Nullable SyncAnomaliesPacket.Entry anomaly, @Nullable TeslaGeometry.WaypointRef waypoint) {
+            this(anomaly, waypoint, null);
+        }
     }
 
     /** Nearest tunable thing along the view ray, unless a block is closer. */
@@ -128,6 +138,13 @@ public final class TunerClientHandler {
             bestDistSq = point.get().distanceSq();
         }
 
+        // A block anomaly (Burning Fluff) is itself the block in the way.
+        HitResult hit = Minecraft.getInstance().hitResult;
+        if (hit instanceof BlockHitResult blockHit && blockHit.getType() == HitResult.Type.BLOCK
+                && player.level().getBlockState(blockHit.getBlockPos()).getBlock() instanceof PukhBlock
+                && (best == null || (blockDistSq != null && blockDistSq <= bestDistSq))) {
+            return new Target(null, null, blockHit.getBlockPos());
+        }
         if (best == null || (blockDistSq != null && bestDistSq > blockDistSq)) return null;
         return best;
     }

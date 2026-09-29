@@ -103,7 +103,7 @@ public class CometEntity extends TeslaEntity {
 
             if (e instanceof LivingEntity living && AnomalyCombat.isValidTeslaTarget(living)) {
                 float damage = route.damage() * (direct ? 1.0f : Comet.EDGE_DAMAGE + (1.0f - Comet.EDGE_DAMAGE) * (float) falloff);
-                AnomalyCombat.hurt(level, living, cold ? Thermal.COLD_DAMAGE_TYPE : Comet.DAMAGE_TYPE, damage);
+                AnomalyCombat.hurt(level, living, cold ? Thermal.COLD_DAMAGE_TYPE : Comet.DAMAGE_TYPE, damage, c);
             }
 
             boolean ignite = direct || d <= core || random.nextDouble() < Comet.OUTER_ENTITY_IGNITE_CHANCE;

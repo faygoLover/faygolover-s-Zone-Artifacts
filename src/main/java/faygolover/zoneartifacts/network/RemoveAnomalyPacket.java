@@ -60,6 +60,8 @@ public class RemoveAnomalyPacket {
             AnomalySavedData data = AnomalySavedData.get(serverLevel);
             findAt(data, packet.pos, packet.typeId).ifPresent(instance -> {
                 GravityEngine.forget(serverLevel, instance);
+                faygolover.zoneartifacts.anomaly.LiftEngine.forget(instance);
+                faygolover.zoneartifacts.anomaly.AmoebaEngine.forget(instance);
                 data.remove(instance);
                 player.displayClientMessage(Component.translatable("message.fl_zone_arts.anomaly.removed",
                         Component.translatable(AnomalyDefaults.nameKey(instance.typeId())), instance.pos().toShortString()), true);

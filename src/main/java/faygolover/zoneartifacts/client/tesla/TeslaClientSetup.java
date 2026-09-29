@@ -21,5 +21,9 @@ public final class TeslaClientSetup {
         event.registerEntityRenderer(ModEntities.TESLA.get(), TeslaRenderer::new);
         event.registerEntityRenderer(ModEntities.COMET.get(), CometRenderer::new);
         event.<CometEntity>registerEntityRenderer(ModEntities.COLD_COMET.get(), CometRenderer::new);
+        event.registerEntityRenderer(ModEntities.CHEM_COMET.get(), faygolover.zoneartifacts.client.chem.ChemCometRenderer::new);
+        event.registerEntityRenderer(ModEntities.GRAVI.get(), faygolover.zoneartifacts.client.gravi.GraviRenderer::new);
+        event.registerBlockEntityRenderer(faygolover.zoneartifacts.registry.ModBlockEntities.PUKH.get(),
+                faygolover.zoneartifacts.client.pukh.PukhRenderer::new);
     }
 }

@@ -4,6 +4,7 @@ import faygolover.zoneartifacts.ZoneArtifacts;
 import faygolover.zoneartifacts.anomaly.AnomalyTypeIds;
 import faygolover.zoneartifacts.item.AnomalyPlacerItem;
 import faygolover.zoneartifacts.item.AnomalyTunerItem;
+import faygolover.zoneartifacts.item.PukhBlockItem;
 import faygolover.zoneartifacts.item.TeslaRoutePlacerItem;
 import faygolover.zoneartifacts.tesla.RouteKind;
 import faygolover.zoneartifacts.tuner.TunerKind;
@@ -51,6 +52,25 @@ public class ModItems {
 
     public static final RegistryObject<Item> COLD_COMET_PLACER = ITEMS.register("cold_comet_placer",
             () -> new TeslaRoutePlacerItem(RouteKind.COLD_COMET, new Item.Properties().stacksTo(1)));
+
+    public static final RegistryObject<Item> CHEM_COMET_PLACER = ITEMS.register("chem_comet_placer",
+            () -> new TeslaRoutePlacerItem(RouteKind.CHEM_COMET, new Item.Properties().stacksTo(1)));
+
+    public static final RegistryObject<Item> GRAVI_PLACER = ITEMS.register("gravi_placer",
+            () -> new TeslaRoutePlacerItem(RouteKind.GRAVI, new Item.Properties().stacksTo(1)));
+
+    public static final RegistryObject<Item> LIFT_PLACER = ITEMS.register("lift_placer",
+            () -> new AnomalyPlacerItem(AnomalyTypeIds.LIFT, new Item.Properties().stacksTo(1)));
+
+    public static final RegistryObject<Item> AMOEBA_PLACER = ITEMS.register("amoeba_placer",
+            () -> new AnomalyPlacerItem(AnomalyTypeIds.AMOEBA, new Item.Properties().stacksTo(1)));
+
+    public static final RegistryObject<Item> PUKH = ITEMS.register("pukh",
+            () -> new PukhBlockItem(ModBlocks.PUKH.get(), new Item.Properties()));
+
+    /** A piece of Burning Fluff's fleshy base (what breaking it leaves). Nothing to do with it yet. */
+    public static final RegistryObject<Item> PUKH_FLESH = ITEMS.register("pukh_flesh",
+            () -> new Item(new Item.Properties()));
 
     public static final RegistryObject<Item> SIZE_TUNER = tuner("size_tuner", TunerKind.SIZE);
     public static final RegistryObject<Item> SPEED_TUNER = tuner("speed_tuner", TunerKind.SPEED);

@@ -1,7 +1,10 @@
 package faygolover.zoneartifacts.registry;
 
 import faygolover.zoneartifacts.ZoneArtifacts;
+import faygolover.zoneartifacts.tesla.ChemCometEntity;
 import faygolover.zoneartifacts.tesla.ColdCometEntity;
+import faygolover.zoneartifacts.tesla.Gravi;
+import faygolover.zoneartifacts.tesla.GraviEntity;
 import faygolover.zoneartifacts.tesla.CometEntity;
 import faygolover.zoneartifacts.tesla.Tesla;
 import faygolover.zoneartifacts.tesla.TeslaEntity;
@@ -48,6 +51,24 @@ public final class ModEntities {
                     .clientTrackingRange(8)
                     .updateInterval(1)
                     .build(new ResourceLocation(ZoneArtifacts.MODID, "cold_comet").toString()));
+
+    /** The Chemical Comet: same body and tracking as the Tesla, drawn as gas. */
+    public static final RegistryObject<EntityType<ChemCometEntity>> CHEM_COMET = ENTITY_TYPES.register("chem_comet",
+            () -> EntityType.Builder.<ChemCometEntity>of(ChemCometEntity::new, MobCategory.MISC)
+                    .sized(Tesla.BASE_HITBOX, Tesla.BASE_HITBOX)
+                    .fireImmune()
+                    .clientTrackingRange(8)
+                    .updateInterval(1)
+                    .build(new ResourceLocation(ZoneArtifacts.MODID, "chem_comet").toString()));
+
+    /** Gravi: invisible, a quarter-block hitbox whatever its size, passes through everything. */
+    public static final RegistryObject<EntityType<GraviEntity>> GRAVI = ENTITY_TYPES.register("gravi",
+            () -> EntityType.Builder.<GraviEntity>of(GraviEntity::new, MobCategory.MISC)
+                    .sized(Gravi.HITBOX, Gravi.HITBOX)
+                    .fireImmune()
+                    .clientTrackingRange(8)
+                    .updateInterval(1)
+                    .build(new ResourceLocation(ZoneArtifacts.MODID, "gravi").toString()));
 
     private ModEntities() {
     }

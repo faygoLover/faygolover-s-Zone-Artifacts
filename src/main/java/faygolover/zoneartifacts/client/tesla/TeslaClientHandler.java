@@ -5,7 +5,10 @@ import faygolover.zoneartifacts.item.TeslaRoutePlacerItem;
 import faygolover.zoneartifacts.network.ModNetwork;
 import faygolover.zoneartifacts.network.TeslaWaypointClickPacket;
 import faygolover.zoneartifacts.tesla.Comet;
+import faygolover.zoneartifacts.tesla.ChemComet;
+import faygolover.zoneartifacts.tesla.ChemCometEntity;
 import faygolover.zoneartifacts.tesla.CometEntity;
+import faygolover.zoneartifacts.tesla.GraviEntity;
 import faygolover.zoneartifacts.tesla.Tesla;
 import faygolover.zoneartifacts.tesla.TeslaEntity;
 import faygolover.zoneartifacts.tesla.TeslaGeometry;
@@ -72,6 +75,15 @@ public final class TeslaClientHandler {
         for (Entity entity : mc.level.entitiesForRendering()) {
             if (!(entity instanceof TeslaEntity tesla) || !tesla.getState().isVisible()) continue;
             if (IDLE_SOUNDS.containsKey(tesla.getId())) continue;
+            if (tesla instanceof GraviEntity) continue; // silent: only its pops are heard
+            if (tesla instanceof ChemCometEntity) {
+                SoundEvent chem = ForgeRegistries.SOUND_EVENTS.getValue(ChemComet.IDLE_SOUND);
+                if (chem == null) continue;
+                TeslaIdleSound idle = new TeslaIdleSound(tesla, chem, ChemComet.IDLE_VOLUME, 1.0f);
+                IDLE_SOUNDS.put(tesla.getId(), idle);
+                mc.getSoundManager().play(idle);
+                continue;
+            }
             boolean comet = tesla instanceof CometEntity;
             SoundEvent sound = ForgeRegistries.SOUND_EVENTS.getValue(comet ? Comet.IDLE_SOUND : Tesla.IDLE_SOUND);
             if (sound == null) continue;

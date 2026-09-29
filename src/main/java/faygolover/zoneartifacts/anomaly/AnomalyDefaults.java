@@ -27,7 +27,8 @@ public final class AnomalyDefaults {
         if (AnomalyTypeIds.PLESH.equals(typeId)) return ModCommonConfig.PLESH_COOLDOWN_SECONDS.get().doubleValue();
         if (AnomalyTypeIds.VORONKA.equals(typeId)) return ModCommonConfig.VORONKA_COOLDOWN_SECONDS.get().doubleValue();
         if (AnomalyTypeIds.KARUSEL.equals(typeId)) return ModCommonConfig.KARUSEL_COOLDOWN_SECONDS.get().doubleValue();
-        if (AnomalyTypeIds.PODUSHKA.equals(typeId)) return 1.0;
+        if (AnomalyTypeIds.PODUSHKA.equals(typeId) || AnomalyTypeIds.LIFT.equals(typeId)) return 1.0;
+        if (AnomalyTypeIds.AMOEBA.equals(typeId)) return ModCommonConfig.AMOEBA_COOLDOWN_SECONDS.get().doubleValue();
         return ModCommonConfig.ELECTRA_COOLDOWN_SECONDS.get().doubleValue();
     }
 
@@ -55,7 +56,8 @@ public final class AnomalyDefaults {
         if (AnomalyTypeIds.PLESH.equals(typeId)) return ModCommonConfig.PLESH_DAMAGE.get().floatValue();
         if (AnomalyTypeIds.VORONKA.equals(typeId)) return ModCommonConfig.VORONKA_DAMAGE.get().floatValue();
         if (AnomalyTypeIds.KARUSEL.equals(typeId)) return ModCommonConfig.KARUSEL_DAMAGE.get().floatValue();
-        if (AnomalyTypeIds.PODUSHKA.equals(typeId)) return 0.0f;
+        if (AnomalyTypeIds.PODUSHKA.equals(typeId) || AnomalyTypeIds.LIFT.equals(typeId)) return 0.0f;
+        if (AnomalyTypeIds.AMOEBA.equals(typeId)) return ModCommonConfig.AMOEBA_DAMAGE.get().floatValue();
         return ModCommonConfig.ELECTRA_DAMAGE.get().floatValue();
     }
 
@@ -68,6 +70,8 @@ public final class AnomalyDefaults {
         if (AnomalyTypeIds.VORONKA.equals(typeId)) return ModCommonConfig.VORONKA_INTENSITY.get();
         if (AnomalyTypeIds.KARUSEL.equals(typeId)) return ModCommonConfig.KARUSEL_INTENSITY.get();
         if (AnomalyTypeIds.PODUSHKA.equals(typeId)) return ModCommonConfig.PODUSHKA_INTENSITY.get();
+        if (AnomalyTypeIds.LIFT.equals(typeId)) return ModCommonConfig.LIFT_INTENSITY.get();
+        if (AnomalyTypeIds.AMOEBA.equals(typeId)) return ModCommonConfig.AMOEBA_INTENSITY.get();
         return ModCommonConfig.ELECTRA_INTENSITY.get();
     }
 
@@ -80,8 +84,8 @@ public final class AnomalyDefaults {
      *  force), cooldown and damage not for the harmless, always-on Podushka; targeting never. */
     public static boolean tunable(ResourceLocation typeId, TunerKind kind) {
         return switch (kind) {
-            case SPEED -> AnomalyTypeIds.isGravity(typeId);
-            case COOLDOWN, DAMAGE -> !AnomalyTypeIds.PODUSHKA.equals(typeId);
+            case SPEED -> AnomalyTypeIds.isGravity(typeId) || AnomalyTypeIds.LIFT.equals(typeId);
+            case COOLDOWN, DAMAGE -> !AnomalyTypeIds.PODUSHKA.equals(typeId) && !AnomalyTypeIds.LIFT.equals(typeId);
             case TARGETING -> false;
             default -> true;
         };
@@ -91,6 +95,7 @@ public final class AnomalyDefaults {
      *  "damage interval" on the thermal ones. */
     public static String settingKey(ResourceLocation typeId, TunerKind kind) {
         if (kind == TunerKind.COOLDOWN && AnomalyTypeIds.isThermal(typeId)) return "tuner.fl_zone_arts.damage_interval";
+        if (kind == TunerKind.SPEED && AnomalyTypeIds.LIFT.equals(typeId)) return "tuner.fl_zone_arts.hover_height";
         if (kind == TunerKind.SPEED && AnomalyTypeIds.isGravity(typeId)) {
             return AnomalyTypeIds.PODUSHKA.equals(typeId) ? "tuner.fl_zone_arts.bounce_height" : "tuner.fl_zone_arts.force";
         }

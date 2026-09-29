@@ -117,7 +117,8 @@ public final class ThermalEngine {
             // Vanilla ignores most of a hit that lands within half a second of the previous one;
             // the pulse interval is set on purpose (possibly 0.1 s with low damage), so every pulse counts.
             entity.invulnerableTime = 0;
-            AnomalyCombat.hurt(level, entity, heat ? Thermal.HEAT_DAMAGE_TYPE : Thermal.COLD_DAMAGE_TYPE, instance.damage());
+            AnomalyCombat.hurt(level, entity, heat ? Thermal.HEAT_DAMAGE_TYPE : Thermal.COLD_DAMAGE_TYPE, instance.damage(),
+                    AnomalyGeometry.zoneAabb(instance).getCenter());
             if (heat && !entity.fireImmune() && level.random.nextDouble() < ModCommonConfig.ZHARKA_IGNITE_CHANCE.get()) {
                 entity.setSecondsOnFire(ModCommonConfig.ZHARKA_IGNITE_SECONDS.get());
             }

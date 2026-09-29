@@ -171,10 +171,10 @@ public final class RazlomEngine {
             // invulnerability swallow them.
             victim.invulnerableTime = 0;
             if (cold) {
-                AnomalyCombat.hurt(level, victim, Thermal.COLD_DAMAGE_TYPE, instance.damage());
+                AnomalyCombat.hurt(level, victim, Thermal.COLD_DAMAGE_TYPE, instance.damage(), flame);
                 ColdEffects.freeze(victim, ModCommonConfig.COLD_RAZLOM_FREEZE_SECONDS.get());
             } else {
-                AnomalyCombat.hurt(level, victim, Thermal.HEAT_DAMAGE_TYPE, instance.damage());
+                AnomalyCombat.hurt(level, victim, Thermal.HEAT_DAMAGE_TYPE, instance.damage(), flame);
                 int ignite = ModCommonConfig.RAZLOM_IGNITE_SECONDS.get();
                 if (ignite > 0 && !victim.fireImmune()) victim.setSecondsOnFire(ignite);
             }

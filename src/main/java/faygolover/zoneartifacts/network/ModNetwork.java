@@ -10,7 +10,7 @@ public final class ModNetwork {
     /** Bump whenever packets are added, removed or changed, so a client and server on different
      *  mod versions get a clear "incompatible" message at login instead of odd behaviour.
      *  2 = Tesla (0.1.2.0), 3 = tuners, no datapacks (0.1.3.0). */
-    private static final String PROTOCOL_VERSION = "9";
+    private static final String PROTOCOL_VERSION = "11";
 
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(ZoneArtifacts.MODID, "main"),
@@ -52,6 +52,16 @@ public final class ModNetwork {
                 GravityEventPacket::encode, GravityEventPacket::decode, GravityEventPacket::handle);
         CHANNEL.registerMessage(id++, GorePacket.class,
                 GorePacket::encode, GorePacket::decode, GorePacket::handle);
+        // Chemical Comet, Gravi (0.1.17.0)
+        CHANNEL.registerMessage(id++, ChemBurstPacket.class,
+                ChemBurstPacket::encode, ChemBurstPacket::decode, ChemBurstPacket::handle);
+        CHANNEL.registerMessage(id++, GraviPopPacket.class,
+                GraviPopPacket::encode, GraviPopPacket::decode, GraviPopPacket::handle);
+        // Amoeba, Burning Fluff (0.1.19.0)
+        CHANNEL.registerMessage(id++, AmoebaEventPacket.class,
+                AmoebaEventPacket::encode, AmoebaEventPacket::decode, AmoebaEventPacket::handle);
+        CHANNEL.registerMessage(id++, PukhEventPacket.class,
+                PukhEventPacket::encode, PukhEventPacket::decode, PukhEventPacket::handle);
     }
 
     private ModNetwork() {

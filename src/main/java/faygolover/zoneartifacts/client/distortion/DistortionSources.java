@@ -33,6 +33,8 @@ final class DistortionSources {
     static void collect(Minecraft mc, List<Distortion.Patch> out, long now, float partial, Vec3 cam) {
         float time = (now % 72000L) + partial;
         VoronkaLens.collect(out, now, partial);
+        faygolover.zoneartifacts.client.gravi.GraviClient.collect(out, now, partial);
+        faygolover.zoneartifacts.client.lift.LiftClient.collect(out, now, partial);
         thermal(out, partial, time);
         razlom(mc, out, now, partial, time);
         comets(mc, out, partial, time, cam);

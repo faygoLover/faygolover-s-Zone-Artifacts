@@ -3,6 +3,8 @@ package faygolover.zoneartifacts;
 import faygolover.zoneartifacts.config.ModClientConfig;
 import faygolover.zoneartifacts.config.ModCommonConfig;
 import faygolover.zoneartifacts.network.ModNetwork;
+import faygolover.zoneartifacts.registry.ModBlockEntities;
+import faygolover.zoneartifacts.registry.ModBlocks;
 import faygolover.zoneartifacts.registry.ModCreativeTabs;
 import faygolover.zoneartifacts.registry.ModEntities;
 import faygolover.zoneartifacts.registry.ModItems;
@@ -29,6 +31,8 @@ public class ZoneArtifacts {
     public ZoneArtifacts() {
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
 
+        ModBlocks.BLOCKS.register(modEventBus);
+        ModBlockEntities.BLOCK_ENTITIES.register(modEventBus);
         ModItems.ITEMS.register(modEventBus);
         ModCreativeTabs.TABS.register(modEventBus);
         ModSounds.SOUNDS.register(modEventBus);

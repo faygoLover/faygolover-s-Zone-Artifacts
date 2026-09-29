@@ -110,7 +110,12 @@ public class CometRenderer extends EntityRenderer<CometEntity> {
         Minecraft mc = Minecraft.getInstance();
         float partialTick = event.getPartialTick();
         Vec3 cam = event.getCamera().getPosition();
-        PoseStack poseStack = event.getPoseStack();
+        // After the clouds vanilla has already put the camera's rotation into the model-view
+        // matrix; the event's pose has it too. Undo the first, so it isn't applied twice (the ball
+        // would drift off its place as the camera turns): MV x pose = the event's pose.
+        Matrix4f base = new Matrix4f(RenderSystem.getModelViewMatrix()).invert().mul(event.getPoseStack().last().pose());
+        PoseStack poseStack = new PoseStack();
+        poseStack.last().pose().set(base);
 
         // Pass 1: the core, solid (plain alpha blending) — nothing behind it shows through.
         poseStack.pushPose();

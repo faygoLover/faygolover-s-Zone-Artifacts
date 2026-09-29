@@ -50,6 +50,11 @@ public class TunerClickPacket {
         return new TunerClickPacket(kind, increase, sneaking, true, null, routeId, index, pos);
     }
 
+    /** A block anomaly (Burning Fluff) at {@code pos}: no type id, no route. */
+    public static TunerClickPacket block(TunerKind kind, boolean increase, boolean sneaking, BlockPos pos) {
+        return new TunerClickPacket(kind, increase, sneaking, false, null, 0, 0, pos);
+    }
+
     public static void encode(TunerClickPacket packet, FriendlyByteBuf buf) {
         buf.writeByte(packet.kind.ordinal());
         buf.writeBoolean(packet.increase);
@@ -59,7 +64,8 @@ public class TunerClickPacket {
             buf.writeInt(packet.routeId);
             buf.writeVarInt(packet.index);
         } else {
-            buf.writeResourceLocation(packet.typeId);
+            buf.writeBoolean(packet.typeId != null);
+            if (packet.typeId != null) buf.writeResourceLocation(packet.typeId);
         }
         buf.writeBlockPos(packet.pos);
     }
@@ -74,7 +80,7 @@ public class TunerClickPacket {
             int index = buf.readVarInt();
             return new TunerClickPacket(kind, increase, sneaking, true, null, routeId, index, buf.readBlockPos());
         }
-        ResourceLocation typeId = buf.readResourceLocation();
+        ResourceLocation typeId = buf.readBoolean() ? buf.readResourceLocation() : null;
         return new TunerClickPacket(kind, increase, sneaking, false, typeId, 0, 0, buf.readBlockPos());
     }
 
@@ -86,6 +92,8 @@ public class TunerClickPacket {
                 TunerService.tuneRoute(player, packet.kind, packet.increase, packet.sneaking, packet.routeId, packet.index, packet.pos);
             } else if (packet.typeId != null) {
                 TunerService.tuneAnomaly(player, packet.kind, packet.increase, packet.sneaking, packet.typeId, packet.pos);
+            } else {
+                TunerService.tuneBlock(player, packet.kind, packet.increase, packet.sneaking, packet.pos);
             }
         });
         ctx.get().setPacketHandled(true);

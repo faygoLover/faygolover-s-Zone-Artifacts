@@ -45,6 +45,10 @@ public class AnomalyEngine {
                 ThermalEngine.tick(serverLevel, instance);
             } else if (AnomalyTypeIds.isRazlom(instance.typeId())) {
                 RazlomEngine.tick(serverLevel, instance);
+            } else if (AnomalyTypeIds.AMOEBA.equals(instance.typeId())) {
+                AmoebaEngine.tick(serverLevel, instance);
+            } else if (AnomalyTypeIds.LIFT.equals(instance.typeId())) {
+                LiftEngine.tick(serverLevel, instance);
             } else if (AnomalyTypeIds.isGravity(instance.typeId())) {
                 GravityEngine.tick(serverLevel, instance);
             }
@@ -72,7 +76,7 @@ public class AnomalyEngine {
         List<Projectile> hitProjectiles = new ArrayList<>();
         for (Entity entity : hits) {
             if (entity instanceof LivingEntity living) {
-                if (AnomalyCombat.hurt(level, living, Electra.DAMAGE_TYPE, instance.damage())) {
+                if (AnomalyCombat.hurt(level, living, Electra.DAMAGE_TYPE, instance.damage(), aabb.getCenter())) {
                     hitLiving.add(living);
                 }
             } else if (entity instanceof Projectile projectile) {

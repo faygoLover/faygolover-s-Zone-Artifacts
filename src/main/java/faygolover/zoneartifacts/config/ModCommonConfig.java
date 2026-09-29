@@ -66,6 +66,40 @@ public final class ModCommonConfig {
     public static final ForgeConfigSpec.IntValue COLD_COMET_FREEZE_SECONDS;
     public static final ForgeConfigSpec.BooleanValue COLD_COMET_ALTERS_BLOCKS;
 
+    public static final ForgeConfigSpec.DoubleValue CHEM_COMET_BASE_SPEED;
+    public static final ForgeConfigSpec.IntValue CHEM_COMET_RESPAWN_SECONDS;
+    public static final ForgeConfigSpec.DoubleValue CHEM_COMET_DAMAGE;
+    public static final ForgeConfigSpec.IntValue CHEM_COMET_INTENSITY;
+    public static final ForgeConfigSpec.DoubleValue CHEM_COMET_CHASE_RADIUS;
+    public static final ForgeConfigSpec.DoubleValue CHEM_COMET_CLOUD_SECONDS;
+    public static final ForgeConfigSpec.DoubleValue CHEM_COMET_CLOUD_DAMAGE;
+    public static final ForgeConfigSpec.BooleanValue CHEM_COMET_KILLS_PLANTS;
+
+    public static final ForgeConfigSpec.DoubleValue GRAVI_BASE_SPEED;
+    public static final ForgeConfigSpec.DoubleValue GRAVI_DAMAGE;
+    public static final ForgeConfigSpec.IntValue GRAVI_INTENSITY;
+    public static final ForgeConfigSpec.DoubleValue GRAVI_CHASE_RADIUS;
+    public static final ForgeConfigSpec.DoubleValue GRAVI_LEASH;
+    public static final ForgeConfigSpec.DoubleValue GRAVI_POPS_PER_SECOND;
+    public static final ForgeConfigSpec.DoubleValue GRAVI_SELF_POP_SECONDS;
+    public static final ForgeConfigSpec.IntValue GRAVI_HIT_INTERVAL_TICKS;
+
+    public static final ForgeConfigSpec.IntValue AMOEBA_COOLDOWN_SECONDS;
+    public static final ForgeConfigSpec.DoubleValue AMOEBA_DAMAGE;
+    public static final ForgeConfigSpec.IntValue AMOEBA_INTENSITY;
+    public static final ForgeConfigSpec.DoubleValue AMOEBA_ATTACK_SECONDS;
+    public static final ForgeConfigSpec.IntValue AMOEBA_ARMOR_CORROSION;
+
+    public static final ForgeConfigSpec.DoubleValue PUKH_LENGTH;
+    public static final ForgeConfigSpec.DoubleValue PUKH_DAMAGE;
+    public static final ForgeConfigSpec.DoubleValue PUKH_COOLDOWN_SECONDS;
+    public static final ForgeConfigSpec.IntValue PUKH_INTENSITY;
+    public static final ForgeConfigSpec.DoubleValue PUKH_RANGE;
+
+    public static final ForgeConfigSpec.IntValue LIFT_INTENSITY;
+    public static final ForgeConfigSpec.DoubleValue LIFT_HOVER_HEIGHT;
+    public static final ForgeConfigSpec.DoubleValue LIFT_PUSH_OUT_SECONDS;
+
     // cold razlom
     public static final ForgeConfigSpec.IntValue COLD_RAZLOM_COOLDOWN_SECONDS;
     public static final ForgeConfigSpec.DoubleValue COLD_RAZLOM_DAMAGE;
@@ -208,6 +242,43 @@ public final class ModCommonConfig {
                 .define("altersBlocks", true);
         b.pop();
 
+        b.comment("Chemical Comet: a clot of yellow-green gas on a route. On impact it bursts into a heavy cloud",
+                "that creeps over the ground, burns anything inside with chemical damage and kills plants.").push("chemComet");
+        CHEM_COMET_BASE_SPEED = b.comment("Standard speed (x1.0) in blocks per tick.")
+                .defineInRange("baseSpeed", 0.12, 0.01, 2.0);
+        CHEM_COMET_RESPAWN_SECONDS = b.defineInRange("respawnSeconds", 8, 1, 3600);
+        CHEM_COMET_DAMAGE = b.comment("Damage of the burst itself at the center (30 % at the edge), half-hearts.")
+                .defineInRange("damage", 4.0, 0.0, 1000.0);
+        CHEM_COMET_INTENSITY = b.defineInRange("intensity", 3, 1, 50);
+        CHEM_COMET_CHASE_RADIUS = b.defineInRange("chaseRadius", 12.0, 0.0, 128.0);
+        CHEM_COMET_CLOUD_SECONDS = b.comment("How long the cloud lingers, seconds.")
+                .defineInRange("cloudSeconds", 5.0, 0.5, 60.0);
+        CHEM_COMET_CLOUD_DAMAGE = b.comment("Damage every half second to whoever is in the cloud, half-hearts.")
+                .defineInRange("cloudDamage", 1.0, 0.0, 1000.0);
+        CHEM_COMET_KILLS_PLANTS = b.comment("Grass turns to dirt, plants and leaves die under the cloud.")
+                .define("killsPlants", true);
+        b.pop();
+
+        b.comment("Gravi: invisible, flies its route through blocks and creatures, never pops. All the way it",
+                "sets off small, quick gravitational pops on the surfaces around it (within its size) and in the",
+                "air right by it — the only way to track it. Chases like the Tesla, but never goes further than",
+                "leash blocks from its route.").push("gravi");
+        GRAVI_BASE_SPEED = b.comment("Standard speed (x1.0) in blocks per tick.")
+                .defineInRange("baseSpeed", 0.08, 0.01, 2.0);
+        GRAVI_DAMAGE = b.comment("Damage of one pop to whoever is within a block of it, half-hearts.")
+                .defineInRange("damage", 3.0, 0.0, 1000.0);
+        GRAVI_INTENSITY = b.defineInRange("intensity", 3, 1, 50);
+        GRAVI_CHASE_RADIUS = b.defineInRange("chaseRadius", 12.0, 0.0, 128.0);
+        GRAVI_LEASH = b.comment("How far from its nearest route point it may go while chasing, blocks.")
+                .defineInRange("leash", 20.0, 1.0, 256.0);
+        GRAVI_POPS_PER_SECOND = b.comment("Pops on the surfaces around it per second at size 1 (more with a bigger size).")
+                .defineInRange("popsPerSecond", 1.0, 0.0, 20.0);
+        GRAVI_SELF_POP_SECONDS = b.comment("A pop right by itself (in the air too) this often, seconds. 0 = never.")
+                .defineInRange("selfPopSeconds", 1.5, 0.0, 60.0);
+        GRAVI_HIT_INTERVAL_TICKS = b.comment("Pops hurt one creature at most this often, ticks.")
+                .defineInRange("hitIntervalTicks", 10, 1, 200);
+        b.pop();
+
         b.comment("Defaults for a newly placed Cold Razlom (soul-fire rift). Jet timing, reach, aim speed and",
                 "block chance are shared with the Razlom section.").push("coldRazlom");
         COLD_RAZLOM_COOLDOWN_SECONDS = b.defineInRange("cooldownSeconds", 4, 1, 3600);
@@ -289,6 +360,45 @@ public final class ModCommonConfig {
                 .defineInRange("height", 3.0, 0.5, 64.0);
         PODUSHKA_FALL_DAMAGE_MULTIPLIER = b.comment("Fall damage after bouncing out of it is multiplied by this.")
                 .defineInRange("fallDamageMultiplier", 0.5, 0.0, 1.0);
+        b.pop();
+
+        b.comment("Amoeba: a jelly puddle. When someone steps into its zone it gathers into a dome and for",
+                "attackSeconds lashes out with pseudopods (most aimed where a creature stood, the rest at random;",
+                "reach 1.5 + 1.5 x size). A lash burns with chemical damage and eats into armour. Then it slumps",
+                "back, paler, and rests for its cooldown.").push("amoeba");
+        AMOEBA_COOLDOWN_SECONDS = b.defineInRange("cooldownSeconds", 8, 1, 3600);
+        AMOEBA_DAMAGE = b.comment("Damage of one lash, half-hearts.")
+                .defineInRange("damage", 4.0, 0.0, 1000.0);
+        AMOEBA_INTENSITY = b.comment("Also how often it lashes.")
+                .defineInRange("intensity", 3, 1, 50);
+        AMOEBA_ATTACK_SECONDS = b.defineInRange("attackSeconds", 3.0, 0.5, 60.0);
+        AMOEBA_ARMOR_CORROSION = b.comment("Durability every worn armour piece loses per lash.")
+                .defineInRange("armorCorrosion", 3, 0, 1000);
+        b.pop();
+
+        b.comment("Burning Fluff (a block): standard values of a newly placed one. Standing in its strands burns",
+                "every second; anything coming near fast (running, jumping, falling, thrown) gets a puff of",
+                "burning spores shot at it, reaching `range` blocks.").push("pukh");
+        PUKH_LENGTH = b.comment("How long the strands hang, blocks (the size tuner).")
+                .defineInRange("length", 2.0, 0.5, 6.0);
+        PUKH_DAMAGE = b.comment("Damage of the strands (per second) and of a puff, half-hearts.")
+                .defineInRange("damage", 2.0, 0.0, 1000.0);
+        PUKH_COOLDOWN_SECONDS = b.comment("Pause between puffs, seconds.")
+                .defineInRange("cooldownSeconds", 3.0, 0.5, 3600.0);
+        PUKH_INTENSITY = b.comment("How dense the fluff is.")
+                .defineInRange("intensity", 3, 1, 50);
+        PUKH_RANGE = b.comment("How far the puffs reach (the targeting tuner), blocks. 0 = never puffs.")
+                .defineInRange("range", 5.0, 0.0, 16.0);
+        b.pop();
+
+        b.comment("Lift: nearly invisible. Switches gravity off: everything in it floats up to hoverHeight above the",
+                "ground (the speed tuner scales it), moves as if on ice in thick syrup, and after pushOutSeconds",
+                "is eased out to the edge. Projectiles get stuck in it. Harmless; no fall damage right after.").push("lift");
+        LIFT_INTENSITY = b.defineInRange("intensity", 3, 1, 50);
+        LIFT_HOVER_HEIGHT = b.comment("Hover height above the ground at x1.0, blocks.")
+                .defineInRange("hoverHeight", 1.5, 0.2, 32.0);
+        LIFT_PUSH_OUT_SECONDS = b.comment("After this long inside, anything is eased out to the edge, seconds.")
+                .defineInRange("pushOutSeconds", 10.0, 0.5, 600.0);
         b.pop();
 
         b.push("effects");

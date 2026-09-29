@@ -28,6 +28,12 @@ public final class ModParticles {
     public static final RegistryObject<SimpleParticleType> GRAV_DUST = PARTICLES.register("grav_dust", () -> new SimpleParticleType(false));
     /** Voronka / Karusel kills: drops of blood. */
     public static final RegistryObject<SimpleParticleType> BLOOD = PARTICLES.register("blood", () -> new SimpleParticleType(false));
+    /** Chemical Comet: a heavy drop of its gas falling off; leaves a small stain where it lands. */
+    /** Burning Fluff: a dark flake falling off its strands. */
+    public static final RegistryObject<SimpleParticleType> PUKH_FLAKE = PARTICLES.register("pukh_flake", () -> new SimpleParticleType(false));
+    /** Burning Fluff: a burning spore in its puffs. */
+    public static final RegistryObject<SimpleParticleType> PUKH_SPORE = PARTICLES.register("pukh_spore", () -> new SimpleParticleType(false));
+    public static final RegistryObject<SimpleParticleType> CHEM_DROP = PARTICLES.register("chem_drop", () -> new SimpleParticleType(false));
 
     private ModParticles() {
     }

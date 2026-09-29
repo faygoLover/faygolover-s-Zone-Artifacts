@@ -153,6 +153,8 @@ public final class TeslaRouteRenderer {
         return switch (route.kind()) {
             case COMET -> COMET_COMPLETE_RGB;
             case COLD_COMET -> COLD_COMET_COMPLETE_RGB;
+            case CHEM_COMET -> 0xB9D23A;
+            case GRAVI -> 0xB070FF;
             default -> COMPLETE_RGB;
         };
     }

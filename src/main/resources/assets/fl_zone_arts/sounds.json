@@ -150,5 +150,101 @@
     "sounds": [
       "fl_zone_arts:voronka_idle"
     ]
+  },
+  "chem_comet_idle": {
+    "subtitle": "subtitles.fl_zone_arts.chem_comet_idle",
+    "sounds": [
+      {
+        "name": "block.bubble_column.upwards_ambient",
+        "type": "event",
+        "volume": 0.8,
+        "pitch": 0.6
+      }
+    ]
+  },
+  "chem_comet_burst": {
+    "subtitle": "subtitles.fl_zone_arts.chem_comet_burst",
+    "sounds": [
+      {
+        "name": "entity.generic.extinguish_fire",
+        "type": "event",
+        "volume": 1.0,
+        "pitch": 0.5
+      },
+      {
+        "name": "block.fire.extinguish",
+        "type": "event",
+        "volume": 1.0,
+        "pitch": 0.6
+      }
+    ]
+  },
+  "gravy_hit": {
+    "subtitle": "subtitles.fl_zone_arts.gravy_hit",
+    "sounds": [
+      "fl_zone_arts:gravy_hit"
+    ]
+  },
+  "amoeba_gather": {
+    "subtitle": "subtitles.fl_zone_arts.amoeba_gather",
+    "sounds": [
+      {
+        "name": "entity.slime.squish",
+        "type": "event",
+        "volume": 1.0,
+        "pitch": 0.5
+      },
+      {
+        "name": "block.honey_block.slide",
+        "type": "event",
+        "volume": 1.0,
+        "pitch": 0.5
+      }
+    ]
+  },
+  "amoeba_lash": {
+    "subtitle": "subtitles.fl_zone_arts.amoeba_lash",
+    "sounds": [
+      {
+        "name": "entity.slime.jump",
+        "type": "event",
+        "volume": 0.8,
+        "pitch": 1.3
+      },
+      {
+        "name": "entity.slime.attack",
+        "type": "event",
+        "volume": 0.8,
+        "pitch": 1.1
+      }
+    ]
+  },
+  "amoeba_settle": {
+    "subtitle": "subtitles.fl_zone_arts.amoeba_settle",
+    "sounds": [
+      {
+        "name": "block.honey_block.slide",
+        "type": "event",
+        "volume": 1.0,
+        "pitch": 0.6
+      }
+    ]
+  },
+  "pukh_puff": {
+    "subtitle": "subtitles.fl_zone_arts.pukh_puff",
+    "sounds": [
+      {
+        "name": "entity.puffer_fish.blow_out",
+        "type": "event",
+        "volume": 0.7,
+        "pitch": 1.5
+      },
+      {
+        "name": "block.moss_carpet.break",
+        "type": "event",
+        "volume": 1.0,
+        "pitch": 0.7
+      }
+    ]
   }
 }

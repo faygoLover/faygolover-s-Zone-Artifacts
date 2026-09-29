@@ -274,7 +274,7 @@ public class TeslaEntity extends Entity {
 
         Player target = getState() == State.CHASE ? resolveTarget(level) : null;
         Vec3 dest = target != null
-                ? target.getBoundingBox().getCenter()
+                ? chaseDestination(route, target)
                 : TeslaGeometry.center(route.waypoints().get(targetIndex));
 
         double speed = route.kind().baseSpeed() * route.speedMultiplier();
@@ -298,6 +298,16 @@ public class TeslaEntity extends Entity {
         if (!touched.isEmpty()) {
             shock(level, route, touched);
         }
+    }
+
+    /** Where to fly while chasing: straight at the target. Gravi keeps to its leash. */
+    protected Vec3 chaseDestination(TeslaRoute route, Player target) {
+        return target.getBoundingBox().getCenter();
+    }
+
+    /** Is {@code target} the one being chased right now (server side)? */
+    protected boolean isChasing(Entity target) {
+        return getState() == State.CHASE && target.getUUID().equals(chaseTargetUuid);
     }
 
     private void updateChaseTarget(ServerLevel level, TeslaRoute route) {
@@ -376,7 +386,7 @@ public class TeslaEntity extends Entity {
     /** One hit on contact; the electrification that follows is purely visual. The Comet overrides this. */
     protected void shock(ServerLevel level, TeslaRoute route, List<LivingEntity> touched) {
         for (LivingEntity target : touched) {
-            AnomalyCombat.hurt(level, target, Tesla.DAMAGE_TYPE, route.damage());
+            AnomalyCombat.hurt(level, target, Tesla.DAMAGE_TYPE, route.damage(), position());
             AnomalyCombat.playRandom(level, target.getBoundingBox().getCenter(), Tesla.HIT_SOUNDS, Tesla.SOUND_VOLUME);
             ElectrifyPacket.send(target, ModCommonConfig.electrifyTicks(), 0, route.intensity());
         }

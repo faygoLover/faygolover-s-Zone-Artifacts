@@ -9,7 +9,11 @@ import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageType;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.PathfinderMob;
+import net.minecraft.world.entity.ai.util.DefaultRandomPos;
+import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.registries.ForgeRegistries;
@@ -47,6 +51,38 @@ public final class AnomalyCombat {
         if (holder.isEmpty()) return false;
         target.hurt(new DamageSource(holder.get()), amount);
         return true;
+    }
+
+    /** Like {@link #hurt(ServerLevel, LivingEntity, ResourceLocation, float)}, and a mob that
+     *  survives runs away from {@code from} ({@link #flee}). */
+    public static boolean hurt(ServerLevel level, LivingEntity target, ResourceLocation damageTypeId, float amount, Vec3 from) {
+        boolean done = hurt(level, target, damageTypeId, amount);
+        if (done && amount > 0) flee(target, from);
+        return done;
+    }
+
+    private static final String FLEE_TAG = "fl_zone_arts_fled";
+
+    /**
+     * A mob hurt by an anomaly gets away from it. Vanilla animals only panic when someone hit them
+     * (or they burn or freeze), and an anomaly is no one, so they used to just stand in it.
+     * Peaceful mobs bolt like after a player's hit; hostile ones only step out at a walk and are
+     * back after their target at once. At most once a second per mob.
+     */
+    public static void flee(LivingEntity target, Vec3 from) {
+        if (!(target instanceof PathfinderMob mob) || !mob.isAlive() || mob.isPassenger()) return;
+        long now = mob.level().getGameTime();
+        CompoundTag data = mob.getPersistentData();
+        if (now - data.getLong(FLEE_TAG) < 20 && data.contains(FLEE_TAG)) return;
+        data.putLong(FLEE_TAG, now);
+        Vec3 away = DefaultRandomPos.getPosAway(mob, 10, 5, from);
+        if (away == null) {
+            Vec3 dir = mob.position().subtract(from);
+            dir = new Vec3(dir.x, 0.0, dir.z);
+            if (dir.lengthSqr() < 1.0E-4) dir = new Vec3(mob.getRandom().nextDouble() - 0.5, 0.0, mob.getRandom().nextDouble() - 0.5);
+            away = mob.position().add(dir.normalize().scale(8.0));
+        }
+        mob.getNavigation().moveTo(away.x, away.y, away.z, mob instanceof Enemy ? 1.0 : 1.6);
     }
 
     public static void playSound(ServerLevel level, Vec3 pos, ResourceLocation soundId, float volume) {

@@ -8,6 +8,7 @@ import faygolover.zoneartifacts.anomaly.AnomalyTargeting;
 import faygolover.zoneartifacts.config.ModCommonConfig;
 import faygolover.zoneartifacts.item.AnomalyTunerItem;
 import faygolover.zoneartifacts.network.AnomalySyncHandler;
+import faygolover.zoneartifacts.block.PukhBlockEntity;
 import faygolover.zoneartifacts.tesla.RouteKind;
 import faygolover.zoneartifacts.tesla.Tesla;
 import faygolover.zoneartifacts.tesla.TeslaGeometry;
@@ -160,6 +161,55 @@ public final class TunerService {
         }
         data.setDirty();
         report(player, name, Component.translatable(kind.translationKey()), value, standard);
+    }
+
+    /** Burning Fluff: size = strand length, cooldown = pause between puffs, targeting = puff range. */
+    public static void tuneBlock(ServerPlayer player, TunerKind kind, boolean increase, boolean sneaking, BlockPos pos) {
+        if (!holds(player, kind)) return;
+        ServerLevel level = player.serverLevel();
+        if (!level.isLoaded(pos) || !(level.getBlockEntity(pos) instanceof PukhBlockEntity pukh)) return;
+        if (player.getEyePosition().distanceToSqr(Vec3.atCenterOf(pos)) > MAX_CLICK_DISTANCE * MAX_CLICK_DISTANCE) return;
+        Component name = Component.translatable("block.fl_zone_arts.pukh");
+        double step = kind.step(sneaking) * (increase ? 1 : -1);
+        String value;
+        String standard;
+        String setting = kind.translationKey();
+        switch (kind) {
+            case SIZE -> {
+                pukh.setLength(round(pukh.length() + step * 0.5, 10));
+                value = fmt1(pukh.length()) + " бл.";
+                standard = fmt1(ModCommonConfig.PUKH_LENGTH.get()) + " бл.";
+                setting = "tuner.fl_zone_arts.strand_length";
+            }
+            case COOLDOWN -> {
+                pukh.setCooldownSeconds(round(clamp(pukh.cooldownSeconds() + step * 0.5, 0.5, ModCommonConfig.MAX_COOLDOWN_SECONDS.get()), 10));
+                value = seconds(pukh.cooldownSeconds());
+                standard = seconds(ModCommonConfig.PUKH_COOLDOWN_SECONDS.get());
+                setting = "tuner.fl_zone_arts.puff_cooldown";
+            }
+            case INTENSITY -> {
+                pukh.setIntensity((int) clamp(pukh.intensity() + step, 1, ModCommonConfig.MAX_INTENSITY.get()));
+                value = String.valueOf(pukh.intensity());
+                standard = String.valueOf(ModCommonConfig.PUKH_INTENSITY.get());
+            }
+            case DAMAGE -> {
+                pukh.setDamage((float) round(clamp(pukh.damage() + step, 0.0, ModCommonConfig.MAX_DAMAGE.get()), 2));
+                value = fmt1(pukh.damage());
+                standard = fmt1(ModCommonConfig.PUKH_DAMAGE.get());
+            }
+            case TARGETING -> {
+                pukh.setRange(round(pukh.range() + step, 10));
+                value = pukh.range() <= 0 ? "0 (не выбрасывает)" : fmt1(pukh.range()) + " бл.";
+                standard = fmt1(ModCommonConfig.PUKH_RANGE.get()) + " бл.";
+                setting = "tuner.fl_zone_arts.puff_range";
+            }
+            default -> {
+                player.displayClientMessage(Component.translatable("message.fl_zone_arts.tuner.not_applicable",
+                        name, Component.translatable(kind.translationKey())), true);
+                return;
+            }
+        }
+        report(player, name, Component.translatable(setting), value, standard);
     }
 
     // ---- helpers -------------------------------------------------------------------

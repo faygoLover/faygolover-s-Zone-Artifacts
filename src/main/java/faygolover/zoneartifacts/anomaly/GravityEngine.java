@@ -223,7 +223,7 @@ public final class GravityEngine {
                     double d = victim.getBoundingBox().getCenter().distanceTo(c);
                     if (d > r) continue;
                     victim.invulnerableTime = 0;
-                    AnomalyCombat.hurt(level, victim, Gravity.GRAVITY_DAMAGE_TYPE, (float) (instance.damage() * Gravity.falloff(d, r, 0.3)));
+                    AnomalyCombat.hurt(level, victim, Gravity.GRAVITY_DAMAGE_TYPE, (float) (instance.damage() * Gravity.falloff(d, r, 0.3)), c);
                 }
             } finally {
                 goreActive = false;
@@ -239,7 +239,7 @@ public final class GravityEngine {
                     if (!Gravity.inCylinder(victim, instance.pos(), instance.size())) continue;
                     double d = Gravity.horizontalDistance(victim, c);
                     victim.invulnerableTime = 0;
-                    AnomalyCombat.hurt(level, victim, Gravity.GRAVITY_DAMAGE_TYPE, (float) (instance.damage() * Gravity.falloff(d, r, 0.25)));
+                    AnomalyCombat.hurt(level, victim, Gravity.GRAVITY_DAMAGE_TYPE, (float) (instance.damage() * Gravity.falloff(d, r, 0.25)), c);
                 }
             } finally {
                 goreActive = false;
@@ -450,6 +450,12 @@ public final class GravityEngine {
             t.previous = at;
         }
         SOFT_FALL.values().removeIf(soft -> soft.until() < now - 1200);
+    }
+
+    /** Fall damage of {@code entity} is multiplied by {@code multiplier} until {@code until} (its
+     *  next landing), e.g. after leaving a Lift. */
+    public static void softenFall(LivingEntity entity, long until, double multiplier) {
+        SOFT_FALL.put(entity.getUUID(), new SoftFall(until, multiplier));
     }
 
     @SubscribeEvent

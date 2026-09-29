@@ -48,8 +48,29 @@ public final class GoreClient {
     /** Decals belong to one world: cleared when the level changes (dimension change, reconnect). */
     private static ClientLevel lastLevel;
 
-    /** A blotch on a block face: an irregular blob, seeded, darker in the middle. */
-    private record Decal(Vec3 center, Vec3 normal, Vec3 t, Vec3 b, double size, long seed, long born, long dies) {
+    /** A blotch on a block face: an irregular blob, seeded, darker in the middle (blood, or a
+     *  chemical burn — {@link #addStain}). */
+    private record Decal(Vec3 center, Vec3 normal, Vec3 t, Vec3 b, double size, long seed, long born, long dies,
+                         int outerRgb, int outerAlpha, int innerRgb, int innerAlpha) {
+    }
+
+    private static final int BLOOD_OUTER = 0x5F0404;
+    private static final int BLOOD_INNER = 0x3C0202;
+
+    /**
+     * A temporary stain where a ray from {@code from} along {@code dir} meets a block, within
+     * {@code reach}: chemical burns (Chemical Comet, Burning Fluff, Amoeba) and the like. Fades
+     * after {@code lifeTicks}. {@code darkRgb}: the middle, {@code rgb}: the rim.
+     */
+    public static void addStain(ClientLevel level, Vec3 from, Vec3 dir, double reach, double size,
+                                int rgb, int darkRgb, int alpha, int lifeTicks) {
+        if (level != lastLevel) {
+            DECALS.clear();
+            HIDDEN.clear();
+            lastLevel = level;
+        }
+        RandomSource random = RandomSource.create();
+        addDecal(level, from, dir, reach, size, random, level.getGameTime(), lifeTicks, rgb, alpha, darkRgb, Math.min(255, alpha + 30));
     }
 
     private GoreClient() {
@@ -85,6 +106,11 @@ public final class GoreClient {
     }
 
     private static void addDecal(ClientLevel level, Vec3 from, Vec3 dir, double reach, double size, RandomSource random, long now) {
+        addDecal(level, from, dir, reach, size, random, now, 800 + random.nextInt(500), BLOOD_OUTER, 170, BLOOD_INNER, 200);
+    }
+
+    private static void addDecal(ClientLevel level, Vec3 from, Vec3 dir, double reach, double size, RandomSource random, long now,
+                                 int lifeTicks, int outerRgb, int outerAlpha, int innerRgb, int innerAlpha) {
         BlockHitResult hit = Razlom.clipBlocks(level, from, from.add(dir.scale(reach)));
         if (hit.getType() == HitResult.Type.MISS) return;
         Vec3 n = Vec3.atLowerCornerOf(hit.getDirection().getNormal());
@@ -94,8 +120,8 @@ public final class GoreClient {
         Vec3 b0 = n.cross(t0).normalize();
         Vec3 t = t0.scale(Math.cos(angle)).add(b0.scale(Math.sin(angle)));
         Vec3 b = n.cross(t).normalize();
-        long life = 800 + random.nextInt(500);
-        DECALS.add(new Decal(hit.getLocation().add(n.scale(0.004 + random.nextDouble() * 0.004)), n, t, b, size, random.nextLong(), now, now + life));
+        DECALS.add(new Decal(hit.getLocation().add(n.scale(0.004 + random.nextDouble() * 0.004)), n, t, b, size, random.nextLong(), now, now + lifeTicks,
+                outerRgb, outerAlpha, innerRgb, innerAlpha));
         while (DECALS.size() > MAX_DECALS) DECALS.remove(0);
     }
 
@@ -152,8 +178,10 @@ public final class GoreClient {
             if (decal.center().distanceToSqr(cam) > 64 * 64) continue;
             float fade = Math.min(1.0f, (decal.dies() - now) / (float) FADE_TICKS);
             RandomSource shape = RandomSource.create(decal.seed());
-            blob(buffer, matrix, decal, 1.0, shape, (int) (170 * fade), 95, 4, 4);
-            blob(buffer, matrix, decal, 0.55, shape, (int) (200 * fade), 60, 2, 2);
+            int o = decal.outerRgb();
+            int in = decal.innerRgb();
+            blob(buffer, matrix, decal, 1.0, shape, (int) (decal.outerAlpha() * fade), (o >> 16) & 0xFF, (o >> 8) & 0xFF, o & 0xFF);
+            blob(buffer, matrix, decal, 0.55, shape, (int) (decal.innerAlpha() * fade), (in >> 16) & 0xFF, (in >> 8) & 0xFF, in & 0xFF);
         }
 
         BufferUploader.drawWithShader(buffer.end());

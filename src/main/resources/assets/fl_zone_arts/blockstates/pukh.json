@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "facing=down": { "model": "fl_zone_arts:block/pukh_ceiling" },
+    "facing=up": { "model": "fl_zone_arts:block/pukh_ceiling" },
+    "facing=south": { "model": "fl_zone_arts:block/pukh_wall" },
+    "facing=west": { "model": "fl_zone_arts:block/pukh_wall", "y": 90 },
+    "facing=north": { "model": "fl_zone_arts:block/pukh_wall", "y": 180 },
+    "facing=east": { "model": "fl_zone_arts:block/pukh_wall", "y": 270 }
+  }
+}
