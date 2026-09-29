@@ -74,10 +74,11 @@ public class AnomalyEngine {
 
         boolean onCooldown = instance.cooldownTicks() > 0;
         if (wasOnCooldown && !onCooldown) {
-            // Cooldown just ended: bring the hum/sparks back right away instead of waiting out
-            // whatever was left on their interval timers when they got paused mid-count.
+            // Cooldown just ended: bring the particles back right away instead of waiting out
+            // whatever was left on their interval timer when it got paused mid-count. The idle
+            // sound doesn't need this — it isn't ticker-driven at all anymore, it just starts the
+            // instant AnomalyAmbientSoundHandler sees onCooldown flip to false on the client.
             instance.setAmbientParticleTicker(0);
-            instance.setAmbientSoundTicker(0);
         }
 
         // While on cooldown, the anomaly should read as completely "spent" — no hum, no sparks —

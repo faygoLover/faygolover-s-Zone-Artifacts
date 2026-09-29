@@ -9,7 +9,6 @@ import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.AABB;
@@ -81,14 +80,17 @@ public class AnomalyAmbientSoundHandler {
     }
 
     private static void start(Minecraft mc, Key key, SyncAnomaliesPacket.Entry entry, AmbientSoundInfo ambient) {
-        SoundEvent sound = ForgeRegistries.SOUND_EVENTS.getValue(ambient.soundId());
-        if (sound == null) return;
+        // Only a validity check (skip playing a sound id nothing registered) — the instance itself
+        // is built from the ResourceLocation, not the SoundEvent: in 1.20.1
+        // SimpleSoundInstance's looping constructor takes a ResourceLocation, not a SoundEvent
+        // (the SoundEvent-typed overloads with this many arguments don't exist on this version).
+        if (ForgeRegistries.SOUND_EVENTS.getValue(ambient.soundId()) == null) return;
 
         int size = ClientAnomalyTypeCache.sizeForLevel(entry.typeId(), entry.level());
         AABB aabb = AnomalyGeometry.centeredAabb(entry.pos(), size);
         Vec3 center = aabb.getCenter();
 
-        SimpleSoundInstance instance = new SimpleSoundInstance(sound, SoundSource.AMBIENT,
+        SimpleSoundInstance instance = new SimpleSoundInstance(ambient.soundId(), SoundSource.AMBIENT,
                 ambient.volume(), ambient.pitch(), RandomSource.create(), true, 0,
                 SoundInstance.Attenuation.LINEAR, center.x, center.y, center.z, false);
         mc.getSoundManager().play(instance);
