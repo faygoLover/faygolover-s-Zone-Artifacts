@@ -10,6 +10,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import faygolover.zoneartifacts.ZoneArtifacts;
 import faygolover.zoneartifacts.anomaly.AnomalyGeometry;
+import faygolover.zoneartifacts.anomaly.AnomalyTypeIds;
 import faygolover.zoneartifacts.anomaly.AnomalyDefaults;
 import faygolover.zoneartifacts.item.AnomalyPlacerItem;
 import faygolover.zoneartifacts.item.AnomalyTunerItem;
@@ -124,11 +125,13 @@ public class AnomalyHighlightRenderer {
                 && mc.hitResult instanceof BlockHitResult blockHit && blockHit.getType() == HitResult.Type.BLOCK) {
             // Same resolution as AnomalyPlacerItem.useOn: the preview sits where the anomaly would
             // actually be placed (the neighbour on the clicked face's side), not inside the clicked block.
-            previewPos = new BlockPlaceContext(player, InteractionHand.MAIN_HAND, player.getMainHandItem(), blockHit).getClickedPos();
+            previewPos = AnomalyTypeIds.SWAMP.equals(typeId)
+                    ? blockHit.getBlockPos() // the swamp goes into the clicked block itself
+                    : new BlockPlaceContext(player, InteractionHand.MAIN_HAND, player.getMainHandItem(), blockHit).getClickedPos();
         }
 
         for (SyncAnomaliesPacket.Entry entry : entries) {
-            AABB zone = AnomalyGeometry.centeredAabb(entry.pos(), entry.size());
+            AABB zone = AnomalyGeometry.zoneAabb(entry.typeId(), entry.pos(), entry.size());
             if (previewPos != null && (entry.pos().equals(previewPos) || AnomalyGeometry.containsBlockCenter(zone, previewPos))) {
                 previewPos = null;
             }
@@ -144,7 +147,8 @@ public class AnomalyHighlightRenderer {
         }
 
         if (previewPos != null) {
-            boxes.add(new Box(AnomalyGeometry.centeredAabb(previewPos, AnomalyDefaults.SIZE), false));
+            boxes.add(new Box(typeId != null ? AnomalyGeometry.zoneAabb(typeId, previewPos, AnomalyDefaults.size(typeId))
+                    : AnomalyGeometry.centeredAabb(previewPos, AnomalyDefaults.SIZE), false));
         }
         return boxes;
     }

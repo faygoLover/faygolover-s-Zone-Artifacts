@@ -16,6 +16,10 @@ public final class ModBlockEntities {
     public static final RegistryObject<BlockEntityType<PukhBlockEntity>> PUKH = BLOCK_ENTITIES.register("pukh",
             () -> BlockEntityType.Builder.of(PukhBlockEntity::new, ModBlocks.PUKH.get()).build(null));
 
+    @SuppressWarnings("DataFlowIssue")
+    public static final RegistryObject<BlockEntityType<faygolover.zoneartifacts.block.EzhikBlockEntity>> EZHIK = BLOCK_ENTITIES.register("ezhik",
+            () -> BlockEntityType.Builder.of(faygolover.zoneartifacts.block.EzhikBlockEntity::new, ModBlocks.EZHIK.get()).build(null));
+
     private ModBlockEntities() {
     }
 }

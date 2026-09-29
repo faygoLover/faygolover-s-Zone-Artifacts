@@ -108,6 +108,50 @@ public final class ModCommonConfig {
     public static final ForgeConfigSpec.DoubleValue FOG_DAMAGE;
     public static final ForgeConfigSpec.IntValue FOG_INTENSITY;
 
+    // wave 3 (0.1.28.0)
+    public static final ForgeConfigSpec.DoubleValue SWAMP_SIZE;
+    public static final ForgeConfigSpec.DoubleValue SWAMP_SINK_SPEED;
+    public static final ForgeConfigSpec.DoubleValue SWAMP_DAMAGE;
+    public static final ForgeConfigSpec.DoubleValue SWAMP_DAMAGE_INTERVAL;
+    public static final ForgeConfigSpec.IntValue SWAMP_INTENSITY;
+
+    public static final ForgeConfigSpec.DoubleValue DYMKA_SIZE;
+    public static final ForgeConfigSpec.IntValue DYMKA_INTENSITY;
+    public static final ForgeConfigSpec.DoubleValue DYMKA_VISIBILITY;
+    public static final ForgeConfigSpec.DoubleValue DYMKA_SOUND_MIN_SECONDS;
+    public static final ForgeConfigSpec.DoubleValue DYMKA_SOUND_MAX_SECONDS;
+
+    public static final ForgeConfigSpec.DoubleValue SUMRAK_SIZE;
+    public static final ForgeConfigSpec.IntValue SUMRAK_INTENSITY;
+
+    public static final ForgeConfigSpec.DoubleValue PSI_SIZE;
+    public static final ForgeConfigSpec.IntValue PSI_INTENSITY;
+    public static final ForgeConfigSpec.DoubleValue PSI_WAVE_SECONDS;
+    public static final ForgeConfigSpec.DoubleValue PSI_SLOWDOWN;
+
+    public static final ForgeConfigSpec.DoubleValue POPPY_SIZE;
+    public static final ForgeConfigSpec.DoubleValue POPPY_EPISODE_INTERVAL;
+    public static final ForgeConfigSpec.IntValue POPPY_MAX_EPISODES;
+    public static final ForgeConfigSpec.DoubleValue POPPY_SLEEP_DAMAGE;
+    public static final ForgeConfigSpec.DoubleValue POPPY_EPISODE_SECONDS;
+    public static final ForgeConfigSpec.DoubleValue POPPY_FULL_SLEEP_SECONDS;
+    public static final ForgeConfigSpec.IntValue POPPY_DENSITY;
+
+    public static final ForgeConfigSpec.DoubleValue RUST_SIZE;
+    public static final ForgeConfigSpec.DoubleValue RUST_CHARGE_SECONDS;
+    public static final ForgeConfigSpec.DoubleValue RUST_DUST_DAMAGE;
+    public static final ForgeConfigSpec.IntValue RUST_INTENSITY;
+    public static final ForgeConfigSpec.DoubleValue RUST_CHARGE_CHANCE;
+    public static final ForgeConfigSpec.DoubleValue RUST_SPOT_SECONDS;
+    public static final ForgeConfigSpec.DoubleValue RUST_SPOT_RADIUS;
+    public static final ForgeConfigSpec.DoubleValue RUST_BLAST_DAMAGE;
+    public static final ForgeConfigSpec.DoubleValue RUST_BURN_SECONDS;
+    public static final ForgeConfigSpec.DoubleValue RUST_BURN_DAMAGE;
+    public static final ForgeConfigSpec.DoubleValue RUST_ARMOR_WEAR;
+
+    public static final ForgeConfigSpec.DoubleValue EZHIK_SIZE;
+    public static final ForgeConfigSpec.IntValue EZHIK_INTENSITY;
+
     public static final ForgeConfigSpec.IntValue LIFT_INTENSITY;
     public static final ForgeConfigSpec.DoubleValue LIFT_HOVER_HEIGHT;
     public static final ForgeConfigSpec.DoubleValue LIFT_PUSH_OUT_SECONDS;
@@ -438,6 +482,90 @@ public final class ModCommonConfig {
                 .defineInRange("hoverHeight", 1.5, 0.2, 32.0);
         LIFT_PUSH_OUT_SECONDS = b.comment("After this long inside, anything is eased out to the edge, seconds.")
                 .defineInRange("pushOutSeconds", 10.0, 0.5, 600.0);
+        b.pop();
+
+        b.comment("Swamp (Trjasina): placed into a block, whose top face stays the surface; the zone goes size blocks down",
+                "and size/2 to each side. Whoever walks out onto it (farther than the edge's slope) slowly sinks into",
+                "the blocks, is slowed and tired; a head under the surface chokes. Speed tuner = how fast one sinks.").push("swamp");
+        SWAMP_SIZE = b.comment("Size of a newly placed swamp, blocks.").defineInRange("size", 5.0, 1.0, 64.0);
+        SWAMP_SINK_SPEED = b.comment("How fast one sinks at speed x1, blocks per second.").defineInRange("sinkSpeed", 0.12, 0.0, 5.0);
+        SWAMP_DAMAGE = b.comment("Damage while the head is under the surface, half-hearts (the damage tuner).")
+                .defineInRange("damage", 2.0, 0.0, 1000.0);
+        SWAMP_DAMAGE_INTERVAL = b.comment("...every this many seconds (the cooldown tuner).")
+                .defineInRange("damageIntervalSeconds", 1.0, 0.1, 60.0);
+        SWAMP_INTENSITY = b.defineInRange("intensity", 3, 1, 50);
+        b.pop();
+
+        b.comment("Haze (Dymka): a faint mist outside; inside, the fog closes in to a few blocks, sound is muffled and",
+                "bent, and now and then something is heard far away. Effects tuner = how thick.").push("dymka");
+        DYMKA_SIZE = b.comment("Size of a newly placed Haze, blocks.").defineInRange("size", 8.0, 1.0, 128.0);
+        DYMKA_INTENSITY = b.defineInRange("intensity", 3, 1, 50);
+        DYMKA_VISIBILITY = b.comment("How far one sees deep inside at effects 3, blocks (less with more effects).")
+                .defineInRange("visibility", 5.0, 1.0, 64.0);
+        DYMKA_SOUND_MIN_SECONDS = b.comment("Distant strange sounds inside: at least this many seconds apart...")
+                .defineInRange("distantSoundMinSeconds", 8.0, 1.0, 600.0);
+        DYMKA_SOUND_MAX_SECONDS = b.comment("...and at most this many.").defineInRange("distantSoundMaxSeconds", 20.0, 1.0, 600.0);
+        b.pop();
+
+        b.comment("Dusk (Sumrak): churning darkness. Nothing inside can be seen or heard from outside, and from inside",
+                "nothing at all. Harmless (for now). Effects tuner = how dense.").push("sumrak");
+        SUMRAK_SIZE = b.comment("Size of a newly placed Dusk, blocks.").defineInRange("size", 6.0, 1.0, 128.0);
+        SUMRAK_INTENSITY = b.defineInRange("intensity", 3, 1, 50);
+        b.pop();
+
+        b.comment("Psi zone: gives itself away in no way. Mobs walk out of it; players are slowed, hear a hum and",
+                "whispers, their sight swims, blurs and splits into colours. No damage. Effects tuner = strength,",
+                "cooldown tuner = how often the sight swims hardest.").push("psiZone");
+        PSI_SIZE = b.comment("Size of a newly placed psi zone, blocks.").defineInRange("size", 8.0, 1.0, 128.0);
+        PSI_INTENSITY = b.defineInRange("intensity", 3, 1, 50);
+        PSI_WAVE_SECONDS = b.comment("Seconds between the strongest waves (the cooldown tuner).")
+                .defineInRange("waveSeconds", 6.0, 1.0, 600.0);
+        PSI_SLOWDOWN = b.comment("How much slower players walk at effects 3 (0..0.9).").defineInRange("slowdown", 0.35, 0.0, 0.9);
+        b.pop();
+
+        b.comment("Poppy field: thick poppies and drifting petals. Its pollen brings micro-sleeps: the eyes close and for",
+                "a few seconds one walks off somewhere, hearing only a hum. They come every episode interval (cooldown",
+                "tuner) while inside and ebb away just as fast outside; at maxEpisodes (effects tuner) one falls asleep",
+                "for good, lying down, and after fullSleepSeconds takes sleepDamage (damage tuner). A hit on a sleeper",
+                "takes 2 episodes off (wakes them). Mobs too.").push("poppyField");
+        POPPY_SIZE = b.comment("Size of a newly placed field, blocks.").defineInRange("size", 6.0, 1.0, 128.0);
+        POPPY_EPISODE_INTERVAL = b.comment("Seconds between micro-sleeps inside (the cooldown tuner).")
+                .defineInRange("episodeIntervalSeconds", 12.0, 1.0, 600.0);
+        POPPY_MAX_EPISODES = b.comment("Micro-sleeps until one falls asleep for good (the effects tuner).")
+                .defineInRange("maxEpisodes", 4, 1, 50);
+        POPPY_SLEEP_DAMAGE = b.comment("Damage in full sleep, half-hearts (the damage tuner; 1000 = all health).")
+                .defineInRange("sleepDamage", 1000.0, 0.0, 100000.0);
+        POPPY_EPISODE_SECONDS = b.comment("How long a micro-sleep's walk lasts, seconds.").defineInRange("episodeSeconds", 4.0, 1.0, 30.0);
+        POPPY_FULL_SLEEP_SECONDS = b.comment("Asleep this long before the damage, seconds (time for others to wake one).")
+                .defineInRange("fullSleepSeconds", 8.0, 0.0, 600.0);
+        POPPY_DENSITY = b.comment("Poppies drawn per block of ground.").defineInRange("flowersPerBlock", 6, 1, 20);
+        b.pop();
+
+        b.comment("Rust: rusty moss on every surface. Walking (not sneaking) raises rusty dust that burns (dustDamage, the",
+                "damage tuner). Now and then (at most once per charge interval, the cooldown tuner) a puff is charged: it",
+                "heats a patch red-hot for spotSeconds; stepping on it blasts one with molten rust (blastDamage, a burn and",
+                "heavy wear of all armour). A snowball thrown into the patch cools it. One patch per anomaly.").push("rust");
+        RUST_SIZE = b.comment("Size of a newly placed Rust, blocks.").defineInRange("size", 6.0, 1.0, 128.0);
+        RUST_CHARGE_SECONDS = b.comment("At least this long between two red-hot patches, seconds (the cooldown tuner).")
+                .defineInRange("chargeIntervalSeconds", 60.0, 1.0, 36000.0);
+        RUST_DUST_DAMAGE = b.comment("Dust damage every half second, half-hearts (the damage tuner).")
+                .defineInRange("dustDamage", 1.0, 0.0, 1000.0);
+        RUST_INTENSITY = b.defineInRange("intensity", 3, 1, 50);
+        RUST_CHARGE_CHANCE = b.comment("Once the interval has passed, the chance of each raised puff to be charged.")
+                .defineInRange("chargeChance", 0.25, 0.0, 1.0);
+        RUST_SPOT_SECONDS = b.comment("How long a red-hot patch stays hot, seconds.").defineInRange("spotSeconds", 300.0, 5.0, 36000.0);
+        RUST_SPOT_RADIUS = b.comment("Its radius, blocks.").defineInRange("spotRadius", 1.5, 0.5, 8.0);
+        RUST_BLAST_DAMAGE = b.comment("Damage of the blast, half-hearts.").defineInRange("blastDamage", 14.0, 0.0, 1000.0);
+        RUST_BURN_SECONDS = b.comment("After it, the stuck rust burns for this long, seconds...").defineInRange("burnSeconds", 6.0, 0.0, 120.0);
+        RUST_BURN_DAMAGE = b.comment("...this much every half second, half-hearts.").defineInRange("burnDamage", 1.0, 0.0, 1000.0);
+        RUST_ARMOR_WEAR = b.comment("Each worn armour piece loses this part of its full durability in the blast (0..1).")
+                .defineInRange("armorWear", 0.4, 0.0, 1.0);
+        b.pop();
+
+        b.comment("Hedgehog (Ezhik): a block on any face: the surface under it rises into lumps and spikes of the same",
+                "block, slowly growing, shrinking, trembling and pulsing. Harmless.").push("ezhik");
+        EZHIK_SIZE = b.comment("Radius of the patch, blocks (the size tuner).").defineInRange("radius", 1.0, 0.3, 4.0);
+        EZHIK_INTENSITY = b.comment("How many spikes (the effects tuner).").defineInRange("intensity", 3, 1, 50);
         b.pop();
 
         b.push("effects");

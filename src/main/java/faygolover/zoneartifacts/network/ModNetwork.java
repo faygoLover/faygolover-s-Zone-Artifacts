@@ -10,7 +10,7 @@ public final class ModNetwork {
     /** Bump whenever packets are added, removed or changed, so a client and server on different
      *  mod versions get a clear "incompatible" message at login instead of odd behaviour.
      *  2 = Tesla (0.1.2.0), 3 = tuners, no datapacks (0.1.3.0). */
-    private static final String PROTOCOL_VERSION = "12";
+    private static final String PROTOCOL_VERSION = "13";
 
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(ZoneArtifacts.MODID, "main"),
@@ -65,6 +65,11 @@ public final class ModNetwork {
         // Kisel, Acid Fog (0.1.21.0)
         CHANNEL.registerMessage(id++, FogJetPacket.class,
                 FogJetPacket::encode, FogJetPacket::decode, FogJetPacket::handle);
+        // Poppy field, Rust (0.1.28.0)
+        CHANNEL.registerMessage(id++, PoppyPacket.class,
+                PoppyPacket::encode, PoppyPacket::decode, PoppyPacket::handle);
+        CHANNEL.registerMessage(id++, RustPacket.class,
+                RustPacket::encode, RustPacket::decode, RustPacket::handle);
     }
 
     private ModNetwork() {

@@ -50,7 +50,7 @@ public class AnomalyInstance {
 
     /** A new anomaly of {@code typeId} with that type's defaults from the common config. */
     public static AnomalyInstance create(ResourceLocation typeId, BlockPos pos) {
-        return new AnomalyInstance(typeId, pos.immutable(), AnomalyDefaults.SIZE,
+        return new AnomalyInstance(typeId, pos.immutable(), AnomalyDefaults.size(typeId),
                 AnomalyDefaults.cooldownSeconds(typeId), AnomalyDefaults.damage(typeId), AnomalyDefaults.intensity(typeId));
     }
 

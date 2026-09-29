@@ -4,6 +4,7 @@ import faygolover.zoneartifacts.anomaly.AnomalyDefaults;
 import faygolover.zoneartifacts.anomaly.AnomalyGeometry;
 import faygolover.zoneartifacts.anomaly.AnomalyInstance;
 import faygolover.zoneartifacts.anomaly.AnomalySavedData;
+import faygolover.zoneartifacts.anomaly.AnomalyTypeIds;
 import faygolover.zoneartifacts.network.AnomalySyncHandler;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -62,7 +63,9 @@ public class AnomalyPlacerItem extends Item {
         Level level = context.getLevel();
         // Placed like an ordinary block: into the neighbour on the clicked face's side, or into
         // the clicked block itself if that one is replaceable (grass, a snow layer...).
-        BlockPos pos = new BlockPlaceContext(context).getClickedPos();
+        // The swamp goes into the clicked block itself (its top face becomes the surface).
+        BlockPos pos = AnomalyTypeIds.SWAMP.equals(anomalyTypeId) ? context.getClickedPos()
+                : new BlockPlaceContext(context).getClickedPos();
         Player player = context.getPlayer();
 
         if (level instanceof ServerLevel serverLevel) {

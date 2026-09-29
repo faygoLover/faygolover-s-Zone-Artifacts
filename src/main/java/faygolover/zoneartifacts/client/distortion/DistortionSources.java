@@ -35,6 +35,7 @@ final class DistortionSources {
         VoronkaLens.collect(out, now, partial);
         faygolover.zoneartifacts.client.gravi.GraviClient.collect(out, now, partial);
         faygolover.zoneartifacts.client.lift.LiftClient.collect(out, now, partial);
+        faygolover.zoneartifacts.client.rust.RustClient.collect(out, now, partial);
         thermal(out, partial, time);
         razlom(mc, out, now, partial, time);
         comets(mc, out, partial, time, cam);

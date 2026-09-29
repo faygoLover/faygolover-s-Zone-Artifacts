@@ -25,6 +25,16 @@ public final class ModBlocks {
                     .noOcclusion()
                     .pushReaction(PushReaction.DESTROY)));
 
+    /** Hedgehog: lumps and spikes of the block it sits on (drawn by its block entity). Harmless. */
+    public static final RegistryObject<Block> EZHIK = BLOCKS.register("ezhik",
+            () -> new faygolover.zoneartifacts.block.EzhikBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.STONE)
+                    .strength(0.8f)
+                    .sound(SoundType.STONE)
+                    .noOcclusion()
+                    .noCollission()
+                    .pushReaction(PushReaction.DESTROY)));
+
     private ModBlocks() {
     }
 }

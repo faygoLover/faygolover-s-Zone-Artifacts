@@ -51,6 +51,16 @@ public class AnomalyEngine {
                 AcidFogEngine.tick(serverLevel, instance);
             } else if (AnomalyTypeIds.AMOEBA.equals(instance.typeId())) {
                 AmoebaEngine.tick(serverLevel, instance);
+            } else if (AnomalyTypeIds.SWAMP.equals(instance.typeId())) {
+                SwampEngine.tick(serverLevel, instance);
+            } else if (AnomalyTypeIds.PSI.equals(instance.typeId())) {
+                PsiEngine.tick(serverLevel, instance);
+            } else if (AnomalyTypeIds.POPPY.equals(instance.typeId())) {
+                PoppyEngine.tick(serverLevel, instance);
+            } else if (AnomalyTypeIds.RUST.equals(instance.typeId())) {
+                RustEngine.tick(serverLevel, instance);
+            } else if (AnomalyTypeIds.DYMKA.equals(instance.typeId()) || AnomalyTypeIds.SUMRAK.equals(instance.typeId())) {
+                // Purely the clients' (fog, darkness, sound).
             } else if (AnomalyTypeIds.LIFT.equals(instance.typeId())) {
                 LiftEngine.tick(serverLevel, instance);
             } else if (AnomalyTypeIds.isGravity(instance.typeId())) {

@@ -25,6 +25,19 @@ public final class AnomalyTypeIds {
     /** Hovering acid haze with jets of vapour ({@link AcidFogEngine}). */
     public static final ResourceLocation ACID_FOG = new ResourceLocation(ZoneArtifacts.MODID, "acid_fog");
 
+    /** Ground that swallows whoever walks out onto it ({@link SwampEngine}, {@link SwampPhysics}). */
+    public static final ResourceLocation SWAMP = new ResourceLocation(ZoneArtifacts.MODID, "tryasina");
+    /** Haze: fog that closes in on whoever is inside and muffles sound (client only). */
+    public static final ResourceLocation DYMKA = new ResourceLocation(ZoneArtifacts.MODID, "dymka");
+    /** Dusk: churning darkness that swallows light and sound (client only). */
+    public static final ResourceLocation SUMRAK = new ResourceLocation(ZoneArtifacts.MODID, "sumrak");
+    /** Psi zone: invisible; mobs leave it, players' senses swim ({@link PsiEngine}). */
+    public static final ResourceLocation PSI = new ResourceLocation(ZoneArtifacts.MODID, "psi_zone");
+    /** Poppy field: its pollen puts to sleep ({@link PoppyEngine}). */
+    public static final ResourceLocation POPPY = new ResourceLocation(ZoneArtifacts.MODID, "poppy_field");
+    /** Rust: rusty moss, dust, now and then a red-hot patch ({@link RustEngine}). */
+    public static final ResourceLocation RUST = new ResourceLocation(ZoneArtifacts.MODID, "rust");
+
     private AnomalyTypeIds() {
     }
 

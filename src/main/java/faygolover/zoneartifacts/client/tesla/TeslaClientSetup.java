@@ -25,5 +25,7 @@ public final class TeslaClientSetup {
         event.registerEntityRenderer(ModEntities.GRAVI.get(), faygolover.zoneartifacts.client.gravi.GraviRenderer::new);
         event.registerBlockEntityRenderer(faygolover.zoneartifacts.registry.ModBlockEntities.PUKH.get(),
                 faygolover.zoneartifacts.client.pukh.PukhRenderer::new);
+        event.registerBlockEntityRenderer(faygolover.zoneartifacts.registry.ModBlockEntities.EZHIK.get(),
+                faygolover.zoneartifacts.client.ezhik.EzhikRenderer::new);
     }
 }

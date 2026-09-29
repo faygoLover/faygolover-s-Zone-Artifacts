@@ -147,7 +147,9 @@ public final class TunerClientHandler {
         double fluffDistSq = Double.MAX_VALUE;
         HitResult hit = Minecraft.getInstance().hitResult;
         if (hit instanceof BlockHitResult blockHit && blockHit.getType() == HitResult.Type.BLOCK
-                && player.level().getBlockState(blockHit.getBlockPos()).getBlock() instanceof PukhBlock && blockDistSq != null) {
+                && (player.level().getBlockState(blockHit.getBlockPos()).getBlock() instanceof PukhBlock
+                || player.level().getBlockState(blockHit.getBlockPos()).getBlock() instanceof faygolover.zoneartifacts.block.EzhikBlock)
+                && blockDistSq != null) {
             fluff = blockHit.getBlockPos();
             fluffDistSq = blockDistSq;
         }

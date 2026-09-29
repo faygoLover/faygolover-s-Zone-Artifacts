@@ -38,7 +38,8 @@ public class SyncAnomaliesPacket {
         List<Entry> entries = new ArrayList<>(instances.size());
         for (AnomalyInstance instance : instances) {
             entries.add(new Entry(instance.typeId(), instance.pos(), (float) instance.size(), instance.intensity(),
-                    instance.cooldownTicks() > 0, instance.active(), (float) instance.speed()));
+                    instance.cooldownTicks() > 0, instance.active(), (float) instance.speed(),
+                    (float) instance.cooldownSeconds(), instance.damage()));
         }
         return new SyncAnomaliesPacket(dimension, entries);
     }
@@ -54,6 +55,8 @@ public class SyncAnomaliesPacket {
             buf.writeBoolean(entry.onCooldown());
             buf.writeBoolean(entry.active());
             buf.writeFloat(entry.speed());
+            buf.writeFloat(entry.cooldown());
+            buf.writeFloat(entry.damage());
         }
     }
 
@@ -69,7 +72,9 @@ public class SyncAnomaliesPacket {
             boolean onCooldown = buf.readBoolean();
             boolean active = buf.readBoolean();
             float speed = buf.readFloat();
-            entries.add(new Entry(typeId, pos, size, intensity, onCooldown, active, speed));
+            float cooldown = buf.readFloat();
+            float damage = buf.readFloat();
+            entries.add(new Entry(typeId, pos, size, intensity, onCooldown, active, speed, cooldown, damage));
         }
         return new SyncAnomaliesPacket(dimension, entries);
     }
@@ -90,6 +95,6 @@ public class SyncAnomaliesPacket {
      *  so the visuals and sound ramp up. Always false for Electra. {@code speed}: the gravitational
      *  anomalies' force multiplier (the client computes the forces on its own player). */
     public record Entry(ResourceLocation typeId, BlockPos pos, float size, int intensity, boolean onCooldown, boolean active,
-                        float speed) {
+                        float speed, float cooldown, float damage) {
     }
 }

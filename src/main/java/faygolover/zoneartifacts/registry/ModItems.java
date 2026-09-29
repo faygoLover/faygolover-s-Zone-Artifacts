@@ -71,6 +71,16 @@ public class ModItems {
     public static final RegistryObject<Item> ACID_FOG_PLACER = ITEMS.register("acid_fog_placer",
             () -> new AnomalyPlacerItem(AnomalyTypeIds.ACID_FOG, new Item.Properties().stacksTo(1)));
 
+    public static final RegistryObject<Item> SWAMP_PLACER = placer("tryasina_placer", AnomalyTypeIds.SWAMP);
+    public static final RegistryObject<Item> DYMKA_PLACER = placer("dymka_placer", AnomalyTypeIds.DYMKA);
+    public static final RegistryObject<Item> SUMRAK_PLACER = placer("sumrak_placer", AnomalyTypeIds.SUMRAK);
+    public static final RegistryObject<Item> PSI_PLACER = placer("psi_zone_placer", AnomalyTypeIds.PSI);
+    public static final RegistryObject<Item> POPPY_PLACER = placer("poppy_field_placer", AnomalyTypeIds.POPPY);
+    public static final RegistryObject<Item> RUST_PLACER = placer("rust_placer", AnomalyTypeIds.RUST);
+
+    public static final RegistryObject<Item> EZHIK = ITEMS.register("ezhik",
+            () -> new PukhBlockItem(ModBlocks.EZHIK.get(), new Item.Properties()));
+
     public static final RegistryObject<Item> PUKH = ITEMS.register("pukh",
             () -> new PukhBlockItem(ModBlocks.PUKH.get(), new Item.Properties()));
 
@@ -84,6 +94,10 @@ public class ModItems {
     public static final RegistryObject<Item> EFFECT_TUNER = tuner("effect_tuner", TunerKind.INTENSITY);
     public static final RegistryObject<Item> DAMAGE_TUNER = tuner("damage_tuner", TunerKind.DAMAGE);
     public static final RegistryObject<Item> TARGETING_TUNER = tuner("targeting_tuner", TunerKind.TARGETING);
+
+    private static RegistryObject<Item> placer(String name, net.minecraft.resources.ResourceLocation typeId) {
+        return ITEMS.register(name, () -> new AnomalyPlacerItem(typeId, new Item.Properties().stacksTo(1)));
+    }
 
     private static RegistryObject<Item> tuner(String name, TunerKind kind) {
         return ITEMS.register(name, () -> new AnomalyTunerItem(kind, new Item.Properties().stacksTo(1)));

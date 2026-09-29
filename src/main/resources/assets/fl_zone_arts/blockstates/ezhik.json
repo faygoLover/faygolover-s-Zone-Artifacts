@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "facing=down": { "model": "fl_zone_arts:block/ezhik" },
+    "facing=up": { "model": "fl_zone_arts:block/ezhik" },
+    "facing=north": { "model": "fl_zone_arts:block/ezhik" },
+    "facing=south": { "model": "fl_zone_arts:block/ezhik" },
+    "facing=west": { "model": "fl_zone_arts:block/ezhik" },
+    "facing=east": { "model": "fl_zone_arts:block/ezhik" }
+  }
+}

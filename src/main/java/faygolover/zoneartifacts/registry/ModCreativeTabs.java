@@ -38,7 +38,14 @@ public class ModCreativeTabs {
                         output.accept(ModItems.AMOEBA_PLACER.get());
                         output.accept(ModItems.KISEL_PLACER.get());
                         output.accept(ModItems.ACID_FOG_PLACER.get());
+                        output.accept(ModItems.SWAMP_PLACER.get());
+                        output.accept(ModItems.DYMKA_PLACER.get());
+                        output.accept(ModItems.SUMRAK_PLACER.get());
+                        output.accept(ModItems.PSI_PLACER.get());
+                        output.accept(ModItems.POPPY_PLACER.get());
+                        output.accept(ModItems.RUST_PLACER.get());
                         output.accept(ModItems.PUKH.get());
+                        output.accept(ModItems.EZHIK.get());
                         output.accept(ModItems.PUKH_FLESH.get());
                         output.accept(ModItems.SIZE_TUNER.get());
                         output.accept(ModItems.SPEED_TUNER.get());

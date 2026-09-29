@@ -74,7 +74,7 @@ public final class TunerService {
             case SIZE -> {
                 instance.setSize(round(clamp(instance.size() + step, 1.0, ModCommonConfig.MAX_SIZE.get()), 10));
                 value = fmt1(instance.size());
-                standard = fmt1(AnomalyDefaults.SIZE);
+                standard = fmt1(AnomalyDefaults.size(typeId));
             }
             case SPEED -> {
                 // The gravitational anomalies' force (Podushka: bounce height).
@@ -170,7 +170,12 @@ public final class TunerService {
     public static void tuneBlock(ServerPlayer player, TunerKind kind, boolean increase, boolean sneaking, BlockPos pos) {
         if (!holds(player, kind)) return;
         ServerLevel level = player.serverLevel();
-        if (!level.isLoaded(pos) || !(level.getBlockEntity(pos) instanceof PukhBlockEntity pukh)) return;
+        if (!level.isLoaded(pos)) return;
+        if (level.getBlockEntity(pos) instanceof faygolover.zoneartifacts.block.EzhikBlockEntity ezhik) {
+            tuneEzhik(player, kind, increase, sneaking, ezhik);
+            return;
+        }
+        if (!(level.getBlockEntity(pos) instanceof PukhBlockEntity pukh)) return;
         if (player.getEyePosition().distanceToSqr(Vec3.atCenterOf(pos)) > MAX_CLICK_DISTANCE * MAX_CLICK_DISTANCE) return;
         Component name = Component.translatable("block.fl_zone_arts.pukh");
         double step = kind.step(sneaking) * (increase ? 1 : -1);
@@ -205,6 +210,41 @@ public final class TunerService {
                 value = pukh.range() <= 0 ? "0 (не выбрасывает)" : fmt1(pukh.range()) + " бл.";
                 standard = fmt1(ModCommonConfig.PUKH_RANGE.get()) + " бл.";
                 setting = "tuner.fl_zone_arts.puff_range";
+            }
+            default -> {
+                player.displayClientMessage(Component.translatable("message.fl_zone_arts.tuner.not_applicable",
+                        name, Component.translatable(kind.translationKey())), true);
+                return;
+            }
+        }
+        report(player, name, Component.translatable(setting), value, standard);
+    }
+
+    private static void tuneEzhik(ServerPlayer player, TunerKind kind, boolean increase, boolean sneaking,
+                                  faygolover.zoneartifacts.block.EzhikBlockEntity ezhik) {
+        BlockPos pos = ezhik.getBlockPos();
+        if (player.getEyePosition().distanceToSqr(Vec3.atCenterOf(pos)) > MAX_CLICK_DISTANCE * MAX_CLICK_DISTANCE) return;
+        Component name = Component.translatable("block.fl_zone_arts.ezhik");
+        double step = kind.step(sneaking) * (increase ? 1 : -1);
+        String value;
+        String standard;
+        String setting = kind.translationKey();
+        switch (kind) {
+            case SIZE -> {
+                ezhik.setRadius(round(ezhik.radius() + step * 0.25, 20));
+                value = fmt1(ezhik.radius()) + " бл.";
+                standard = fmt1(ModCommonConfig.EZHIK_SIZE.get()) + " бл.";
+                setting = "tuner.fl_zone_arts.patch_radius";
+            }
+            case INTENSITY -> {
+                ezhik.setIntensity((int) clamp(ezhik.intensity() + step, 1, ModCommonConfig.MAX_INTENSITY.get()));
+                value = String.valueOf(ezhik.intensity());
+                standard = String.valueOf(ModCommonConfig.EZHIK_INTENSITY.get());
+            }
+            case SPEED -> {
+                ezhik.setSpeed(round(clamp(ezhik.speed() + step, 0.0, ModCommonConfig.MAX_SPEED_MULTIPLIER.get()), 10));
+                value = "x" + fmt1(ezhik.speed());
+                standard = "x1.0";
             }
             default -> {
                 player.displayClientMessage(Component.translatable("message.fl_zone_arts.tuner.not_applicable",

@@ -27,7 +27,14 @@ public final class AnomalyGeometry {
     }
 
     public static AABB zoneAabb(AnomalyInstance instance) {
-        return centeredAabb(instance.pos(), instance.size());
+        return zoneAabb(instance.typeId(), instance.pos(), instance.size());
+    }
+
+    /** The zone of an anomaly of this type: a cube round its block, except the swamp, which hangs
+     *  from the top face of its block downwards ({@link Swamp#region}). */
+    public static AABB zoneAabb(net.minecraft.resources.ResourceLocation typeId, BlockPos pos, double size) {
+        if (AnomalyTypeIds.SWAMP.equals(typeId)) return Swamp.region(pos, size);
+        return centeredAabb(pos, size);
     }
 
     /** True if the center of block {@code pos} lies inside the zone. */

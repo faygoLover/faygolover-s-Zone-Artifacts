@@ -234,5 +234,87 @@
         "pitch": 1.2
       }
     ]
+  },
+  "swamp_squelch": {
+    "sounds": [
+      "fl_zone_arts:swamp_squelch1",
+      "fl_zone_arts:swamp_squelch2"
+    ],
+    "subtitle": "subtitles.fl_zone_arts.swamp_squelch"
+  },
+  "dymka_distant": {
+    "sounds": [
+      {
+        "name": "fl_zone_arts:dymka_distant1",
+        "attenuation_distance": 48
+      },
+      {
+        "name": "fl_zone_arts:dymka_distant2",
+        "attenuation_distance": 48
+      },
+      {
+        "name": "fl_zone_arts:dymka_distant3",
+        "attenuation_distance": 48
+      },
+      {
+        "name": "fl_zone_arts:dymka_distant4",
+        "attenuation_distance": 48
+      }
+    ],
+    "subtitle": "subtitles.fl_zone_arts.dymka_distant"
+  },
+  "sumrak_drone": {
+    "sounds": [
+      "fl_zone_arts:sumrak_drone"
+    ],
+    "subtitle": "subtitles.fl_zone_arts.sumrak_drone"
+  },
+  "psi_hum": {
+    "sounds": [
+      "fl_zone_arts:psi_hum"
+    ],
+    "subtitle": "subtitles.fl_zone_arts.psi_hum"
+  },
+  "psi_whisper": {
+    "sounds": [
+      "fl_zone_arts:psi_whisper1",
+      "fl_zone_arts:psi_whisper2",
+      "fl_zone_arts:psi_whisper3"
+    ],
+    "subtitle": "subtitles.fl_zone_arts.psi_whisper"
+  },
+  "poppy_hum": {
+    "sounds": [
+      "fl_zone_arts:poppy_hum"
+    ],
+    "subtitle": "subtitles.fl_zone_arts.poppy_hum"
+  },
+  "rust_dust": {
+    "sounds": [
+      "fl_zone_arts:rust_dust1",
+      "fl_zone_arts:rust_dust2"
+    ],
+    "subtitle": "subtitles.fl_zone_arts.rust_dust"
+  },
+  "rust_blast": {
+    "sounds": [
+      {
+        "name": "fl_zone_arts:rust_blast",
+        "attenuation_distance": 32
+      }
+    ],
+    "subtitle": "subtitles.fl_zone_arts.rust_blast"
+  },
+  "rust_hiss": {
+    "sounds": [
+      "fl_zone_arts:rust_hiss"
+    ],
+    "subtitle": "subtitles.fl_zone_arts.rust_hiss"
+  },
+  "rust_crackle": {
+    "sounds": [
+      "fl_zone_arts:rust_crackle"
+    ],
+    "subtitle": "subtitles.fl_zone_arts.rust_crackle"
   }
 }
