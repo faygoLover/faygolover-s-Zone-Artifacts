@@ -23,6 +23,7 @@ public final class ThermalClientSetup {
         event.registerSpriteSet(ModParticles.GRAV_DUST.get(), sprites -> new ThermalParticle.Provider(sprites, ThermalParticle.Kind.DUST));
         event.registerSpriteSet(ModParticles.BLOOD.get(), BloodParticle.Provider::new);
         event.registerSpriteSet(ModParticles.CHEM_DROP.get(), faygolover.zoneartifacts.client.chem.ChemDropParticle.Provider::new);
+        event.registerSpriteSet(ModParticles.KISEL_BUBBLE.get(), faygolover.zoneartifacts.client.kisel.KiselBubbleParticle.Provider::new);
         event.registerSpriteSet(ModParticles.PUKH_FLAKE.get(), sprites -> new faygolover.zoneartifacts.client.pukh.PukhParticle.Provider(sprites, false));
         event.registerSpriteSet(ModParticles.PUKH_SPORE.get(), sprites -> new faygolover.zoneartifacts.client.pukh.PukhParticle.Provider(sprites, true));
     }

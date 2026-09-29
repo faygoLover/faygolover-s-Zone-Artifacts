@@ -13,7 +13,6 @@ import faygolover.zoneartifacts.registry.ModParticles;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.AABB;
@@ -23,9 +22,8 @@ import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
-import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Client side of the Lift: your own player floating in it ({@link Lift}; jump to rise, sneak to
@@ -38,13 +36,9 @@ public final class LiftClient {
     private static final double VISIBLE_RADIUS = 48.0;
     private static final RandomSource RANDOM = RandomSource.create();
 
-    /** Your own player in one Lift: time inside and how far the hover point was moved. */
-    private static final class Mine {
-        int ticks;
-        double offset;
-    }
-
-    private static final Map<BlockPos, Mine> MINE = new HashMap<>();
+    /** Your own player in the Lifts (a stack counts as one): time inside, how far the hover point was moved. */
+    private static int ticksInside;
+    private static double offset;
 
     private LiftClient() {
     }
@@ -73,29 +67,49 @@ public final class LiftClient {
         ClientLevel level = mc.level;
         if (player == null || level == null || mc.isPaused()) return;
         boolean free = !player.isCreative() && !player.isSpectator() && !player.isPassenger() && !player.getAbilities().flying;
+
+        List<AABB> zones = new ArrayList<>();
+        List<SyncAnomaliesPacket.Entry> entries = new ArrayList<>();
         for (SyncAnomaliesPacket.Entry entry : ClientAnomalyCache.entriesFor(level.dimension())) {
             if (!AnomalyTypeIds.LIFT.equals(entry.typeId())) continue;
-            AABB zone = AnomalyGeometry.centeredAabb(entry.pos(), entry.size());
-            if (!free || !player.getBoundingBox().intersects(zone)) {
-                MINE.remove(entry.pos());
-                continue;
-            }
-            Mine mine = MINE.computeIfAbsent(entry.pos(), p -> new Mine());
-            mine.ticks++;
-            double height = hoverHeight() * entry.speed();
-            if (player.input.jumping) {
-                mine.offset += Lift.CONTROL_SPEED;
-            } else if (player.input.shiftKeyDown) {
-                mine.offset -= Lift.CONTROL_SPEED;
-            } else {
-                mine.offset *= 0.95;
-                if (Math.abs(mine.offset) < 0.01) mine.offset = 0.0;
-            }
-            mine.offset = Mth.clamp(mine.offset, -height, Math.max(0.0, zone.maxY - zone.minY));
-            player.resetFallDistance();
-            double target = Lift.targetFeetY(level, player, zone, height, mine.offset);
-            player.setDeltaMovement(Lift.apply(player, zone, target, mine.ticks, pushOutTicks()));
+            zones.add(AnomalyGeometry.centeredAabb(entry.pos(), entry.size()));
+            entries.add(entry);
         }
+        AABB box = player.getBoundingBox();
+        AABB column = free ? Lift.column(zones, box) : null;
+        if (column == null) {
+            ticksInside = 0;
+            offset = 0.0;
+            return;
+        }
+        // The Lift it's mostly in pushes it out (and its speed tuner says how hard).
+        int primary = -1;
+        double bestOverlap = -1.0;
+        for (int i = 0; i < zones.size(); i++) {
+            AABB z = zones.get(i);
+            if (!z.intersects(box)) continue;
+            AABB overlap = z.intersect(box);
+            double v = overlap.getXsize() * overlap.getYsize() * overlap.getZsize();
+            if (v > bestOverlap) {
+                bestOverlap = v;
+                primary = i;
+            }
+        }
+        if (primary < 0) return;
+        ticksInside++;
+        double height = hoverHeight();
+        if (player.input.jumping) {
+            offset += Lift.CONTROL_SPEED;
+        } else if (player.input.shiftKeyDown) {
+            offset -= Lift.CONTROL_SPEED;
+        } else {
+            offset *= 0.95;
+            if (Math.abs(offset) < 0.01) offset = 0.0;
+        }
+        offset = Mth.clamp(offset, -height, Math.max(0.0, column.maxY - column.minY));
+        player.resetFallDistance();
+        double target = Lift.targetFeetY(level, player, column, height, offset);
+        player.setDeltaMovement(Lift.apply(player, zones.get(primary), target, ticksInside, pushOutTicks(), entries.get(primary).speed()));
     }
 
     @SubscribeEvent
@@ -104,7 +118,6 @@ public final class LiftClient {
         Minecraft mc = Minecraft.getInstance();
         ClientLevel level = mc.level;
         if (level == null || mc.isPaused()) {
-            if (level == null) MINE.clear();
             return;
         }
         Vec3 cam = mc.gameRenderer.getMainCamera().getPosition();

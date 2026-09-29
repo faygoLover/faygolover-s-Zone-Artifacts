@@ -29,17 +29,19 @@ public final class AnomalyDefaults {
         if (AnomalyTypeIds.KARUSEL.equals(typeId)) return ModCommonConfig.KARUSEL_COOLDOWN_SECONDS.get().doubleValue();
         if (AnomalyTypeIds.PODUSHKA.equals(typeId) || AnomalyTypeIds.LIFT.equals(typeId)) return 1.0;
         if (AnomalyTypeIds.AMOEBA.equals(typeId)) return ModCommonConfig.AMOEBA_COOLDOWN_SECONDS.get().doubleValue();
+        if (AnomalyTypeIds.KISEL.equals(typeId)) return ModCommonConfig.KISEL_INTERVAL_SECONDS.get();
+        if (AnomalyTypeIds.ACID_FOG.equals(typeId)) return ModCommonConfig.FOG_JET_SECONDS.get();
         return ModCommonConfig.ELECTRA_COOLDOWN_SECONDS.get().doubleValue();
     }
 
     /** Smallest cooldown the tuner allows: Zharka / Iney may hit several times a second. */
     public static double minCooldownSeconds(ResourceLocation typeId) {
-        return AnomalyTypeIds.isThermal(typeId) ? 0.1 : 1.0;
+        return AnomalyTypeIds.isThermal(typeId) || AnomalyTypeIds.KISEL.equals(typeId) ? 0.1 : 1.0;
     }
 
     /** Cooldown tuner step: tenths of a second for Zharka / Iney, whole seconds otherwise. */
     public static double cooldownStep(ResourceLocation typeId, boolean sneaking) {
-        if (AnomalyTypeIds.isThermal(typeId)) return sneaking ? 1.0 : 0.1;
+        if (AnomalyTypeIds.isThermal(typeId) || AnomalyTypeIds.KISEL.equals(typeId)) return sneaking ? 1.0 : 0.1;
         return TunerKind.COOLDOWN.step(sneaking);
     }
 
@@ -58,6 +60,8 @@ public final class AnomalyDefaults {
         if (AnomalyTypeIds.KARUSEL.equals(typeId)) return ModCommonConfig.KARUSEL_DAMAGE.get().floatValue();
         if (AnomalyTypeIds.PODUSHKA.equals(typeId) || AnomalyTypeIds.LIFT.equals(typeId)) return 0.0f;
         if (AnomalyTypeIds.AMOEBA.equals(typeId)) return ModCommonConfig.AMOEBA_DAMAGE.get().floatValue();
+        if (AnomalyTypeIds.KISEL.equals(typeId)) return ModCommonConfig.KISEL_DAMAGE.get().floatValue();
+        if (AnomalyTypeIds.ACID_FOG.equals(typeId)) return ModCommonConfig.FOG_JET_DAMAGE.get().floatValue();
         return ModCommonConfig.ELECTRA_DAMAGE.get().floatValue();
     }
 
@@ -72,6 +76,8 @@ public final class AnomalyDefaults {
         if (AnomalyTypeIds.PODUSHKA.equals(typeId)) return ModCommonConfig.PODUSHKA_INTENSITY.get();
         if (AnomalyTypeIds.LIFT.equals(typeId)) return ModCommonConfig.LIFT_INTENSITY.get();
         if (AnomalyTypeIds.AMOEBA.equals(typeId)) return ModCommonConfig.AMOEBA_INTENSITY.get();
+        if (AnomalyTypeIds.KISEL.equals(typeId)) return ModCommonConfig.KISEL_INTENSITY.get();
+        if (AnomalyTypeIds.ACID_FOG.equals(typeId)) return ModCommonConfig.FOG_INTENSITY.get();
         return ModCommonConfig.ELECTRA_INTENSITY.get();
     }
 
@@ -94,8 +100,9 @@ public final class AnomalyDefaults {
     /** Translation key of what a tuner changes on this anomaly — the cooldown tuner means
      *  "damage interval" on the thermal ones. */
     public static String settingKey(ResourceLocation typeId, TunerKind kind) {
-        if (kind == TunerKind.COOLDOWN && AnomalyTypeIds.isThermal(typeId)) return "tuner.fl_zone_arts.damage_interval";
-        if (kind == TunerKind.SPEED && AnomalyTypeIds.LIFT.equals(typeId)) return "tuner.fl_zone_arts.hover_height";
+        if (kind == TunerKind.COOLDOWN && (AnomalyTypeIds.isThermal(typeId) || AnomalyTypeIds.KISEL.equals(typeId))) return "tuner.fl_zone_arts.damage_interval";
+        if (kind == TunerKind.COOLDOWN && AnomalyTypeIds.ACID_FOG.equals(typeId)) return "tuner.fl_zone_arts.jet_interval";
+        if (kind == TunerKind.SPEED && AnomalyTypeIds.LIFT.equals(typeId)) return "tuner.fl_zone_arts.push_out";
         if (kind == TunerKind.SPEED && AnomalyTypeIds.isGravity(typeId)) {
             return AnomalyTypeIds.PODUSHKA.equals(typeId) ? "tuner.fl_zone_arts.bounce_height" : "tuner.fl_zone_arts.force";
         }

@@ -38,6 +38,17 @@ public final class ModSounds {
     public static final RegistryObject<SoundEvent> VORONKA_IDLE = register("voronka_idle");
     public static final RegistryObject<SoundEvent> PODUSHKA_BOUNCE = register("podushka_bounce");
     public static final RegistryObject<SoundEvent> BODY_TEAR = register("anomaly_body_tear");
+    // 0.1.17–0.1.21: chemical anomalies, Gravi
+    public static final RegistryObject<SoundEvent> GRAVY_HIT = register("gravy_hit");
+    public static final RegistryObject<SoundEvent> CHEM_COMET_IDLE = register("chem_comet_idle");
+    public static final RegistryObject<SoundEvent> CHEM_COMET_BURST = register("chem_comet_burst");
+    public static final RegistryObject<SoundEvent> AMOEBA_GATHER = register("amoeba_gather");
+    public static final RegistryObject<SoundEvent> AMOEBA_POP = register("amoeba_pop");
+    public static final RegistryObject<SoundEvent> PUKH_PUFF = register("pukh_puff");
+    public static final RegistryObject<SoundEvent> KISEL_IDLE = register("kisel_idle");
+    public static final RegistryObject<SoundEvent> KISEL_HIT = register("kisel_hit");
+    public static final RegistryObject<SoundEvent> FOG_IDLE = register("fog_idle");
+    public static final RegistryObject<SoundEvent> FOG_JET = register("fog_jet");
 
     private static RegistryObject<SoundEvent> register(String name) {
         ResourceLocation id = new ResourceLocation(ZoneArtifacts.MODID, name);

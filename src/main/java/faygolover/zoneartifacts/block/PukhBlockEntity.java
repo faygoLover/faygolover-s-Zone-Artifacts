@@ -58,6 +58,22 @@ public class PukhBlockEntity extends BlockEntity {
     public final float[][] partX = new float[MAX_SHEETS][PART_COLUMNS];
     public final float[][] partZ = new float[MAX_SHEETS][PART_COLUMNS];
 
+    /** Client only: the Fluff blocks loaded, for tuner aiming at their strands. */
+    public static final java.util.Set<PukhBlockEntity> CLIENT_LOADED =
+            java.util.Collections.newSetFromMap(new java.util.WeakHashMap<>());
+
+    @Override
+    public void onLoad() {
+        super.onLoad();
+        if (level != null && level.isClientSide) CLIENT_LOADED.add(this);
+    }
+
+    @Override
+    public void setRemoved() {
+        super.setRemoved();
+        CLIENT_LOADED.remove(this);
+    }
+
     public PukhBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.PUKH.get(), pos, state);
         this.length = ModCommonConfig.PUKH_LENGTH.get();

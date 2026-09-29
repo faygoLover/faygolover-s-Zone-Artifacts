@@ -20,6 +20,10 @@ public final class AnomalyTypeIds {
     public static final ResourceLocation LIFT = new ResourceLocation(ZoneArtifacts.MODID, "lift");
     /** A jelly puddle that lashes out with pseudopods; its own engine ({@link AmoebaEngine}). */
     public static final ResourceLocation AMOEBA = new ResourceLocation(ZoneArtifacts.MODID, "amoeba");
+    /** Glowing, bubbling acid puddle ({@link KiselEngine}). */
+    public static final ResourceLocation KISEL = new ResourceLocation(ZoneArtifacts.MODID, "kisel");
+    /** Hovering acid haze with jets of vapour ({@link AcidFogEngine}). */
+    public static final ResourceLocation ACID_FOG = new ResourceLocation(ZoneArtifacts.MODID, "acid_fog");
 
     private AnomalyTypeIds() {
     }

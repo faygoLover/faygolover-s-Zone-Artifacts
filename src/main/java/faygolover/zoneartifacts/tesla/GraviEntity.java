@@ -98,17 +98,18 @@ public class GraviEntity extends TeslaEntity {
         Vec3 c = center();
         double size = Math.max(1.0, getSize());
 
-        // Pops on the surfaces around it: more with a bigger reach.
-        double perSecond = Math.min(Gravi.MAX_POPS_PER_SECOND, ModCommonConfig.GRAVI_POPS_PER_SECOND.get() * size * size);
+        // Pops on the surfaces around it (the size is only how far): as many as the effects tuner says.
+        double perSecond = Math.min(Gravi.MAX_POPS_PER_SECOND,
+                ModCommonConfig.GRAVI_POPS_PER_SECOND.get() * Math.max(1, getIntensity()) / 3.0);
         surfaceBudget += perSecond / 20.0;
         while (surfaceBudget >= 1.0) {
             surfaceBudget -= 1.0;
             surfacePop(level, c, size, now);
         }
-        // And right by itself, in the air too — more often while it sits in its prey.
+        // And right by itself, in the air too — only while it sits in its prey.
         double selfSeconds = ModCommonConfig.GRAVI_SELF_POP_SECONDS.get();
-        if (selfSeconds > 0.0) {
-            int interval = Math.max(2, (int) Math.round(selfSeconds * 20.0 / (getState() == State.CHASE ? 1.5 : 1.0)));
+        if (selfSeconds > 0.0 && getState() == State.CHASE && nearPrey(level)) {
+            int interval = Math.max(2, (int) Math.round(selfSeconds * 20.0));
             if (++selfPopTimer >= interval) {
                 selfPopTimer = 0;
                 Vec3 p = c.add(random.nextGaussian() * 0.35, random.nextGaussian() * 0.35, random.nextGaussian() * 0.35);
@@ -124,15 +125,30 @@ public class GraviEntity extends TeslaEntity {
         }
     }
 
+    /** Its prey is right here (it hangs inside it). */
+    private boolean nearPrey(ServerLevel level) {
+        for (Player player : level.players()) {
+            if (isChasing(player) && player.getBoundingBox().inflate(1.0).contains(center())) return true;
+        }
+        return false;
+    }
+
+    /** A pop on a real surface around it — never in mid-air: not from inside a block (it flies
+     *  through walls), not right at itself, and never inside a block. */
     private void surfacePop(ServerLevel level, Vec3 c, double size, long now) {
+        if (!level.getBlockState(BlockPos.containing(c)).getCollisionShape(level, BlockPos.containing(c)).isEmpty()) return;
         for (int attempt = 0; attempt < 3; attempt++) {
             Vec3 dir = new Vec3(random.nextGaussian(), random.nextGaussian(), random.nextGaussian());
             if (dir.lengthSqr() < 1.0E-6) continue;
             dir = dir.normalize();
             BlockHitResult hit = Razlom.clipBlocks(level, c, c.add(dir.scale(size)));
             if (hit.getType() == HitResult.Type.MISS) continue;
+            if (hit.getLocation().distanceToSqr(c) < 0.5 * 0.5) continue;
             Vec3 normal = Vec3.atLowerCornerOf(hit.getDirection().getNormal());
-            schedule(level, hit.getLocation().add(normal.scale(0.3)), normal, level.getBlockState(hit.getBlockPos()), now);
+            Vec3 at = hit.getLocation().add(normal.scale(0.3));
+            BlockPos atPos = BlockPos.containing(at);
+            if (!level.getBlockState(atPos).getCollisionShape(level, atPos).isEmpty()) continue;
+            schedule(level, at, normal, level.getBlockState(hit.getBlockPos()), now);
             return;
         }
     }

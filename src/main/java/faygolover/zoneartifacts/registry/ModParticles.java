@@ -33,6 +33,8 @@ public final class ModParticles {
     public static final RegistryObject<SimpleParticleType> PUKH_FLAKE = PARTICLES.register("pukh_flake", () -> new SimpleParticleType(false));
     /** Burning Fluff: a burning spore in its puffs. */
     public static final RegistryObject<SimpleParticleType> PUKH_SPORE = PARTICLES.register("pukh_spore", () -> new SimpleParticleType(false));
+    /** Kisel: a glowing bubble rising in it and bursting. */
+    public static final RegistryObject<SimpleParticleType> KISEL_BUBBLE = PARTICLES.register("kisel_bubble", () -> new SimpleParticleType(false));
     public static final RegistryObject<SimpleParticleType> CHEM_DROP = PARTICLES.register("chem_drop", () -> new SimpleParticleType(false));
 
     private ModParticles() {

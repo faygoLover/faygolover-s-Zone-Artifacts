@@ -27,6 +27,7 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
 import javax.annotation.Nullable;
@@ -43,10 +44,11 @@ public class PukhBlock extends BaseEntityBlock {
     public static final DirectionProperty FACING = BlockStateProperties.FACING;
 
     private static final VoxelShape CEILING = Block.box(0, 11, 0, 16, 16, 16);
-    private static final VoxelShape WALL_NORTH = Block.box(0, 5, 0, 16, 16, 3);   // support to the north
-    private static final VoxelShape WALL_SOUTH = Block.box(0, 5, 13, 16, 16, 16);
-    private static final VoxelShape WALL_WEST = Block.box(0, 5, 0, 3, 16, 16);
-    private static final VoxelShape WALL_EAST = Block.box(13, 5, 0, 16, 16, 16);
+    // The plate on the wall plus the ledge at its top the strands hang from.
+    private static final VoxelShape WALL_NORTH = Shapes.or(Block.box(0, 5, 0, 16, 16, 3), Block.box(0, 13, 0, 16, 16, 6)); // support to the north
+    private static final VoxelShape WALL_SOUTH = Shapes.or(Block.box(0, 5, 13, 16, 16, 16), Block.box(0, 13, 10, 16, 16, 16));
+    private static final VoxelShape WALL_WEST = Shapes.or(Block.box(0, 5, 0, 3, 16, 16), Block.box(0, 13, 0, 6, 16, 16));
+    private static final VoxelShape WALL_EAST = Shapes.or(Block.box(13, 5, 0, 16, 16, 16), Block.box(10, 13, 0, 16, 16, 16));
 
     public PukhBlock(Properties properties) {
         super(properties);

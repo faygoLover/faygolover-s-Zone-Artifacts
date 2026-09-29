@@ -3,6 +3,7 @@ package faygolover.zoneartifacts.client.pukh;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import faygolover.zoneartifacts.ZoneArtifacts;
+import faygolover.zoneartifacts.anomaly.Pukh;
 import faygolover.zoneartifacts.block.PukhBlockEntity;
 import faygolover.zoneartifacts.block.PukhLayout;
 import net.minecraft.client.renderer.LevelRenderer;
@@ -60,7 +61,7 @@ public class PukhRenderer implements BlockEntityRenderer<PukhBlockEntity> {
         for (int r = 0; r <= ROWS; r++) {
             double d = length * r / ROWS;
             light[r] = LevelRenderer.getLightColor(level, BlockPos.containing(origin.getX() + 0.5,
-                    origin.getY() + (wall ? 1.0 : 0.7) - d, origin.getZ() + 0.5));
+                    origin.getY() + (wall ? Pukh.WALL_TOP : Pukh.CEILING_TOP) - d, origin.getZ() + 0.5));
         }
         Vec3 away = wall ? new Vec3(facing.getStepX(), 0, facing.getStepZ()) : Vec3.ZERO;
 

@@ -65,6 +65,12 @@ public class ModItems {
     public static final RegistryObject<Item> AMOEBA_PLACER = ITEMS.register("amoeba_placer",
             () -> new AnomalyPlacerItem(AnomalyTypeIds.AMOEBA, new Item.Properties().stacksTo(1)));
 
+    public static final RegistryObject<Item> KISEL_PLACER = ITEMS.register("kisel_placer",
+            () -> new AnomalyPlacerItem(AnomalyTypeIds.KISEL, new Item.Properties().stacksTo(1)));
+
+    public static final RegistryObject<Item> ACID_FOG_PLACER = ITEMS.register("acid_fog_placer",
+            () -> new AnomalyPlacerItem(AnomalyTypeIds.ACID_FOG, new Item.Properties().stacksTo(1)));
+
     public static final RegistryObject<Item> PUKH = ITEMS.register("pukh",
             () -> new PukhBlockItem(ModBlocks.PUKH.get(), new Item.Properties()));
 

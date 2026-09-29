@@ -87,14 +87,25 @@ public final class ModCommonConfig {
     public static final ForgeConfigSpec.IntValue AMOEBA_COOLDOWN_SECONDS;
     public static final ForgeConfigSpec.DoubleValue AMOEBA_DAMAGE;
     public static final ForgeConfigSpec.IntValue AMOEBA_INTENSITY;
-    public static final ForgeConfigSpec.DoubleValue AMOEBA_ATTACK_SECONDS;
-    public static final ForgeConfigSpec.IntValue AMOEBA_ARMOR_CORROSION;
+    public static final ForgeConfigSpec.DoubleValue AMOEBA_INFLATE_SECONDS;
+    public static final ForgeConfigSpec.DoubleValue AMOEBA_CONTACT_DAMAGE;
+    public static final ForgeConfigSpec.DoubleValue AMOEBA_CLOUD_SECONDS;
+    public static final ForgeConfigSpec.DoubleValue AMOEBA_CLOUD_DAMAGE;
 
     public static final ForgeConfigSpec.DoubleValue PUKH_LENGTH;
     public static final ForgeConfigSpec.DoubleValue PUKH_DAMAGE;
     public static final ForgeConfigSpec.DoubleValue PUKH_COOLDOWN_SECONDS;
     public static final ForgeConfigSpec.IntValue PUKH_INTENSITY;
     public static final ForgeConfigSpec.DoubleValue PUKH_RANGE;
+
+    public static final ForgeConfigSpec.DoubleValue KISEL_INTERVAL_SECONDS;
+    public static final ForgeConfigSpec.DoubleValue KISEL_DAMAGE;
+    public static final ForgeConfigSpec.IntValue KISEL_INTENSITY;
+
+    public static final ForgeConfigSpec.DoubleValue FOG_JET_SECONDS;
+    public static final ForgeConfigSpec.DoubleValue FOG_JET_DAMAGE;
+    public static final ForgeConfigSpec.DoubleValue FOG_DAMAGE;
+    public static final ForgeConfigSpec.IntValue FOG_INTENSITY;
 
     public static final ForgeConfigSpec.IntValue LIFT_INTENSITY;
     public static final ForgeConfigSpec.DoubleValue LIFT_HOVER_HEIGHT;
@@ -271,9 +282,10 @@ public final class ModCommonConfig {
         GRAVI_CHASE_RADIUS = b.defineInRange("chaseRadius", 12.0, 0.0, 128.0);
         GRAVI_LEASH = b.comment("How far from its nearest route point it may go while chasing, blocks.")
                 .defineInRange("leash", 20.0, 1.0, 256.0);
-        GRAVI_POPS_PER_SECOND = b.comment("Pops on the surfaces around it per second at size 1 (more with a bigger size).")
-                .defineInRange("popsPerSecond", 1.0, 0.0, 20.0);
-        GRAVI_SELF_POP_SECONDS = b.comment("A pop right by itself (in the air too) this often, seconds. 0 = never.")
+        GRAVI_POPS_PER_SECOND = b.comment("Pops on the surfaces around it per second at effects 3 (x effects / 3). The size is",
+                        "only how far from it they may appear.")
+                .defineInRange("popsPerSecond", 2.0, 0.0, 20.0);
+        GRAVI_SELF_POP_SECONDS = b.comment("While it hangs inside its prey: a pop right by itself (in the air too) this often, seconds. 0 = never.")
                 .defineInRange("selfPopSeconds", 1.5, 0.0, 60.0);
         GRAVI_HIT_INTERVAL_TICKS = b.comment("Pops hurt one creature at most this often, ticks.")
                 .defineInRange("hitIntervalTicks", 10, 1, 200);
@@ -362,25 +374,28 @@ public final class ModCommonConfig {
                 .defineInRange("fallDamageMultiplier", 0.5, 0.0, 1.0);
         b.pop();
 
-        b.comment("Amoeba: a jelly puddle. When someone steps into its zone it gathers into a dome and for",
-                "attackSeconds lashes out with pseudopods (most aimed where a creature stood, the rest at random;",
-                "reach 1.5 + 1.5 x size). A lash burns with chemical damage and eats into armour. Then it slumps",
-                "back, paler, and rests for its cooldown.").push("amoeba");
-        AMOEBA_COOLDOWN_SECONDS = b.defineInRange("cooldownSeconds", 8, 1, 3600);
-        AMOEBA_DAMAGE = b.comment("Damage of one lash, half-hearts.")
-                .defineInRange("damage", 4.0, 0.0, 1000.0);
-        AMOEBA_INTENSITY = b.comment("Also how often it lashes.")
-                .defineInRange("intensity", 3, 1, 50);
-        AMOEBA_ATTACK_SECONDS = b.defineInRange("attackSeconds", 3.0, 0.5, 60.0);
-        AMOEBA_ARMOR_CORROSION = b.comment("Durability every worn armour piece loses per lash.")
-                .defineInRange("armorCorrosion", 3, 0, 1000);
+        b.comment("Amoeba: a jelly puddle. When someone steps into its zone it gathers into a dome, rounds into a ball,",
+                "lifts off, floats up swelling for inflateSeconds and bursts into a chemical cloud (1.5 times a Chemical",
+                "Comet's of the same size). Touching the ball burns. Then a pale puddle seeps back over the cooldown.").push("amoeba");
+        AMOEBA_COOLDOWN_SECONDS = b.defineInRange("cooldownSeconds", 25, 1, 3600);
+        AMOEBA_DAMAGE = b.comment("Damage of the burst at its middle (30 % at the edge), half-hearts.")
+                .defineInRange("damage", 6.0, 0.0, 1000.0);
+        AMOEBA_INTENSITY = b.defineInRange("intensity", 3, 1, 50);
+        AMOEBA_INFLATE_SECONDS = b.comment("From the trigger to the burst, seconds (at least 3.5).")
+                .defineInRange("inflateSeconds", 6.0, 3.5, 60.0);
+        AMOEBA_CONTACT_DAMAGE = b.comment("Damage every half second while touching the swelling ball, half-hearts.")
+                .defineInRange("contactDamage", 2.0, 0.0, 1000.0);
+        AMOEBA_CLOUD_SECONDS = b.comment("How long its cloud lingers, seconds.")
+                .defineInRange("cloudSeconds", 10.0, 0.5, 120.0);
+        AMOEBA_CLOUD_DAMAGE = b.comment("Damage every half second to whoever is in its cloud, half-hearts.")
+                .defineInRange("cloudDamage", 1.5, 0.0, 1000.0);
         b.pop();
 
         b.comment("Burning Fluff (a block): standard values of a newly placed one. Standing in its strands burns",
                 "every second; anything coming near fast (running, jumping, falling, thrown) gets a puff of",
                 "burning spores shot at it, reaching `range` blocks.").push("pukh");
         PUKH_LENGTH = b.comment("How long the strands hang, blocks (the size tuner).")
-                .defineInRange("length", 2.0, 0.5, 6.0);
+                .defineInRange("length", 2.0, 0.5, 4.0);
         PUKH_DAMAGE = b.comment("Damage of the strands (per second) and of a puff, half-hearts.")
                 .defineInRange("damage", 2.0, 0.0, 1000.0);
         PUKH_COOLDOWN_SECONDS = b.comment("Pause between puffs, seconds.")
@@ -391,11 +406,31 @@ public final class ModCommonConfig {
                 .defineInRange("range", 5.0, 0.0, 16.0);
         b.pop();
 
+        b.comment("Kisel: a glowing, bubbling acid puddle. Whatever gets into it makes it seethe, hiss and glow brighter:",
+                "every interval items lose one from their stack, creatures are burnt and their boots and leggings",
+                "corroded, projectiles melt away.").push("kisel");
+        KISEL_INTERVAL_SECONDS = b.comment("How often it eats into what's in it, seconds (the cooldown tuner).")
+                .defineInRange("intervalSeconds", 0.5, 0.1, 60.0);
+        KISEL_DAMAGE = b.defineInRange("damage", 1.5, 0.0, 1000.0);
+        KISEL_INTENSITY = b.defineInRange("intensity", 3, 1, 50);
+        b.pop();
+
+        b.comment("Acid Fog: a dense greenish haze over the ground, hard to see by day. Now and then a jet of vapour",
+                "and spray bursts straight up out of it, burning and tossing whoever it catches.").push("acidFog");
+        FOG_JET_SECONDS = b.comment("About how often a jet goes off, seconds (the cooldown tuner; give or take a third).")
+                .defineInRange("jetSeconds", 4.0, 1.0, 3600.0);
+        FOG_JET_DAMAGE = b.comment("Damage of a jet, half-hearts (the damage tuner).")
+                .defineInRange("damage", 3.0, 0.0, 1000.0);
+        FOG_DAMAGE = b.comment("Damage every second just for being in the fog, half-hearts. 0 = none.")
+                .defineInRange("fogDamage", 0.5, 0.0, 1000.0);
+        FOG_INTENSITY = b.defineInRange("intensity", 3, 1, 50);
+        b.pop();
+
         b.comment("Lift: nearly invisible. Switches gravity off: everything in it floats up to hoverHeight above the",
-                "ground (the speed tuner scales it), moves as if on ice in thick syrup, and after pushOutSeconds",
-                "is eased out to the edge. Projectiles get stuck in it. Harmless; no fall damage right after.").push("lift");
+                "ground, moves as if on ice in thick syrup, and after pushOutSeconds is eased out to the edge (the",
+                "speed tuner sets how hard; 0 = never). Projectiles get stuck in it. Stacked Lifts act as one. Harmless.").push("lift");
         LIFT_INTENSITY = b.defineInRange("intensity", 3, 1, 50);
-        LIFT_HOVER_HEIGHT = b.comment("Hover height above the ground at x1.0, blocks.")
+        LIFT_HOVER_HEIGHT = b.comment("Hover height above the ground, blocks.")
                 .defineInRange("hoverHeight", 1.5, 0.2, 32.0);
         LIFT_PUSH_OUT_SECONDS = b.comment("After this long inside, anything is eased out to the edge, seconds.")
                 .defineInRange("pushOutSeconds", 10.0, 0.5, 600.0);

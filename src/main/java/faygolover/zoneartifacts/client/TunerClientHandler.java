@@ -19,7 +19,10 @@ import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
+import faygolover.zoneartifacts.anomaly.Pukh;
 import faygolover.zoneartifacts.block.PukhBlock;
+import faygolover.zoneartifacts.block.PukhBlockEntity;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.core.BlockPos;
 
 import javax.annotation.Nullable;
@@ -138,12 +141,31 @@ public final class TunerClientHandler {
             bestDistSq = point.get().distanceSq();
         }
 
-        // A block anomaly (Burning Fluff) is itself the block in the way.
+        // Burning Fluff: its base or its hanging strands (which are no block, so the ray would go
+        // straight through them to whatever is behind).
+        BlockPos fluff = null;
+        double fluffDistSq = Double.MAX_VALUE;
         HitResult hit = Minecraft.getInstance().hitResult;
         if (hit instanceof BlockHitResult blockHit && blockHit.getType() == HitResult.Type.BLOCK
-                && player.level().getBlockState(blockHit.getBlockPos()).getBlock() instanceof PukhBlock
-                && (best == null || (blockDistSq != null && blockDistSq <= bestDistSq))) {
-            return new Target(null, null, blockHit.getBlockPos());
+                && player.level().getBlockState(blockHit.getBlockPos()).getBlock() instanceof PukhBlock && blockDistSq != null) {
+            fluff = blockHit.getBlockPos();
+            fluffDistSq = blockDistSq;
+        }
+        for (PukhBlockEntity pukh : List.copyOf(PukhBlockEntity.CLIENT_LOADED)) {
+            if (pukh.isRemoved() || pukh.getLevel() != player.level()) continue;
+            BlockPos pos = pukh.getBlockPos();
+            if (pos.distToCenterSqr(eye) > 24 * 24) continue;
+            AABB box = Pukh.hangingBox(pos, pukh.facing(), pukh.effectiveLength()).minmax(new AABB(pos));
+            Optional<Vec3> at = box.clip(eye, end);
+            if (at.isEmpty()) continue;
+            double d = at.get().distanceToSqr(eye);
+            if (d < fluffDistSq) {
+                fluff = pos;
+                fluffDistSq = d;
+            }
+        }
+        if (fluff != null && fluffDistSq <= bestDistSq && (blockDistSq == null || fluffDistSq <= blockDistSq + 1.0E-3)) {
+            return new Target(null, null, fluff);
         }
         if (best == null || (blockDistSq != null && bestDistSq > blockDistSq)) return null;
         return best;

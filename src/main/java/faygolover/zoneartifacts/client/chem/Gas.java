@@ -57,6 +57,10 @@ public final class Gas {
         double settleY = Double.NaN;
         double drag = 0.94;
         float seed;
+        /** Never darker than this (a faint glow of its own). */
+        float minLight;
+        /** Fades in daylight (hard to see by day). */
+        boolean dayFade;
 
         public Puff(Vec3 pos, Vec3 vel, double size0, double size1, long born, int life, float alpha, int inner, int outer, float seed) {
             this.pos = pos;
@@ -81,10 +85,29 @@ public final class Gas {
             this.drag = drag;
             return this;
         }
+
+        public Puff glow(float minLight) {
+            this.minLight = minLight;
+            return this;
+        }
+
+        public Puff dayFade() {
+            this.dayFade = true;
+            return this;
+        }
     }
 
-    /** A puff drawn for one frame only: world position, radius, peak alpha, colours. */
-    public record FramePuff(Vec3 pos, double radius, float alpha, int inner, int outer, float seed) {
+    /** A puff drawn for one frame only: world position, radius, peak alpha, colours. {@code liquid}:
+     *  not vapour but a quivering drop of liquid — smooth-edged, glossy, faintly glowing. */
+    public record FramePuff(Vec3 pos, double radius, float alpha, int inner, int outer, float seed, boolean liquid,
+                            float minLight, boolean dayFade) {
+        public FramePuff(Vec3 pos, double radius, float alpha, int inner, int outer, float seed) {
+            this(pos, radius, alpha, inner, outer, seed, false, 0.0f, false);
+        }
+
+        public FramePuff(Vec3 pos, double radius, float alpha, int inner, int outer, float seed, boolean liquid) {
+            this(pos, radius, alpha, inner, outer, seed, liquid, 0.0f, false);
+        }
     }
 
     private static final List<Puff> PUFFS = new ArrayList<>();
@@ -147,7 +170,7 @@ public final class Gas {
             float out = age < 0.65f ? 1.0f : (1.0f - age) / 0.35f;
             double grow = 1.0 - (1.0 - age) * (1.0 - age);
             frame.add(new FramePuff(p.prev.lerp(p.pos, partial), Mth.lerp(grow, p.size0, p.size1), p.alpha * in * out,
-                    p.inner, p.outer, p.seed));
+                    p.inner, p.outer, p.seed, false, p.minLight, p.dayFade));
         }
         if (frame.isEmpty()) return;
 
@@ -169,7 +192,19 @@ public final class Gas {
         float skyDarken = level.getSkyDarken(partial);
         for (FramePuff f : frame) {
             if (f.alpha() <= 0.004f || f.radius() < 0.01) continue;
-            puff(buffer, m, f, cam, light(level, f.pos(), skyDarken), time);
+            if (f.liquid()) {
+                drop(buffer, m, f, cam, Math.max(0.6f, light(level, f.pos(), skyDarken)), time);
+                continue;
+            }
+            FramePuff g = f;
+            if (f.dayFade()) {
+                // Hard to see by day: fades the more daylight falls on it.
+                int packed = LevelRenderer.getLightColor(level, BlockPos.containing(f.pos()));
+                float day = LightTexture.sky(packed) / 15.0f * skyDarken;
+                g = new FramePuff(f.pos(), f.radius(), f.alpha() * (1.0f - 0.7f * day), f.inner(), f.outer(), f.seed(), false, f.minLight(), true);
+                if (g.alpha() <= 0.004f) continue;
+            }
+            puff(buffer, m, g, cam, Math.max(f.minLight(), light(level, f.pos(), skyDarken)), time);
         }
         BufferUploader.drawWithShader(buffer.end());
         RenderSystem.depthMask(true);
@@ -231,6 +266,65 @@ public final class Gas {
             put(buffer, m, o0, out, 0);
             put(buffer, m, o1, out, 0);
             put(buffer, m, m1, mid, a1);
+        }
+    }
+
+    /**
+     * A drop of liquid facing the camera: smooth, gently quivering rim, bright in the middle and
+     * darker to the edge (a rounded, glossy look), a pale highlight up and to one side.
+     */
+    private static void drop(BufferBuilder buffer, Matrix4f m, FramePuff f, Vec3 cam, float light, float time) {
+        Vec3 c = f.pos();
+        Vec3 toCam = cam.subtract(c);
+        if (toCam.lengthSqr() < 1.0E-6) return;
+        toCam = toCam.normalize();
+        Vec3 up = Math.abs(toCam.y) < 0.95 ? new Vec3(0, 1, 0) : new Vec3(1, 0, 0);
+        Vec3 right = toCam.cross(up).normalize();
+        Vec3 upOnPlane = right.cross(toCam).normalize();
+        int a = (int) (255 * Mth.clamp(f.alpha(), 0.0f, 1.0f));
+        int core = shade(f.inner(), light);
+        int rim = shade(f.outer(), light * 0.8f);
+        double r = f.radius();
+        Vec3 front = c.add(toCam.scale(r * 0.02));
+        for (int i = 0; i < SEGMENTS; i++) {
+            double t0 = Math.PI * 2.0 * i / SEGMENTS;
+            double t1 = Math.PI * 2.0 * (i + 1) / SEGMENTS;
+            double w0 = 1.0 + 0.05 * Math.sin(t0 * 3.0 + time * 0.2 + f.seed()) + 0.03 * Math.sin(t0 * 5.0 - time * 0.27);
+            double w1 = 1.0 + 0.05 * Math.sin(t1 * 3.0 + time * 0.2 + f.seed()) + 0.03 * Math.sin(t1 * 5.0 - time * 0.27);
+            Vec3 d0 = right.scale(Math.cos(t0)).add(upOnPlane.scale(Math.sin(t0)));
+            Vec3 d1 = right.scale(Math.cos(t1)).add(upOnPlane.scale(Math.sin(t1)));
+            Vec3 m0 = front.add(d0.scale(r * 0.6 * w0));
+            Vec3 m1 = front.add(d1.scale(r * 0.6 * w1));
+            Vec3 o0 = front.add(d0.scale(r * w0));
+            Vec3 o1 = front.add(d1.scale(r * w1));
+            Vec3 e0 = front.add(d0.scale(r * w0 * 1.1));
+            Vec3 e1 = front.add(d1.scale(r * w1 * 1.1));
+            put(buffer, m, front, core, a);
+            put(buffer, m, m0, core, a);
+            put(buffer, m, m1, core, a);
+            put(buffer, m, m1, core, a);
+            put(buffer, m, m0, core, a);
+            put(buffer, m, o0, rim, a);
+            put(buffer, m, o1, rim, a);
+            put(buffer, m, m1, core, a);
+            put(buffer, m, o0, rim, a);
+            put(buffer, m, e0, rim, 0);
+            put(buffer, m, e1, rim, 0);
+            put(buffer, m, o1, rim, a);
+        }
+        // Gloss.
+        Vec3 hc = front.add(toCam.scale(r * 0.01)).add(right.scale(-r * 0.32)).add(upOnPlane.scale(r * 0.34));
+        double hr = r * 0.2;
+        int hi = shade(0xF2FFD8, Math.min(1.0f, light + 0.2f));
+        for (int i = 0; i < 10; i++) {
+            double t0 = Math.PI * 2.0 * i / 10;
+            double t1 = Math.PI * 2.0 * (i + 1) / 10;
+            Vec3 p0 = hc.add(right.scale(Math.cos(t0) * hr * 1.3)).add(upOnPlane.scale(Math.sin(t0) * hr));
+            Vec3 p1 = hc.add(right.scale(Math.cos(t1) * hr * 1.3)).add(upOnPlane.scale(Math.sin(t1) * hr));
+            put(buffer, m, hc, hi, (int) (a * 0.7f));
+            put(buffer, m, p0, hi, 0);
+            put(buffer, m, p1, hi, 0);
+            put(buffer, m, p1, hi, 0);
         }
     }
 

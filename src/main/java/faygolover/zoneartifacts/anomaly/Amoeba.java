@@ -2,61 +2,71 @@ package faygolover.zoneartifacts.anomaly;
 
 import faygolover.zoneartifacts.ZoneArtifacts;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.util.Mth;
 
 /**
- * The Amoeba: a puddle of translucent jelly on the ground. Someone steps into its zone — it
- * gathers into a quivering dome ({@link #GATHER_TICKS}) and for {@code amoeba.attackSeconds} lashes
- * out with pseudopods: most aimed at where a creature stood when the lash began (you can dodge),
- * the rest whipping about at random. A lash that catches someone burns with chemical damage and
- * eats into their armour. Then it flows back into a paler puddle and rests; after the cooldown
- * its colour comes back. Server logic in {@link AmoebaEngine}, the look is the client's.
+ * The Amoeba: a puddle of translucent jelly on the ground. Someone steps into its zone — it draws
+ * together into a dome ({@link #GATHER_TICKS}), rounds into a ball and lifts off the ground
+ * ({@link #LIFT_TICKS}), floats higher swelling up for the rest of {@code amoeba.inflateSeconds},
+ * and bursts like the Chemical Comet — only its cloud is bigger and lingers longer. Touching the
+ * swelling ball burns. Afterwards a pale puddle seeps back and regains its colour over the cooldown.
+ * Server logic in {@link AmoebaEngine}; the ball's shape here is shared with the client.
  */
 public final class Amoeba {
 
     public static final ResourceLocation DAMAGE_TYPE = new ResourceLocation(ZoneArtifacts.MODID, "anomaly_chemical");
     public static final ResourceLocation GATHER_SOUND = id("amoeba_gather");
-    public static final ResourceLocation LASH_SOUND = id("amoeba_lash");
-    public static final ResourceLocation SETTLE_SOUND = id("amoeba_settle");
+    public static final ResourceLocation POP_SOUND = id("amoeba_pop");
+    /** The burst in amoeba_pop comes this far into the sound. */
+    public static final int POP_SOUND_LEAD = 26;
 
-    public static final int GATHER_TICKS = 10;
-    public static final int SETTLE_TICKS = 20;
-    /** A lash shoots out over this many ticks (and hits then), holds, pulls back. */
-    public static final int LASH_EXTEND = 5;
-    public static final int LASH_HOLD = 2;
-    public static final int LASH_RETRACT = 6;
-    public static final int LASH_TICKS = LASH_EXTEND + LASH_HOLD + LASH_RETRACT;
-    /** Share of lashes aimed at someone (when anyone is in reach). */
-    public static final double AIMED_SHARE = 0.65;
-    /** How thick a lash is for hitting, blocks. */
-    public static final double LASH_HIT_RADIUS = 0.45;
+    public static final int GATHER_TICKS = 30;
+    public static final int LIFT_TICKS = 30;
+    public static final int CONTACT_INTERVAL = 10;
+    /** Its cloud is this much bigger than a Chemical Comet's of the same size. */
+    public static final double CLOUD_SCALE = 1.5;
 
     private Amoeba() {
     }
 
-    /** Dome radius at full gather. */
+    /** Ball radius at the start of the swelling. */
     public static double domeRadius(double size) {
         return 0.3 + 0.4 * size;
     }
 
-    /** How far the pseudopods reach from the dome. */
-    public static double reach(double size) {
-        return 1.5 + 1.5 * size;
+    private static float smooth(float t) {
+        t = Mth.clamp(t, 0.0f, 1.0f);
+        return t * t * (3.0f - 2.0f * t);
     }
 
-    /** Where a lash to {@code tip} starts on the dome of radius {@code dome} over {@code base}. */
-    public static Vec3 lashOrigin(Vec3 base, double dome, Vec3 tip) {
-        Vec3 flat = new Vec3(tip.x - base.x, 0.0, tip.z - base.z);
-        Vec3 dir = flat.lengthSqr() < 1.0E-6 ? Vec3.ZERO : flat.normalize();
-        return base.add(dir.scale(dome * 0.45)).add(0.0, dome * 0.8, 0.0);
+    /** 0 = puddle, 1 = dome. */
+    public static float gather(float t) {
+        return smooth(t / GATHER_TICKS);
     }
 
-    /** Point {@code s} (0..1) of a lash: a whip arching over from the dome to the tip. */
-    public static Vec3 lashPoint(Vec3 origin, Vec3 tip, double s) {
-        double len = origin.distanceTo(tip);
-        Vec3 control = origin.lerp(tip, 0.4).add(0.0, 0.35 + 0.25 * len, 0.0);
-        double u = 1.0 - s;
-        return origin.scale(u * u).add(control.scale(2.0 * u * s)).add(tip.scale(s * s));
+    /** 0 = dome on the ground, 1 = a ball lifted off it. */
+    public static float round(float t) {
+        return smooth((t - GATHER_TICKS) / LIFT_TICKS);
+    }
+
+    /** 0..1 through the swelling. */
+    public static float swell(float t, int inflateTicks) {
+        int start = GATHER_TICKS + LIFT_TICKS;
+        return Mth.clamp((t - start) / Math.max(1.0f, inflateTicks - start), 0.0f, 1.0f);
+    }
+
+    public static double radius(double size, float t, int inflateTicks) {
+        return domeRadius(size) * (1.0 + 0.7 * swell(t, inflateTicks));
+    }
+
+    /** How far the bottom of the ball is off the ground. */
+    public static double lift(float t, int inflateTicks) {
+        return 1.0 * round(t) + 0.8 * swell(t, inflateTicks);
+    }
+
+    /** Height of the ball's middle above the ground (a dome's "middle" is at the ground). */
+    public static double centerHeight(double size, float t, int inflateTicks) {
+        return radius(size, t, inflateTicks) * round(t) + lift(t, inflateTicks);
     }
 
     private static ResourceLocation id(String path) {

@@ -36,6 +36,8 @@ public class ModCreativeTabs {
                         output.accept(ModItems.GRAVI_PLACER.get());
                         output.accept(ModItems.LIFT_PLACER.get());
                         output.accept(ModItems.AMOEBA_PLACER.get());
+                        output.accept(ModItems.KISEL_PLACER.get());
+                        output.accept(ModItems.ACID_FOG_PLACER.get());
                         output.accept(ModItems.PUKH.get());
                         output.accept(ModItems.PUKH_FLESH.get());
                         output.accept(ModItems.SIZE_TUNER.get());

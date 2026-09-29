@@ -45,6 +45,10 @@ public class AnomalyEngine {
                 ThermalEngine.tick(serverLevel, instance);
             } else if (AnomalyTypeIds.isRazlom(instance.typeId())) {
                 RazlomEngine.tick(serverLevel, instance);
+            } else if (AnomalyTypeIds.KISEL.equals(instance.typeId())) {
+                KiselEngine.tick(serverLevel, instance);
+            } else if (AnomalyTypeIds.ACID_FOG.equals(instance.typeId())) {
+                AcidFogEngine.tick(serverLevel, instance);
             } else if (AnomalyTypeIds.AMOEBA.equals(instance.typeId())) {
                 AmoebaEngine.tick(serverLevel, instance);
             } else if (AnomalyTypeIds.LIFT.equals(instance.typeId())) {

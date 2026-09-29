@@ -29,11 +29,14 @@ public final class Pukh {
     public static final int SPORE_LIFE = 45;
     /** Thickness of the curtain on a wall. */
     public static final double WALL_DEPTH = 0.3;
-    /** Where the strands start under a ceiling base (its underside). */
-    public static final double CEILING_TOP = 0.7;
+    /** Where the strands start under a ceiling base (just inside its underside). */
+    public static final double CEILING_TOP = 0.825;
+    /** On a wall: just under the ledge at the top of the base. */
+    public static final double WALL_TOP = 0.84;
 
     public static final double MIN_LENGTH = 0.5;
-    public static final double MAX_LENGTH = 6.0;
+    /** The lace texture is this long: longer strands would only repeat it. */
+    public static final double MAX_LENGTH = 4.0;
     public static final double MAX_RANGE = 16.0;
 
     private Pukh() {
@@ -41,7 +44,7 @@ public final class Pukh {
 
     /** Top of the strands. {@code facing}: DOWN = under a ceiling, horizontal = away from its wall. */
     public static double strandTop(BlockPos pos, Direction facing) {
-        return facing == Direction.DOWN ? pos.getY() + CEILING_TOP : pos.getY() + 1.0;
+        return facing == Direction.DOWN || facing == Direction.UP ? pos.getY() + CEILING_TOP : pos.getY() + WALL_TOP;
     }
 
     /** How far the strands really hang: {@code length}, cut short by the first solid block below. */

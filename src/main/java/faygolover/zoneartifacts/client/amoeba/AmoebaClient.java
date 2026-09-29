@@ -45,9 +45,10 @@ import java.util.Set;
 
 /**
  * The Amoeba's look: a translucent jelly (plain alpha blending, lit by the world) — a flat,
- * slowly rippling puddle at rest; when it wakes it draws together into a quivering, pulsing dome,
- * whips pseudopods out of it (tapering, writhing, each leaving a burn where it strikes the ground),
- * then slumps back into a puddle, paler. After the cooldown its colour seeps back.
+ * slowly rippling puddle at rest; when it wakes it draws together into a quivering dome, rounds into
+ * a ball, lifts off and floats up swelling, wobbling harder and harder, dripping acid — and bursts
+ * (the cloud is drawn like the Chemical Comet's). A pale puddle seeps back and slowly regains its
+ * colour over the cooldown.
  */
 @Mod.EventBusSubscriber(modid = ZoneArtifacts.MODID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public final class AmoebaClient {
@@ -63,16 +64,13 @@ public final class AmoebaClient {
     private static final int GEL_PINK = 0xC8938C;
     private static final int GEL_PALE = 0x9A9C88;
 
-    private record Lash(Vec3 origin, Vec3 tip, long start, float seed) {
-    }
-
     private static final class State {
         SyncAnomaliesPacket.Entry entry;
         long gatherTick = -1;
+        long popTick = -1_000_000L;
         boolean resting;
         long readySince = -1_000_000L;
         long restSince = -1_000_000L;
-        final List<Lash> lashes = new ArrayList<>();
         Double groundY;
         int nextScan;
     }
@@ -82,32 +80,25 @@ public final class AmoebaClient {
     private AmoebaClient() {
     }
 
-    private static int attackTicks() {
+    private static int inflateTicks() {
         try {
-            return (int) Math.round(ModCommonConfig.AMOEBA_ATTACK_SECONDS.get() * 20.0);
+            return Math.max(Amoeba.GATHER_TICKS + Amoeba.LIFT_TICKS + 10, (int) Math.round(ModCommonConfig.AMOEBA_INFLATE_SECONDS.get() * 20.0));
         } catch (IllegalStateException notLoaded) {
-            return 60;
+            return 120;
         }
     }
 
-    public static void onEvent(BlockPos pos, byte event, Vec3 a, Vec3 b) {
+    public static void onEvent(BlockPos pos, byte event) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) return;
         State state = STATES.get(pos);
         if (state == null) return;
         long now = mc.level.getGameTime();
-        switch (event) {
-            case AmoebaEventPacket.GATHER -> {
-                state.gatherTick = now;
-                state.lashes.clear();
-            }
-            case AmoebaEventPacket.LASH -> state.lashes.add(new Lash(a, b, now, RANDOM.nextFloat() * 10.0f));
-            case AmoebaEventPacket.SETTLE -> {
-                state.gatherTick = -1;
-                state.lashes.clear();
-            }
-            default -> {
-            }
+        if (event == AmoebaEventPacket.GATHER) {
+            state.gatherTick = now;
+        } else if (event == AmoebaEventPacket.POP) {
+            state.gatherTick = -1;
+            state.popTick = now;
         }
     }
 
@@ -140,8 +131,8 @@ public final class AmoebaClient {
                 state.readySince = fresh ? now - 1_000_000L : now;
                 state.resting = false;
             }
-            if (entry.active() && state.gatherTick < 0) state.gatherTick = now - Amoeba.GATHER_TICKS; // came in mid-attack
-            if (!entry.active() && state.gatherTick >= 0 && now - state.gatherTick > Amoeba.GATHER_TICKS + attackTicks() + Amoeba.SETTLE_TICKS + 10) {
+            if (entry.active() && state.gatherTick < 0) state.gatherTick = now - Amoeba.GATHER_TICKS; // came in mid-way
+            if (!entry.active() && state.gatherTick >= 0 && now - state.gatherTick > inflateTicks() + 10) {
                 state.gatherTick = -1;
             }
             if (--state.nextScan <= 0) {
@@ -150,38 +141,18 @@ public final class AmoebaClient {
                 state.groundY = Razlom.groundY(level, c.x, c.z, zone.maxY, zone.minY - 3.0);
                 state.nextScan = 60 + RANDOM.nextInt(20);
             }
-            tickLashes(level, state, now);
-            if (state.gatherTick >= 0 && RANDOM.nextInt(12) == 0) {
-                // Acid dripping off the dome.
+            if (state.gatherTick >= 0 && RANDOM.nextInt(8) == 0) {
+                // Acid dripping off the ball.
+                float t = now - state.gatherTick;
                 Vec3 base = base(state);
-                double dome = Amoeba.domeRadius(entry.size());
+                double r = Amoeba.radius(entry.size(), t, inflateTicks());
+                double h = Amoeba.centerHeight(entry.size(), t, inflateTicks());
                 double a = RANDOM.nextDouble() * Math.PI * 2.0;
-                level.addParticle(ModParticles.CHEM_DROP.get(), base.x + Math.cos(a) * dome * 0.7, base.y + dome * 0.5,
-                        base.z + Math.sin(a) * dome * 0.7, Math.cos(a) * 0.03, 0.05, Math.sin(a) * 0.03);
+                level.addParticle(ModParticles.CHEM_DROP.get(), base.x + Math.cos(a) * r * 0.5, base.y + h - r * 0.8,
+                        base.z + Math.sin(a) * r * 0.5, 0.0, -0.02, 0.0);
             }
         }
         STATES.keySet().removeIf(pos -> !seen.contains(pos));
-    }
-
-    private static void tickLashes(ClientLevel level, State state, long now) {
-        for (Iterator<Lash> it = state.lashes.iterator(); it.hasNext(); ) {
-            Lash lash = it.next();
-            long age = now - lash.start();
-            if (age > Amoeba.LASH_TICKS) {
-                it.remove();
-                continue;
-            }
-            if (age == Amoeba.LASH_EXTEND) {
-                // It strikes: a splash, and a burn if it hit the ground.
-                Vec3 tip = lash.tip();
-                for (int i = 0; i < 4; i++) {
-                    level.addParticle(ModParticles.CHEM_DROP.get(), tip.x, tip.y + 0.05, tip.z,
-                            RANDOM.nextGaussian() * 0.06, 0.08 + RANDOM.nextDouble() * 0.06, RANDOM.nextGaussian() * 0.06);
-                }
-                GoreClient.addStain(level, tip.add(0.0, 0.4, 0.0), new Vec3(0, -1, 0), 1.0,
-                        0.2 + RANDOM.nextDouble() * 0.2, 0x7A8A3A, 0x3A4418, 130, 700);
-            }
-        }
     }
 
     private static Vec3 base(State state) {
@@ -190,17 +161,14 @@ public final class AmoebaClient {
         return new Vec3(c.x, state.groundY != null ? state.groundY : zone.minY, c.z);
     }
 
-    /** 0 = puddle, 1 = dome. */
-    private static float gather(State state, long now, float partial) {
-        if (state.gatherTick < 0) return 0.0f;
-        float pt = now - state.gatherTick + partial;
-        int attackEnd = Amoeba.GATHER_TICKS + attackTicks();
-        float g;
-        if (pt < Amoeba.GATHER_TICKS) g = pt / Amoeba.GATHER_TICKS;
-        else if (pt < attackEnd) g = 1.0f;
-        else g = 1.0f - (pt - attackEnd) / Amoeba.SETTLE_TICKS;
-        g = Mth.clamp(g, 0.0f, 1.0f);
-        return g * g * (3.0f - 2.0f * g);
+    /** Ticks into the rise (with the partial tick), or -1 at rest. */
+    private static float phase(State state, long now, float partial) {
+        return state.gatherTick < 0 ? -1.0f : now - state.gatherTick + partial;
+    }
+
+    /** The puddle grows back after the burst. */
+    private static float regrow(State state, long now, float partial) {
+        return Mth.clamp((now - state.popTick + partial) / 60.0f, 0.0f, 1.0f);
     }
 
     /** 1 = full colour; 0.35 when spent (it pales as it slumps, and regains colour after the cooldown). */
@@ -244,20 +212,8 @@ public final class AmoebaClient {
         buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
         for (State state : STATES.values()) {
             Vec3 base = base(state);
-            jelly(buffer, m, state, base, gather(state, now, partial), vivid(state, now, partial),
+            jelly(buffer, m, state, base, phase(state, now, partial), regrow(state, now, partial), vivid(state, now, partial),
                     light(level, base.add(0, 0.5, 0), skyDarken), time);
-        }
-        BufferUploader.drawWithShader(buffer.end());
-
-        // The pseudopods: camera-facing strips.
-        RenderSystem.disableCull();
-        buffer = Tesselator.getInstance().getBuilder();
-        buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
-        for (State state : STATES.values()) {
-            float vivid = vivid(state, now, partial);
-            float light = light(level, base(state).add(0, 1, 0), skyDarken);
-            double scale = Math.sqrt(Math.max(1.0, state.entry.size()));
-            for (Lash lash : state.lashes) lash(buffer, m, lash, now, partial, time, cam, vivid, light, scale);
         }
         BufferUploader.drawWithShader(buffer.end());
 
@@ -274,42 +230,54 @@ public final class AmoebaClient {
         return 0.22f + 0.78f * Math.max(block, sky);
     }
 
-    private static void jelly(BufferBuilder buffer, Matrix4f m, State state, Vec3 base, float g, float vivid, float light, float time) {
+    private static void jelly(BufferBuilder buffer, Matrix4f m, State state, Vec3 base, float t, float regrow,
+                              float vivid, float light, float time) {
         double size = state.entry.size();
-        double puddle = size * 0.5 * 0.92;
-        double dome = Amoeba.domeRadius(size);
+        int inflate = inflateTicks();
+        boolean rising = t >= 0.0f;
+        float g1 = rising ? Amoeba.gather(t) : 0.0f;
+        float g2 = rising ? Amoeba.round(t) : 0.0f;
+        float g3 = rising ? Amoeba.swell(t, inflate) : 0.0f;
+        double puddle = size * 0.5 * 0.92 * (rising ? 1.0 : 0.25 + 0.75 * regrow);
+        double radius = rising ? Amoeba.radius(size, t, inflate) : Amoeba.domeRadius(size);
+        double centerY = rising ? Amoeba.centerHeight(size, t, inflate) : 0.0;
+        double thetaMax = Math.PI * (0.5 + 0.5 * g2);
         long seed = state.entry.pos().asLong();
         float s0 = (seed & 0xFFFF) / 6553.6f;
+        // It quivers harder and faster as it swells towards bursting.
+        double quiver = 0.06 + 0.1 * g3;
+        double speed = 0.4 + 0.8 * g3 * g3;
         Vec3[][] p = new Vec3[RINGS + 1][SEGMENTS + 1];
         int[][] col = new int[RINGS + 1][SEGMENTS + 1];
         int[][] alpha = new int[RINGS + 1][SEGMENTS + 1];
         for (int i = 0; i <= RINGS; i++) {
             double rho = i / (double) RINGS;
-            double theta = rho * Math.PI * 0.5;
+            double theta = rho * thetaMax;
             for (int j = 0; j <= SEGMENTS; j++) {
                 double phi = Math.PI * 2.0 * j / SEGMENTS;
                 double edge = 0.84 + 0.1 * Math.sin(phi * 3.0 + s0) + 0.06 * Math.sin(phi * 5.0 - s0 * 1.3 + time * 0.01);
                 double rP = rho * puddle * edge;
                 double hP = 0.035 * (1.0 - rho * rho) + 0.008 * Math.sin(rho * 9.0 - time * 0.12 + s0) * (1.0 - rho);
-                double wobble = 1.0 + 0.06 * Math.sin(phi * 3.0 + time * 0.4 + s0) + 0.04 * Math.sin(phi * 5.0 - time * 0.3 + rho * 4.0);
-                double pulse = 1.0 + 0.05 * Math.sin(time * 0.5 + s0);
-                double rD = dome * Math.sin(theta) * wobble * pulse;
-                double hD = dome * Math.cos(theta) * 1.05 * pulse;
-                double r = Mth.lerp(g, rP, rD);
-                double h = Mth.lerp(g, hP, hD) + 0.012;
+                double wobble = 1.0 + quiver * Math.sin(phi * 3.0 + time * speed + s0) + quiver * 0.7 * Math.sin(phi * 5.0 - time * speed * 0.8 + theta * 4.0);
+                double pulse = 1.0 + (0.05 + 0.05 * g3) * Math.sin(time * (0.5 + g3) + s0);
+                double rD = radius * Math.sin(theta) * wobble * pulse;
+                double hD = centerY + radius * Math.cos(theta) * pulse;
+                double r = Mth.lerp(g1, rP, rD);
+                double h = Mth.lerp(g1, hP, hD) + 0.012;
                 p[i][j] = base.add(Math.cos(phi) * r, h, Math.sin(phi) * r);
-                // Colour: marsh green with pinkish patches, lighter on top; pales when spent.
                 double patch = 0.5 + 0.5 * Math.sin(phi * 2.0 + rho * 5.0 + s0 + time * 0.01);
                 int c = mix(GEL, GEL_PINK, (float) (0.35 * patch * patch));
-                c = mix(c, GEL_LIGHT, (float) (0.45 * (1.0 - rho) * (0.4 + 0.6 * g)));
+                c = mix(c, GEL_LIGHT, (float) (0.45 * (1.0 - rho) * (0.4 + 0.6 * g1)));
                 c = mix(GEL_PALE, c, vivid);
-                float shade = light * (0.8f + 0.2f * (float) Math.cos(theta * g));
+                float shade = light * (0.78f + 0.22f * (float) Math.cos(Math.min(theta, Math.PI * 0.5) * g1));
                 col[i][j] = shade(c, shade);
-                float a = (float) Mth.lerp(g, 0.78 - 0.45 * rho * rho, 0.86 - 0.2 * rho) * (0.7f + 0.3f * vivid);
+                float a = (float) Mth.lerp(g1, 0.78 - 0.45 * rho * rho, 0.84 - 0.1 * rho) * (0.7f + 0.3f * vivid);
+                if (!rising) a *= 0.4f + 0.6f * regrow;
                 alpha[i][j] = (int) (255 * a);
             }
         }
-        Vec3 below = base.subtract(0.0, 1.0, 0.0);
+        // Inside point, for which way each face looks: below a flat puddle, the ball's middle otherwise.
+        Vec3 inside = base.add(0.0, g1 < 1.0f ? -(1.0 - g1) + centerY * g1 : centerY, 0.0);
         for (int i = 0; i < RINGS; i++) {
             for (int j = 0; j < SEGMENTS; j++) {
                 Vec3 a = p[i][j];
@@ -318,7 +286,7 @@ public final class AmoebaClient {
                 Vec3 d = p[i + 1][j];
                 Vec3 n = b.subtract(a).cross(d.subtract(a));
                 if (n.lengthSqr() < 1.0E-12) n = c.subtract(b).cross(a.subtract(b));
-                boolean outward = n.dot(a.add(c).scale(0.5).subtract(below)) >= 0.0;
+                boolean outward = n.dot(a.add(c).scale(0.5).subtract(inside)) >= 0.0;
                 if (outward) {
                     put(buffer, m, a, col[i][j], alpha[i][j]);
                     put(buffer, m, b, col[i][j + 1], alpha[i][j + 1]);
@@ -331,52 +299,6 @@ public final class AmoebaClient {
                     put(buffer, m, a, col[i][j], alpha[i][j]);
                 }
             }
-        }
-    }
-
-    private static void lash(BufferBuilder buffer, Matrix4f m, Lash lash, long now, float partial, float time, Vec3 cam,
-                             float vivid, float light, double scale) {
-        float t = now - lash.start() + partial;
-        float extend;
-        if (t < Amoeba.LASH_EXTEND) {
-            float e = t / Amoeba.LASH_EXTEND;
-            extend = 1.0f - (1.0f - e) * (1.0f - e);
-        } else if (t < Amoeba.LASH_EXTEND + Amoeba.LASH_HOLD) {
-            extend = 1.0f;
-        } else {
-            extend = 1.0f - Mth.clamp((t - Amoeba.LASH_EXTEND - Amoeba.LASH_HOLD) / Amoeba.LASH_RETRACT, 0.0f, 1.0f);
-        }
-        if (extend <= 0.02f) return;
-        int n = 16;
-        Vec3[] pts = new Vec3[n + 1];
-        Vec3 axis = lash.tip().subtract(lash.origin());
-        Vec3 side = axis.cross(new Vec3(0, 1, 0));
-        side = side.lengthSqr() < 1.0E-6 ? new Vec3(1, 0, 0) : side.normalize();
-        for (int i = 0; i <= n; i++) {
-            double s = extend * i / (double) n;
-            double writhe = 0.08 * s * Math.sin(s * 9.0 - time * 0.9 + lash.seed());
-            pts[i] = Amoeba.lashPoint(lash.origin(), lash.tip(), s).add(side.scale(writhe))
-                    .add(0.0, 0.05 * s * Math.cos(s * 7.0 - time * 0.7 + lash.seed()), 0.0);
-        }
-        int c = shade(mix(GEL_PALE, mix(GEL, GEL_LIGHT, 0.3f), vivid), light);
-        for (int i = 0; i < n; i++) {
-            double s0 = i / (double) n;
-            double s1 = (i + 1) / (double) n;
-            double w0 = (0.13 - 0.1 * s0) * scale;
-            double w1 = (0.13 - 0.1 * s1) * scale;
-            Vec3 a = pts[i];
-            Vec3 b = pts[i + 1];
-            Vec3 tangent = b.subtract(a);
-            Vec3 toCam = cam.subtract(a);
-            Vec3 across = tangent.cross(toCam);
-            if (across.lengthSqr() < 1.0E-10) continue;
-            across = across.normalize();
-            int a0 = (int) (220 * (1.0 - 0.3 * s0));
-            int a1 = (int) (220 * (1.0 - 0.3 * s1));
-            put(buffer, m, a.subtract(across.scale(w0)), c, a0);
-            put(buffer, m, b.subtract(across.scale(w1)), c, a1);
-            put(buffer, m, b.add(across.scale(w1)), c, a1);
-            put(buffer, m, a.add(across.scale(w0)), c, a0);
         }
     }
 

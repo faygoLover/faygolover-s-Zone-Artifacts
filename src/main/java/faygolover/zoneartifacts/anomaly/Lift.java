@@ -36,19 +36,51 @@ public final class Lift {
     }
 
     /** Where the feet want to be: {@code height} above the ground under them (plus {@code offset}),
-     *  kept inside the zone. No ground below: stay at the current height. */
-    public static double targetFeetY(BlockGetter level, Entity e, AABB zone, double height, double offset) {
-        Double ground = Razlom.groundY(level, e.getX(), e.getZ(), e.getY() + 0.5, zone.minY - 4.0);
+     *  kept inside the Lift — {@code column} is the stack of Lifts it's in, as one. No ground below:
+     *  stay at the current height. */
+    public static double targetFeetY(BlockGetter level, Entity e, AABB column, double height, double offset) {
+        Double ground = Razlom.groundY(level, e.getX(), e.getZ(), e.getY() + 0.5, column.minY - 4.0);
         double base = ground != null ? ground : e.getY();
-        double top = zone.maxY - 0.3;
+        double top = column.maxY - 0.3;
         return Mth.clamp(base + height + offset, base, Math.max(base, top));
     }
 
     /**
-     * New delta movement for one tick inside. {@code ticksInside}: how long it's been in;
-     * {@code pushOutTicks}: after that it's eased out towards the edge.
+     * Lifts stacked on (or overlapping) each other act as one: of all the Lift zones, those the
+     * entity is in plus whatever touches them above or below in its column. Null if it's in none.
      */
-    public static Vec3 apply(Entity e, AABB zone, double targetFeetY, int ticksInside, int pushOutTicks) {
+    @javax.annotation.Nullable
+    public static AABB column(java.util.List<AABB> zones, AABB entityBox) {
+        java.util.List<AABB> chain = new java.util.ArrayList<>();
+        for (AABB z : zones) if (z.intersects(entityBox)) chain.add(z);
+        if (chain.isEmpty()) return null;
+        double x = (entityBox.minX + entityBox.maxX) * 0.5;
+        double zc = (entityBox.minZ + entityBox.maxZ) * 0.5;
+        boolean grew = true;
+        while (grew) {
+            grew = false;
+            for (AABB z : zones) {
+                if (chain.contains(z) || x < z.minX || x > z.maxX || zc < z.minZ || zc > z.maxZ) continue;
+                for (AABB c : chain) {
+                    if (z.minY <= c.maxY + 0.01 && z.maxY >= c.minY - 0.01) {
+                        chain.add(z);
+                        grew = true;
+                        break;
+                    }
+                }
+            }
+        }
+        AABB out = chain.get(0);
+        for (AABB c : chain) out = out.minmax(c);
+        return out;
+    }
+
+    /**
+     * New delta movement for one tick inside. {@code ticksInside}: how long it's been in;
+     * {@code pushOutTicks}: after that it's eased out towards the edge of {@code zone}, with
+     * {@code push} (the speed tuner; 0 = never).
+     */
+    public static Vec3 apply(Entity e, AABB zone, double targetFeetY, int ticksInside, int pushOutTicks, double push) {
         Vec3 d = e.getDeltaMovement();
         double g = Gravity.gravityOf(e);
         double hx = d.x;
@@ -65,7 +97,7 @@ public final class Lift {
             double pull = Mth.clamp((targetFeetY - e.getY()) * 0.05, -0.05, 0.05);
             moveY = lastMoveY(e, d.y) * 0.85 + pull;
         }
-        if (ticksInside > pushOutTicks) {
+        if (ticksInside > pushOutTicks && push > 0.0) {
             Vec3 c = zone.getCenter();
             double dx = e.getX() - c.x;
             double dz = e.getZ() - c.z;
@@ -75,8 +107,8 @@ public final class Lift {
                 dz = Math.sin(e.getId());
                 len = 1.0;
             }
-            hx += dx / len * PUSH_OUT;
-            hz += dz / len * PUSH_OUT;
+            hx += dx / len * PUSH_OUT * push;
+            hz += dz / len * PUSH_OUT * push;
         }
         return new Vec3(hx, toDelta(e, moveY, g), hz);
     }

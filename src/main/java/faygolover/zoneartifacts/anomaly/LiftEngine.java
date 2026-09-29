@@ -8,58 +8,77 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.phys.AABB;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.WeakHashMap;
 
 /**
  * Server side of the Lift ({@link Lift}): always on, harmless. Moves mobs, items and projectiles
- * (players move themselves, client-side), counts how long each has been inside, keeps fall damage
- * off inside and for a few seconds after leaving.
+ * (players move themselves, client-side) and counts how long each has been inside. Stacked Lifts
+ * act as one ({@link Lift#column}): everything is moved once per tick, whichever of them gets to it
+ * first, and the time inside counts across them.
  */
 public final class LiftEngine {
 
-    private static final Map<AnomalyInstance, Map<UUID, Integer>> INSIDE = new WeakHashMap<>();
+    private record Inside(int ticks, long lastSeen) {
+    }
+
+    private static final Map<UUID, Inside> INSIDE = new HashMap<>();
+    private static long zonesTick = -1;
+    private static List<AABB> zones = List.of();
 
     private LiftEngine() {
     }
 
+    private static List<AABB> zones(ServerLevel level) {
+        long now = level.getGameTime();
+        if (now != zonesTick) {
+            List<AABB> list = new ArrayList<>();
+            for (AnomalyInstance other : AnomalySavedData.get(level).instances()) {
+                if (AnomalyTypeIds.LIFT.equals(other.typeId())) list.add(AnomalyGeometry.zoneAabb(other));
+            }
+            zones = list;
+            zonesTick = now;
+        }
+        return zones;
+    }
+
     public static void tick(ServerLevel level, AnomalyInstance instance) {
         AABB zone = AnomalyGeometry.zoneAabb(instance);
-        double height = ModCommonConfig.LIFT_HOVER_HEIGHT.get() * instance.speed();
+        double height = ModCommonConfig.LIFT_HOVER_HEIGHT.get();
         int pushOut = AnomalyDefaults.ticks(ModCommonConfig.LIFT_PUSH_OUT_SECONDS.get());
-        Map<UUID, Integer> inside = INSIDE.computeIfAbsent(instance, k -> new HashMap<>());
-        Map<UUID, Integer> seen = new HashMap<>();
+        long now = level.getGameTime();
 
         for (Entity e : level.getEntities((Entity) null, zone, Lift::affects)) {
-            int t = inside.getOrDefault(e.getUUID(), 0) + 1;
-            seen.put(e.getUUID(), t);
+            Inside was = INSIDE.get(e.getUUID());
+            if (was != null && was.lastSeen() == now) continue; // another Lift of the stack did it
+            int t = was != null && was.lastSeen() >= now - 1 ? was.ticks() + 1 : 1;
+            INSIDE.put(e.getUUID(), new Inside(t, now));
             if (e instanceof LivingEntity living) living.resetFallDistance();
             if (e instanceof Player) continue; // its own client floats it
             if (e instanceof Projectile) e.getPersistentData().putBoolean(Lift.STUCK_TAG, true);
-            double target = Lift.targetFeetY(level, e, zone, height, 0.0);
-            e.setDeltaMovement(Lift.apply(e, zone, target, t, pushOut));
+            AABB column = Lift.column(zones(level), e.getBoundingBox());
+            if (column == null) column = zone;
+            double target = Lift.targetFeetY(level, e, column, height, 0.0);
+            e.setDeltaMovement(Lift.apply(e, zone, target, t, pushOut, instance.speed()));
             e.hasImpulse = true;
         }
 
-        long now = level.getGameTime();
-        for (Iterator<Map.Entry<UUID, Integer>> it = inside.entrySet().iterator(); it.hasNext(); ) {
-            UUID id = it.next().getKey();
-            if (seen.containsKey(id)) continue;
-            it.remove();
-            Entity left = level.getEntity(id);
-            if (left instanceof LivingEntity living && living.isAlive() && !living.onGround()) {
-                GravityEngine.softenFall(living, now + 100, 0.0);
+        if (now % 20 == 0) {
+            for (Iterator<Map.Entry<UUID, Inside>> it = INSIDE.entrySet().iterator(); it.hasNext(); ) {
+                Map.Entry<UUID, Inside> entry = it.next();
+                if (entry.getValue().lastSeen() >= now - 2) continue;
+                it.remove();
+                if (level.getEntity(entry.getKey()) instanceof Projectile left) left.getPersistentData().remove(Lift.STUCK_TAG);
             }
-            if (left instanceof Projectile) left.getPersistentData().remove(Lift.STUCK_TAG);
         }
-        inside.putAll(seen);
     }
 
     /** The Lift was removed. */
     public static void forget(AnomalyInstance instance) {
-        INSIDE.remove(instance);
+        zonesTick = -1;
     }
 }

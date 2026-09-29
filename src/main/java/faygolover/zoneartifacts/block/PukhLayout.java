@@ -17,6 +17,8 @@ public final class PukhLayout {
     public record Sheet(Vec3 origin, Vec3 across, double width, float seed) {
     }
 
+    private static final double TOP = faygolover.zoneartifacts.anomaly.Pukh.WALL_TOP;
+
     private PukhLayout() {
     }
 
@@ -24,7 +26,7 @@ public final class PukhLayout {
         int count = Math.max(2, Math.min(PukhBlockEntity.MAX_SHEETS, 2 + intensity));
         List<Sheet> out = new ArrayList<>();
         if (facing == Direction.DOWN || facing == Direction.UP) {
-            double top = 0.7;
+            double top = faygolover.zoneartifacts.anomaly.Pukh.CEILING_TOP;
             for (int i = 0; i < count; i++) {
                 double f = (i + 0.5) / count;
                 double jitter = ((i * 7919) % 11) / 11.0 * 0.12 - 0.06;
@@ -45,19 +47,19 @@ public final class PukhLayout {
             Vec3 across;
             switch (wall) {
                 case NORTH -> {
-                    origin = new Vec3(0.0, 1.0, depth);
+                    origin = new Vec3(0.0, TOP, depth);
                     across = new Vec3(1, 0, 0);
                 }
                 case SOUTH -> {
-                    origin = new Vec3(0.0, 1.0, 1.0 - depth);
+                    origin = new Vec3(0.0, TOP, 1.0 - depth);
                     across = new Vec3(1, 0, 0);
                 }
                 case WEST -> {
-                    origin = new Vec3(depth, 1.0, 0.0);
+                    origin = new Vec3(depth, TOP, 0.0);
                     across = new Vec3(0, 0, 1);
                 }
                 default -> {
-                    origin = new Vec3(1.0 - depth, 1.0, 0.0);
+                    origin = new Vec3(1.0 - depth, TOP, 0.0);
                     across = new Vec3(0, 0, 1);
                 }
             }

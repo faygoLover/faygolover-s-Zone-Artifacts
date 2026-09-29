@@ -38,6 +38,8 @@ public final class ChemClient {
     static final int YELLOW_GREEN = 0xAFC43A;
     static final int OLIVE = 0x7A8A2C;
     static final int DARK_OLIVE = 0x4C561C;
+    static final int ACID = 0xB6F03C;
+    static final int ACID_DARK = 0x4E8A14;
 
     private static final RandomSource RANDOM = RandomSource.create();
 
@@ -73,8 +75,10 @@ public final class ChemClient {
             double size = comet.getSize() * grow;
             int count = 5 + Math.min(10, ModClientConfig.effective(comet.getIntensity()));
             RandomSource shape = RandomSource.create(comet.getId() * 7919L);
+            // A core of liquid acid, with the gas rolling round and over it.
+            out.add(new Gas.FramePuff(c, 0.2 * size, 0.95f, ACID, ACID_DARK, shape.nextFloat() * 10f, true));
             // Dense middle.
-            out.add(new Gas.FramePuff(c, 0.42 * size, 0.85f, OLIVE, YELLOW_GREEN, shape.nextFloat() * 10f));
+            out.add(new Gas.FramePuff(c.add(cam.subtract(c).normalize().scale(-0.05 * size)), 0.42 * size, 0.6f, OLIVE, YELLOW_GREEN, shape.nextFloat() * 10f));
             for (int i = 0; i < count; i++) {
                 Vec3 axis = new Vec3(shape.nextGaussian(), shape.nextGaussian(), shape.nextGaussian()).normalize();
                 Vec3 start = new Vec3(shape.nextGaussian(), shape.nextGaussian(), shape.nextGaussian()).normalize();
