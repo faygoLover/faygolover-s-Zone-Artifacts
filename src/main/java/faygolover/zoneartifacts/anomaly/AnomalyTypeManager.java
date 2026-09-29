@@ -91,7 +91,7 @@ public class AnomalyTypeManager extends SimpleJsonResourceReloadListener {
         AnomalyDetect detect = root.has("detect") ? parseDetect(root.getAsJsonObject("detect")) : new AnomalyDetect(true, true, false);
         AnomalyEffect effect = parseEffect(getObject(root, "effect"), shape.maxLevel());
         AnomalyVisualSound ambient = root.has("ambient") ? parseVisualSound(root.getAsJsonObject("ambient"), "ambient") : null;
-        AnomalyVisualSound triggerEffect = root.has("trigger_effect") ? parseVisualSound(root.getAsJsonObject("trigger_effect"), "trigger_effect") : null;
+        AnomalyTriggerEffect triggerEffect = root.has("trigger_effect") ? parseTriggerEffect(root.getAsJsonObject("trigger_effect")) : null;
 
         return new AnomalyType(id, shape, trigger, detect, effect, ambient, triggerEffect);
     }
@@ -180,14 +180,70 @@ public class AnomalyTypeManager extends SimpleJsonResourceReloadListener {
                 throw new AnomalyTypeParseException(path + ".sound", "not a valid resource location");
             }
         }
+        ResourceLocation glowParticle = null;
+        if (obj.has("glow_particle")) {
+            glowParticle = ResourceLocation.tryParse(obj.get("glow_particle").getAsString());
+            if (glowParticle == null) {
+                throw new AnomalyTypeParseException(path + ".glow_particle", "not a valid resource location");
+            }
+        }
 
         int particleCount = getInt(obj, "particle_count", 1);
         int intervalTicks = getInt(obj, "interval_ticks", 0);
         int soundIntervalTicks = getInt(obj, "sound_interval_ticks", 0);
         float soundVolume = obj.has("sound_volume") ? obj.get("sound_volume").getAsFloat() : 1.0f;
         float soundPitch = obj.has("sound_pitch") ? obj.get("sound_pitch").getAsFloat() : 1.0f;
+        int glowParticleCount = getInt(obj, "glow_particle_count", 1);
 
-        return new AnomalyVisualSound(particle, particleCount, intervalTicks, sound, soundIntervalTicks, soundVolume, soundPitch);
+        return new AnomalyVisualSound(particle, particleCount, intervalTicks, sound, soundIntervalTicks, soundVolume, soundPitch,
+                glowParticle, glowParticleCount);
+    }
+
+    private static AnomalyTriggerEffect parseTriggerEffect(JsonObject obj) {
+        String path = "trigger_effect";
+
+        ResourceLocation particle = null;
+        if (obj.has("particle")) {
+            particle = ResourceLocation.tryParse(obj.get("particle").getAsString());
+            if (particle == null) {
+                throw new AnomalyTypeParseException(path + ".particle", "not a valid resource location");
+            }
+        }
+        int particleCount = getInt(obj, "particle_count", 1);
+
+        ResourceLocation livingSound = parseOptionalSound(obj, "living_sound", path);
+        ResourceLocation projectileSound = parseOptionalSound(obj, "projectile_sound", path);
+        float soundVolume = obj.has("sound_volume") ? obj.get("sound_volume").getAsFloat() : 1.0f;
+        float soundPitch = obj.has("sound_pitch") ? obj.get("sound_pitch").getAsFloat() : 1.0f;
+
+        List<ResourceLocation> hitSounds = new ArrayList<>();
+        if (obj.has("hit_sounds")) {
+            if (!obj.get("hit_sounds").isJsonArray()) {
+                throw new AnomalyTypeParseException(path + ".hit_sounds", "must be an array of sound ids");
+            }
+            for (JsonElement el : obj.getAsJsonArray("hit_sounds")) {
+                ResourceLocation id = ResourceLocation.tryParse(el.getAsString());
+                if (id == null) {
+                    throw new AnomalyTypeParseException(path + ".hit_sounds", "not a valid resource location: '" + el.getAsString() + "'");
+                }
+                hitSounds.add(id);
+            }
+        }
+        float hitSoundVolume = obj.has("hit_sound_volume") ? obj.get("hit_sound_volume").getAsFloat() : 1.0f;
+        float hitSoundPitch = obj.has("hit_sound_pitch") ? obj.get("hit_sound_pitch").getAsFloat() : 1.0f;
+
+        return new AnomalyTriggerEffect(particle, particleCount, livingSound, projectileSound,
+                soundVolume, soundPitch, List.copyOf(hitSounds), hitSoundVolume, hitSoundPitch);
+    }
+
+    @Nullable
+    private static ResourceLocation parseOptionalSound(JsonObject obj, String field, String path) {
+        if (!obj.has(field)) return null;
+        ResourceLocation id = ResourceLocation.tryParse(obj.get(field).getAsString());
+        if (id == null) {
+            throw new AnomalyTypeParseException(path + "." + field, "not a valid resource location");
+        }
+        return id;
     }
 
     // ---- small JSON helpers with clear "file + field" errors --------------

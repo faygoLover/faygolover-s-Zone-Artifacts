@@ -21,16 +21,22 @@
     "particle": "minecraft:electric_spark",
     "particle_count": 6,
     "interval_ticks": 5,
-    "sound": "minecraft:block.respawn_anchor.charge",
+    "glow_particle": "minecraft:glow",
+    "glow_particle_count": 2,
+    "sound": "fl_zone_arts:electra_idle",
     "sound_interval_ticks": 60,
     "sound_volume": 0.4,
-    "sound_pitch": 1.4
+    "sound_pitch": 1.0
   },
   "trigger_effect": {
     "particle": "minecraft:electric_spark",
     "particle_count": 30,
-    "sound": "minecraft:entity.lightning_bolt.impact",
+    "living_sound": "fl_zone_arts:electra_blast_living",
+    "projectile_sound": "fl_zone_arts:electra_blast_nut",
     "sound_volume": 0.6,
-    "sound_pitch": 1.0
+    "sound_pitch": 1.0,
+    "hit_sounds": ["fl_zone_arts:electra_hit", "fl_zone_arts:electra_hit1"],
+    "hit_sound_volume": 0.8,
+    "hit_sound_pitch": 1.0
   }
 }

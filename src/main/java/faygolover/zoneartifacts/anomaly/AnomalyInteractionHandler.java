@@ -15,10 +15,10 @@ import java.util.Optional;
 
 /**
  * Right-click, while holding a placer item, anywhere inside an already-placed anomaly of the same
- * type removes it (like clicking a light block) — aiming doesn't need to land on the anchor block
- * exactly. This runs fully server-side: {@code RightClickBlock} and {@code RightClickItem} both
- * reach the server reliably regardless of what the client's own block raytrace found, so unlike
- * the left-click/cycle-level case (see {@code ClientAnomalyInputHandler}) no client packet is
+ * type cycles its level (like clicking a light block) — aiming doesn't need to land on the anchor
+ * block exactly. This runs fully server-side: {@code RightClickBlock} and {@code RightClickItem}
+ * both reach the server reliably regardless of what the client's own block raytrace found, so
+ * unlike the left-click/remove case (see {@code ClientAnomalyInputHandler}) no client packet is
  * needed here — {@link AnomalyTargeting} re-derives the target straight from the real, server-side
  * {@link AnomalySavedData}.
  * <p>
@@ -30,23 +30,28 @@ public class AnomalyInteractionHandler {
 
     @SubscribeEvent
     public static void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
-        tryRemove(event.getEntity(), event);
+        tryCycle(event.getEntity(), event);
     }
 
     @SubscribeEvent
     public static void onRightClickItem(PlayerInteractEvent.RightClickItem event) {
-        tryRemove(event.getEntity(), event);
+        tryCycle(event.getEntity(), event);
     }
 
-    private static void tryRemove(Player player, PlayerInteractEvent event) {
+    private static void tryCycle(Player player, PlayerInteractEvent event) {
         if (!(player.level() instanceof ServerLevel serverLevel)) return;
         ResourceLocation typeId = AnomalyPlacerItem.heldTypeId(player);
         if (typeId == null) return;
 
+        AnomalyType type = AnomalyTypeManager.get(typeId);
+        if (type == null) return;
+
         Optional<AnomalyInstance> hit = AnomalyTargeting.pick(serverLevel, player, typeId);
         hit.ifPresent(instance -> {
-            AnomalySavedData.get(serverLevel).remove(instance);
-            notify(player, "removed " + typeId + " at " + instance.pos().toShortString());
+            int nextLevel = instance.level() % type.maxLevel() + 1;
+            instance.setLevel(nextLevel);
+            AnomalySavedData.get(serverLevel).setDirty();
+            notify(player, typeId + " at " + instance.pos().toShortString() + " -> level " + nextLevel);
             AnomalySyncHandler.broadcast(serverLevel);
             if (event.isCancelable()) {
                 event.setCanceled(true);

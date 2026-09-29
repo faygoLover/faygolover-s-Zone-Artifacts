@@ -12,7 +12,7 @@ import java.util.Optional;
 /**
  * Client-side mirror of the server's {@code AnomalyTargeting} raytrace, run against the synced
  * {@link ClientAnomalyCache} instead of the real (server-only) saved data. Used only to decide
- * what to render and whether to send a {@code CycleAnomalyPacket} — never authoritative; the
+ * what to render and whether to send a {@code RemoveAnomalyPacket} — never authoritative; the
  * server always re-resolves the real target by position before changing anything.
  */
 public final class AnomalyClientTargeting {

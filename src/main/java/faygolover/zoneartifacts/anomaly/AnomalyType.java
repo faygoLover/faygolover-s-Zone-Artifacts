@@ -15,7 +15,7 @@ public record AnomalyType(
         AnomalyDetect detect,
         AnomalyEffect effect,
         @Nullable AnomalyVisualSound ambient,
-        @Nullable AnomalyVisualSound triggerEffect
+        @Nullable AnomalyTriggerEffect triggerEffect
 ) {
     public int maxLevel() {
         return shape.maxLevel();

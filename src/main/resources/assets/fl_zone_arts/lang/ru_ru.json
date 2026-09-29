@@ -1,5 +1,8 @@
 {
   "itemGroup.fl_zone_arts.anomalies": "Zone Artifacts: Аномалии",
   "item.fl_zone_arts.electra_placer": "Установщик аномалии «Электра»",
-  "death.attack.fl_zone_arts.anomaly_shock": "%1$s был убит током аномалии"
+  "death.attack.fl_zone_arts.anomaly_shock": "%1$s был убит током аномалии",
+  "subtitles.fl_zone_arts.electra_idle": "Электра потрескивает",
+  "subtitles.fl_zone_arts.electra_blast": "Электра разряжается",
+  "subtitles.fl_zone_arts.electra_hit": "Удар током"
 }

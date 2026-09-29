@@ -25,9 +25,9 @@ import java.util.Optional;
  * <p>
  * Interacting with an <em>existing</em> anomaly of this type (aiming anywhere inside its zone,
  * like clicking a light block) is handled elsewhere and cancels the vanilla interaction before
- * {@link #useOn} ever runs: right-click removal goes through {@code AnomalyInteractionHandler}
- * (a server-side raytrace), left-click level-cycling goes through {@code ClientAnomalyInputHandler}
- * + {@code CycleAnomalyPacket} (has to start client-side — see that class's javadoc for why).
+ * {@link #useOn} ever runs: right-click level-cycling goes through {@code AnomalyInteractionHandler}
+ * (a server-side raytrace), left-click removal goes through {@code ClientAnomalyInputHandler}
+ * + {@code RemoveAnomalyPacket} (has to start client-side — see that class's javadoc for why).
  * <p>
  * This class's {@link #useOn} is therefore just the fallback: right-click on a block with no
  * anomaly of this type on it yet places a new one at level 1.
@@ -80,9 +80,9 @@ public class AnomalyPlacerItem extends Item {
         AnomalySavedData data = AnomalySavedData.get(serverLevel);
         if (findAt(data, pos, anomalyTypeId).isPresent()) {
             // An anomaly is already anchored exactly here; AnomalyInteractionHandler's raytrace
-            // should have caught the click and removed it before this ever runs. If it somehow
-            // didn't (e.g. clicking exactly on the block from an odd angle), do nothing rather
-            // than silently stacking a second one on top.
+            // should have caught the click and cycled its level before this ever runs. If it
+            // somehow didn't (e.g. clicking exactly on the block from an odd angle), do nothing
+            // rather than silently stacking a second one on top.
             return;
         }
 

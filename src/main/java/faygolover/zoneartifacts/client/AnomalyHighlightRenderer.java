@@ -31,20 +31,25 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.joml.Matrix4f;
 
-import javax.annotation.Nullable;
-import java.util.Optional;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * While holding an {@link AnomalyPlacerItem}, draws a translucent volume with opaque edges:
- * either the real zone of an existing anomaly of this type the player is aiming into (resolved
- * via {@link AnomalyClientTargeting} against the server-synced {@link ClientAnomalyCache}), or,
- * failing that, a level-1 placement preview at the currently targeted block.
+ * While holding an {@link AnomalyPlacerItem}, draws a translucent volume with opaque edges for
+ * every existing anomaly of this type within {@link #VISIBLE_RADIUS} of the player (resolved
+ * against the server-synced {@link ClientAnomalyCache}), plus — if the player is aiming at a
+ * block with no anomaly of this type on it yet — a level-1 placement preview at that block.
  */
 @Mod.EventBusSubscriber(modid = ZoneArtifacts.MODID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public class AnomalyHighlightRenderer {
 
     private static final int FACE_ARGB = 0x40FFDD55;
     private static final int EDGE_ARGB = 0xFF33251A;
+
+    /** How far around the player existing anomalies get drawn. Generous enough to see a cluster
+     *  of placed zones coming, cheap enough that drawing all of them every frame is a non-issue —
+     *  these are hand-placed by GMs, never hundreds at once. */
+    private static final double VISIBLE_RADIUS = 24.0;
 
     /** Shrinks the drawn box a hair so its faces don't sit exactly coplanar with terrain faces
      *  (which flickers from z-fighting) when a size-1 zone lines up exactly with a block. */
@@ -61,9 +66,8 @@ public class AnomalyHighlightRenderer {
         ResourceLocation typeId = AnomalyPlacerItem.heldTypeId(player);
         if (typeId == null) return;
 
-        AABB aabb = resolveAabbToShow(mc, player, typeId);
-        if (aabb == null) return;
-        aabb = aabb.deflate(EDGE_INSET);
+        List<AABB> boxes = resolveAabbsToShow(mc, player, typeId);
+        if (boxes.isEmpty()) return;
 
         Camera camera = event.getCamera();
         Vec3 camPos = camera.getPosition();
@@ -72,34 +76,54 @@ public class AnomalyHighlightRenderer {
         poseStack.pushPose();
         poseStack.translate(-camPos.x, -camPos.y, -camPos.z);
 
-        renderFilledBox(poseStack, aabb, FACE_ARGB);
-
         MultiBufferSource.BufferSource bufferSource = mc.renderBuffers().bufferSource();
-        VertexConsumer lines = bufferSource.getBuffer(RenderType.lines());
-        LevelRenderer.renderLineBox(poseStack, lines, aabb,
-                argbToFloat(EDGE_ARGB, 16), argbToFloat(EDGE_ARGB, 8), argbToFloat(EDGE_ARGB, 0), argbToFloat(EDGE_ARGB, 24));
-        bufferSource.endBatch(RenderType.lines());
+        for (AABB box : boxes) {
+            AABB aabb = box.deflate(EDGE_INSET);
+
+            renderFilledBox(poseStack, aabb, FACE_ARGB);
+
+            VertexConsumer lines = bufferSource.getBuffer(RenderType.lines());
+            LevelRenderer.renderLineBox(poseStack, lines, aabb,
+                    argbToFloat(EDGE_ARGB, 16), argbToFloat(EDGE_ARGB, 8), argbToFloat(EDGE_ARGB, 0), argbToFloat(EDGE_ARGB, 24));
+            bufferSource.endBatch(RenderType.lines());
+        }
 
         poseStack.popPose();
     }
 
-    /** The real zone of an existing anomaly the player is aiming into, if any; otherwise a
-     *  level-1 placement preview at whatever block they're looking at. */
-    @Nullable
-    private static AABB resolveAabbToShow(Minecraft mc, Player player, ResourceLocation typeId) {
-        Optional<SyncAnomaliesPacket.Entry> hit = AnomalyClientTargeting.pick(player, typeId);
-        if (hit.isPresent()) {
-            SyncAnomaliesPacket.Entry entry = hit.get();
-            int size = ClientAnomalyTypeCache.sizeForLevel(entry.typeId(), entry.level());
-            return AnomalyGeometry.centeredAabb(entry.pos(), size);
+    /** Every existing anomaly of this type within {@link #VISIBLE_RADIUS} of the player, plus a
+     *  level-1 placement preview at the targeted block if it doesn't already have one. */
+    private static List<AABB> resolveAabbsToShow(Minecraft mc, Player player, ResourceLocation typeId) {
+        List<AABB> boxes = new ArrayList<>();
+        Vec3 playerPos = player.position();
+        double radiusSq = VISIBLE_RADIUS * VISIBLE_RADIUS;
+
+        List<SyncAnomaliesPacket.Entry> entries = ClientAnomalyCache.entriesFor(player.level().dimension());
+        boolean previewPosOccupied = false;
+        BlockPos previewPos = null;
+        if (mc.hitResult instanceof BlockHitResult blockHit && blockHit.getType() == HitResult.Type.BLOCK) {
+            previewPos = blockHit.getBlockPos();
         }
 
-        if (!(mc.hitResult instanceof BlockHitResult blockHit) || blockHit.getType() != HitResult.Type.BLOCK) {
-            return null;
+        for (SyncAnomaliesPacket.Entry entry : entries) {
+            if (!entry.typeId().equals(typeId)) continue;
+            if (previewPos != null && entry.pos().equals(previewPos)) previewPosOccupied = true;
+
+            double dx = entry.pos().getX() + 0.5 - playerPos.x;
+            double dy = entry.pos().getY() + 0.5 - playerPos.y;
+            double dz = entry.pos().getZ() + 0.5 - playerPos.z;
+            if (dx * dx + dy * dy + dz * dz > radiusSq) continue;
+
+            int size = ClientAnomalyTypeCache.sizeForLevel(entry.typeId(), entry.level());
+            boxes.add(AnomalyGeometry.centeredAabb(entry.pos(), size));
         }
-        BlockPos pos = blockHit.getBlockPos();
-        int size = ClientAnomalyTypeCache.sizeForLevel(typeId, 1);
-        return AnomalyGeometry.centeredAabb(pos, size);
+
+        if (previewPos != null && !previewPosOccupied) {
+            int size = ClientAnomalyTypeCache.sizeForLevel(typeId, 1);
+            boxes.add(AnomalyGeometry.centeredAabb(previewPos, size));
+        }
+
+        return boxes;
     }
 
     private static float argbToFloat(int argb, int shift) {

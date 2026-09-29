@@ -19,6 +19,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -60,7 +61,13 @@ public class AnomalyEngine {
             return;
         }
 
-        tickAmbient(level, instance, type);
+        // While on cooldown, the anomaly should read as completely "spent" — no hum, no sparks —
+        // until the recovery period fully ends. tickBurst (below) is what counts cooldownTicks
+        // down; checking it here, before that happens this tick, means ambient stays silent for
+        // the entire cooldown window and resumes on the same tick it reaches zero.
+        if (instance.cooldownTicks() <= 0) {
+            tickAmbient(level, instance, type);
+        }
 
         if (type.trigger().type() == AnomalyTrigger.TriggerType.BURST) {
             tickBurst(level, instance, type);
@@ -103,16 +110,29 @@ public class AnomalyEngine {
      * open air), it simply spawns nothing that tick rather than falling back to mid-air points.
      */
     private static void spawnParticlesOnSurfaces(ServerLevel level, AABB aabb, AnomalyVisualSound visual) {
-        if (!(ForgeRegistries.PARTICLE_TYPES.getValue(visual.particle()) instanceof SimpleParticleType particleType)) {
-            return;
-        }
-
         List<Vec3Point> surfacePoints = findSurfacePoints(level, aabb);
         if (surfacePoints.isEmpty()) return;
 
-        for (int i = 0; i < visual.particleCount(); i++) {
-            Vec3Point p = surfacePoints.get(level.random.nextInt(surfacePoints.size()));
-            level.sendParticles(particleType, p.x(), p.y(), p.z(), 1, 0, 0, 0, 0.0);
+        if (ForgeRegistries.PARTICLE_TYPES.getValue(visual.particle()) instanceof SimpleParticleType particleType) {
+            for (int i = 0; i < visual.particleCount(); i++) {
+                Vec3Point p = surfacePoints.get(level.random.nextInt(surfacePoints.size()));
+                level.sendParticles(particleType, p.x(), p.y(), p.z(), 1, 0, 0, 0, 0.0);
+            }
+        }
+
+        // Faint glow riding the same surface points as the sparks ("это же искры" — they should
+        // give off a little light-like shimmer, not just pop and vanish). This is a particle
+        // effect, not a real light-engine change: an actual dynamic light source would mean either
+        // placing real light-emitting blocks (which would show up to other players as a weird
+        // floating torch and touch real world/chunk state — too heavy-handed for something this
+        // transient) or block-level relighting math outside plain Forge API. A soft glow particle
+        // gets the "these surfaces are faintly lit" read cheaply and safely on a live server.
+        if (visual.glowParticle() != null && visual.glowParticleCount() > 0
+                && ForgeRegistries.PARTICLE_TYPES.getValue(visual.glowParticle()) instanceof SimpleParticleType glowType) {
+            for (int i = 0; i < visual.glowParticleCount(); i++) {
+                Vec3Point p = surfacePoints.get(level.random.nextInt(surfacePoints.size()));
+                level.sendParticles(glowType, p.x(), p.y(), p.z(), 1, 0, 0, 0, 0.0);
+            }
         }
     }
 
@@ -141,27 +161,37 @@ public class AnomalyEngine {
         return !state.getCollisionShape(level, pos).isEmpty();
     }
 
-    private static Vec3Point faceMidpoint(BlockPos emptyPos, Direction dir, ServerLevel level) {
-        double baseX = emptyPos.getX() + 0.5 + dir.getStepX() * 0.5;
-        double baseY = emptyPos.getY() + 0.5 + dir.getStepY() * 0.5;
-        double baseZ = emptyPos.getZ() + 0.5 + dir.getStepZ() * 0.5;
+    /** How far off the block face the spark sits, pulled back into the empty (zone-interior) cell
+     *  so it renders as a visible point in open space instead of half-clipped into the neighboring
+     *  solid block's geometry. */
+    private static final double SURFACE_INSET = 0.125; // 1/8 block
 
-        double jitter = 0.35;
+    /** Half-width of the in-plane scatter across the face. Kept tight so sparks stay hugging the
+     *  actual boundary the zone touches rather than smearing across the whole block face — the
+     *  zone's real edge should read clearly instead of looking like a fuzzy cloud. */
+    private static final double SURFACE_JITTER = 0.18;
+
+    private static Vec3Point faceMidpoint(BlockPos emptyPos, Direction dir, ServerLevel level) {
+        double faceOffset = 0.5 - SURFACE_INSET;
+        double baseX = emptyPos.getX() + 0.5 + dir.getStepX() * faceOffset;
+        double baseY = emptyPos.getY() + 0.5 + dir.getStepY() * faceOffset;
+        double baseZ = emptyPos.getZ() + 0.5 + dir.getStepZ() * faceOffset;
+
         Direction.Axis axis = dir.getAxis();
-        double jx = axis == Direction.Axis.X ? 0 : (level.random.nextDouble() - 0.5) * jitter;
-        double jy = axis == Direction.Axis.Y ? 0 : (level.random.nextDouble() - 0.5) * jitter;
-        double jz = axis == Direction.Axis.Z ? 0 : (level.random.nextDouble() - 0.5) * jitter;
+        double jx = axis == Direction.Axis.X ? 0 : (level.random.nextDouble() - 0.5) * SURFACE_JITTER;
+        double jy = axis == Direction.Axis.Y ? 0 : (level.random.nextDouble() - 0.5) * SURFACE_JITTER;
+        double jz = axis == Direction.Axis.Z ? 0 : (level.random.nextDouble() - 0.5) * SURFACE_JITTER;
 
         return new Vec3Point(baseX + jx, baseY + jy, baseZ + jz);
     }
 
     /** Used for the one-shot trigger burst, where a diffuse mid-air flash reads fine — unlike the
      *  ambient hum, it isn't meant to look surface-anchored. */
-    private static void spawnParticlesInVolume(ServerLevel level, AABB aabb, AnomalyVisualSound visual) {
-        if (!(ForgeRegistries.PARTICLE_TYPES.getValue(visual.particle()) instanceof SimpleParticleType particleType)) {
+    private static void spawnParticlesInVolume(ServerLevel level, AABB aabb, ResourceLocation particleId, int count) {
+        if (!(ForgeRegistries.PARTICLE_TYPES.getValue(particleId) instanceof SimpleParticleType particleType)) {
             return;
         }
-        for (int i = 0; i < visual.particleCount(); i++) {
+        for (int i = 0; i < count; i++) {
             double x = lerp(level.random.nextDouble(), aabb.minX, aabb.maxX);
             double y = lerp(level.random.nextDouble(), aabb.minY, aabb.maxY);
             double z = lerp(level.random.nextDouble(), aabb.minZ, aabb.maxZ);
@@ -170,12 +200,19 @@ public class AnomalyEngine {
     }
 
     private static void playSound(ServerLevel level, AABB aabb, ResourceLocation soundId, float volume, float pitch) {
-        SoundEvent sound = ForgeRegistries.SOUND_EVENTS.getValue(soundId);
-        if (sound == null) return;
         double x = (aabb.minX + aabb.maxX) / 2.0;
         double y = (aabb.minY + aabb.maxY) / 2.0;
         double z = (aabb.minZ + aabb.maxZ) / 2.0;
-        level.playSound(null, x, y, z, sound, SoundSource.AMBIENT, volume, pitch);
+        playSoundAt(level, new Vec3(x, y, z), soundId, volume, pitch);
+    }
+
+    /** Same as {@link #playSound} but centered on an arbitrary point rather than a zone's
+     *  middle — used for Electra's per-target "hit" sound, which should come from the shocked
+     *  entity rather than the anomaly itself. */
+    private static void playSoundAt(ServerLevel level, Vec3 pos, ResourceLocation soundId, float volume, float pitch) {
+        SoundEvent sound = ForgeRegistries.SOUND_EVENTS.getValue(soundId);
+        if (sound == null) return;
+        level.playSound(null, pos.x, pos.y, pos.z, sound, SoundSource.AMBIENT, volume, pitch);
     }
 
     private static double lerp(double t, double min, double max) {
@@ -196,19 +233,21 @@ public class AnomalyEngine {
         List<Entity> hits = level.getEntities((Entity) null, aabb, e -> matches(e, detect));
         if (hits.isEmpty()) return;
 
-        boolean firedOnSomething = false;
+        List<LivingEntity> hitLiving = new ArrayList<>();
+        boolean projectileTripped = false;
         for (Entity entity : hits) {
             if (entity instanceof LivingEntity living) {
-                applyDamage(level, instance, type, living);
-                firedOnSomething = true;
+                if (applyDamage(level, instance, type, living)) {
+                    hitLiving.add(living);
+                }
             } else if (entity instanceof Projectile) {
                 // Thrown items (snowballs, eggs, ...) just trip the anomaly, they take no damage.
-                firedOnSomething = true;
+                projectileTripped = true;
             }
         }
 
-        if (firedOnSomething) {
-            playTriggerEffect(level, aabb, type);
+        if (!hitLiving.isEmpty() || projectileTripped) {
+            playTriggerEffect(level, aabb, type, hitLiving, projectileTripped);
             instance.setCooldownTicks(type.trigger().cooldownTicks());
         }
     }
@@ -220,7 +259,9 @@ public class AnomalyEngine {
         return false;
     }
 
-    private static void applyDamage(ServerLevel level, AnomalyInstance instance, AnomalyType type, LivingEntity target) {
+    /** @return true if a damage source was actually resolved and applied (i.e. this hit "counts"
+     *  for the living-vs-projectile trigger-sound split below). */
+    private static boolean applyDamage(ServerLevel level, AnomalyInstance instance, AnomalyType type, LivingEntity target) {
         // DamageSources' own source(ResourceKey) helper is private (used only for vanilla's
         // built-in damage types), so a custom damage type has to be wrapped by hand: look up its
         // Holder in the damage-type registry and build the DamageSource directly from that.
@@ -230,21 +271,42 @@ public class AnomalyEngine {
                 .getHolder(key);
         if (holder.isEmpty()) {
             // damage_type json for this id is missing/misspelled; skip rather than crash.
-            return;
+            return false;
         }
         DamageSource source = new DamageSource(holder.get());
         float amount = type.effect().damageForLevel(instance.level());
         target.hurt(source, amount);
+        return true;
     }
 
-    private static void playTriggerEffect(ServerLevel level, AABB aabb, AnomalyType type) {
-        AnomalyVisualSound trigger = type.triggerEffect();
+    /**
+     * Plays the one-shot burst effect. The blast sound splits on what actually happened —
+     * {@code livingSound} if someone got shocked this burst, {@code projectileSound} if only a
+     * thrown item tripped it — and on a living hit, one of {@code hitSounds} additionally plays
+     * from each hurt entity's own position (a close-up "zap" layered over the center-based blast),
+     * picked at random per target for variety. The particle burst always plays either way.
+     */
+    private static void playTriggerEffect(ServerLevel level, AABB aabb, AnomalyType type,
+                                           List<LivingEntity> hitLiving, boolean projectileTripped) {
+        AnomalyTriggerEffect trigger = type.triggerEffect();
         if (trigger == null) return;
+
         if (trigger.particle() != null) {
-            spawnParticlesInVolume(level, aabb, trigger);
+            spawnParticlesInVolume(level, aabb, trigger.particle(), trigger.particleCount());
         }
-        if (trigger.sound() != null) {
-            playSound(level, aabb, trigger.sound(), trigger.soundVolume(), trigger.soundPitch());
+
+        boolean livingHit = !hitLiving.isEmpty();
+        ResourceLocation blastSound = livingHit ? trigger.livingSound() : trigger.projectileSound();
+        if (blastSound != null) {
+            playSound(level, aabb, blastSound, trigger.soundVolume(), trigger.soundPitch());
+        }
+
+        if (livingHit && !trigger.hitSounds().isEmpty()) {
+            List<ResourceLocation> hitSounds = trigger.hitSounds();
+            for (LivingEntity target : hitLiving) {
+                ResourceLocation hitSound = hitSounds.get(level.random.nextInt(hitSounds.size()));
+                playSoundAt(level, target.position(), hitSound, trigger.hitSoundVolume(), trigger.hitSoundPitch());
+            }
         }
     }
 }

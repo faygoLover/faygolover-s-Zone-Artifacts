@@ -8,13 +8,14 @@ import javax.annotation.Nullable;
  * A configurable particle + sound cue, entirely datapack-driven so new anomalies of the same
  * family never need new Java code just to look/sound different.
  * <p>
- * Used for two different purposes on the same {@link AnomalyType}:
- * <ul>
- *     <li>{@code ambient}: repeats every {@code intervalTicks} / {@code soundIntervalTicks}
- *     while the anomaly exists (e.g. Electra's crackling sparks + hum).</li>
- *     <li>{@code trigger_effect}: fires once whenever the anomaly's effect triggers
- *     (interval fields are ignored for this use).</li>
- * </ul>
+ * Used for the {@code ambient} cue on an {@link AnomalyType}: repeats every {@code intervalTicks}
+ * / {@code soundIntervalTicks} while the anomaly exists and isn't on cooldown (e.g. Electra's
+ * crackling sparks + hum). The one-shot trigger effect has its own, differently-shaped record —
+ * see {@link AnomalyTriggerEffect}.
+ * <p>
+ * {@code glowParticle}/{@code glowParticleCount} are optional and, when set, are spawned at the
+ * same surface points as {@code particle} (see {@code AnomalyEngine.spawnParticlesOnSurfaces}) —
+ * a faint persistent-looking glow riding along with the sparks, e.g. {@code minecraft:glow}.
  */
 public record AnomalyVisualSound(
         @Nullable ResourceLocation particle,
@@ -23,6 +24,8 @@ public record AnomalyVisualSound(
         @Nullable ResourceLocation sound,
         int soundIntervalTicks,
         float soundVolume,
-        float soundPitch
+        float soundPitch,
+        @Nullable ResourceLocation glowParticle,
+        int glowParticleCount
 ) {
 }

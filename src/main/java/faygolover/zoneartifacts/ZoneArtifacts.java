@@ -3,6 +3,7 @@ package faygolover.zoneartifacts;
 import faygolover.zoneartifacts.network.ModNetwork;
 import faygolover.zoneartifacts.registry.ModCreativeTabs;
 import faygolover.zoneartifacts.registry.ModItems;
+import faygolover.zoneartifacts.registry.ModSounds;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
@@ -25,6 +26,7 @@ public class ZoneArtifacts {
 
         ModItems.ITEMS.register(modEventBus);
         ModCreativeTabs.TABS.register(modEventBus);
+        ModSounds.SOUNDS.register(modEventBus);
 
         ModNetwork.register();
     }
