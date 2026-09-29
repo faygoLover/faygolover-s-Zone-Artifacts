@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "shape": {
+    "type": "cube",
+    "sizes_by_level": [1, 2, 3]
+  },
+  "trigger": {
+    "type": "burst",
+    "cooldown_ticks": 20
+  },
+  "detect": {
+    "players": true,
+    "mobs": true,
+    "thrown_projectiles": true
+  },
+  "effect": {
+    "damage_type": "fl_zone_arts:anomaly_shock",
+    "damage_by_level": [3.0, 3.0, 3.0]
+  },
+  "ambient": {
+    "particle": "minecraft:electric_spark",
+    "particle_count": 6,
+    "interval_ticks": 5,
+    "sound": "minecraft:block.respawn_anchor.charge",
+    "sound_interval_ticks": 60,
+    "sound_volume": 0.4,
+    "sound_pitch": 1.4
+  },
+  "trigger_effect": {
+    "particle": "minecraft:electric_spark",
+    "particle_count": 30,
+    "sound": "minecraft:entity.lightning_bolt.impact",
+    "sound_volume": 0.6,
+    "sound_pitch": 1.0
+  }
+}

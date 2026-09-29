@@ -1,0 +1,8 @@
+{
+  "pack": {
+    "description": "fl_zone_arts resources and data",
+    "pack_format": 15,
+    "forge:resource_pack_format": 15,
+    "forge:data_pack_format": 15
+  }
+}
