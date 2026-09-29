@@ -3,8 +3,10 @@ package faygolover.zoneartifacts.entity;
 import faygolover.zoneartifacts.ZoneArtifacts;
 import faygolover.zoneartifacts.item.TeslaRouteToolItem;
 import faygolover.zoneartifacts.network.TeslaRouteSyncHandler;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -21,6 +23,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -102,20 +105,30 @@ public class TeslaRouteInteractionHandler {
 
     /** The right-click counterpart of {@code ClientTeslaRouteInputHandler}'s left-click fallback:
      *  fires whenever there's no real block under the cursor at all (a floating, already-uncovered
-     *  waypoint), and — unlike left-click — reaches the server directly, so {@link
-     *  TeslaRouteTargeting} can resolve the target itself with no client packet involved. */
+     *  waypoint, or simply a near-miss on a real one), and — unlike left-click — reaches the server
+     *  directly, so {@link TeslaRouteTargeting} can resolve the target itself with no client packet
+     *  involved. When even the generous fallback finds nothing and a chain is in progress, says so
+     *  instead of leaving the GM wondering whether the click registered at all. */
     @SubscribeEvent
     public static void onRightClickItem(PlayerInteractEvent.RightClickItem event) {
         Player player = event.getEntity();
         if (!(player.level() instanceof ServerLevel level)) return;
-        if (TeslaRouteToolItem.heldStack(player) == null) return;
+        ItemStack stack = TeslaRouteToolItem.heldStack(player);
+        if (stack == null) return;
 
-        TeslaRouteTargeting.pick(level, player).ifPresent(pos -> {
+        Optional<BlockPos> hit = TeslaRouteTargeting.pick(level, player);
+        if (hit.isPresent()) {
             if (event.isCancelable()) {
                 event.setCanceled(true);
             }
-            handleRightClick(level, player, pos);
-        });
+            handleRightClick(level, player, hit.get());
+            return;
+        }
+
+        List<BlockPos> chain = TeslaRouteToolItem.getChain(stack);
+        if (!chain.isEmpty()) {
+            notify(player, "Нет цели в досягаемости. Начало: ", chain.get(0));
+        }
     }
 
     /** Right-click state machine (rules 1, 2, 3, 4, 5 above). Public so {@code
@@ -131,8 +144,7 @@ public class TeslaRouteInteractionHandler {
         if (chain.isEmpty()) {
             chain.add(pos);
             TeslaRouteToolItem.setChain(stack, chain);
-            notify(player, "точка 1 (начальная) установлена в " + pos.toShortString()
-                    + " - продолжайте ПКМ по блокам; кликните по этой же точке ещё раз, чтобы завершить маршрут");
+            notify(player, "Начало: ", pos);
             return;
         }
 
@@ -142,28 +154,24 @@ public class TeslaRouteInteractionHandler {
             TeslaRoute route = TeslaSavedData.get(level).createRoute(level, typeId, List.copyOf(chain));
             TeslaRouteToolItem.clearChain(stack);
             TeslaRouteSyncHandler.broadcast(level);
-            notify(player, "маршрут #" + route.id() + " завершён (точек: " + chain.size() + ", начало в "
-                    + start.toShortString() + ") - Тесла начинает патрулирование");
+            notify(player, "Маршрут #" + route.id() + " готов (" + chain.size() + " т.): ", start);
             return;
         }
 
         if (chain.contains(pos)) {
-            notify(player, "эта точка уже есть в строящемся маршруте - ничего не изменилось (начало маршрута: "
-                    + start.toShortString() + ")");
+            notify(player, "Уже отмечена. Начало: ", start);
             return;
         }
 
         TeslaRoute otherRoute = TeslaSavedData.get(level).routeContaining(pos);
         if (otherRoute != null) {
-            notify(player, "эта точка принадлежит другому маршруту (#" + otherRoute.id()
-                    + ") - ничего не изменилось (начало текущего маршрута: " + start.toShortString() + ")");
+            notify(player, "Занято маршрутом #" + otherRoute.id() + ". Начало: ", start);
             return;
         }
 
         chain.add(pos);
         TeslaRouteToolItem.setChain(stack, chain);
-        notify(player, "точка " + chain.size() + " установлена в " + pos.toShortString()
-                + " (начало маршрута: " + start.toShortString() + ")");
+        notify(player, "Точка " + chain.size() + ": ", pos, ". Начало: ", start);
     }
 
     /** Left-click state machine (rules 6, 7, 8, 9 above). Public so {@code TeslaRouteClickPacket}
@@ -181,7 +189,7 @@ public class TeslaRouteInteractionHandler {
                 int waypointCount = route.waypoints().size();
                 TeslaSavedData.get(level).removeRoute(level, route.id());
                 TeslaRouteSyncHandler.broadcast(level);
-                notify(player, "маршрут #" + route.id() + " удалён целиком (точек было: " + waypointCount + ")");
+                notify(player, "Маршрут #" + route.id() + " удалён (" + waypointCount + " т.)");
             }
             // Plain block, no route involved at all - nothing happens, nothing to say.
             return;
@@ -192,20 +200,18 @@ public class TeslaRouteInteractionHandler {
         if (index >= 0) {
             if (index == 0) {
                 TeslaRouteToolItem.clearChain(stack);
-                notify(player, "строящийся маршрут отменён (начальная точка " + start.toShortString() + " убрана)");
+                notify(player, "Отменено. ", start, " свободна");
             } else {
                 chain.remove(index);
                 TeslaRouteToolItem.setChain(stack, chain);
-                notify(player, "точка " + pos.toShortString() + " убрана из маршрута (начало: "
-                        + start.toShortString() + ", точек осталось: " + chain.size() + ")");
+                notify(player, "Убрана ", pos, " (начало ", start, ", ост. " + chain.size() + ")");
             }
             return;
         }
 
         TeslaRoute otherRoute = TeslaSavedData.get(level).routeContaining(pos);
         if (otherRoute != null) {
-            notify(player, "эта точка принадлежит другому, уже завершённому маршруту (#" + otherRoute.id()
-                    + ") - ничего не убрано (начало текущего маршрута: " + start.toShortString() + ")");
+            notify(player, "Занято маршрутом #" + otherRoute.id() + ". Начало: ", start);
         }
         // Plain block while building - nothing happens, nothing to say.
     }
@@ -221,15 +227,20 @@ public class TeslaRouteInteractionHandler {
 
     /** Clears any in-progress (not yet finished) chain from every route tool in the player's whole
      *  inventory, not just their hands - called on logout, dimension change, and server shutdown so
-     *  an abandoned build never lingers. A finished, persisted {@link TeslaRoute} is untouched. */
-    public static void clearAllChains(Player player) {
+     *  an abandoned build never lingers, and by {@code /fl_zone_arts tesla_reset_chains} on demand.
+     *  A finished, persisted {@link TeslaRoute} is never touched by this. Returns whether anything
+     *  was actually cleared, purely for that command's own feedback message. */
+    public static boolean clearAllChains(Player player) {
+        boolean cleared = false;
         Inventory inventory = player.getInventory();
         for (int i = 0; i < inventory.getContainerSize(); i++) {
             ItemStack stack = inventory.getItem(i);
             if (stack.getItem() instanceof TeslaRouteToolItem && !TeslaRouteToolItem.getChain(stack).isEmpty()) {
                 TeslaRouteToolItem.clearChain(stack);
+                cleared = true;
             }
         }
+        return cleared;
     }
 
     @SubscribeEvent
@@ -249,7 +260,19 @@ public class TeslaRouteInteractionHandler {
         }
     }
 
-    private static void notify(Player player, String message) {
-        player.displayClientMessage(Component.literal("fl_zone_arts: " + message), true);
+    /** Builds and sends a short actionbar message. Each {@code parts} entry is either a plain
+     *  {@code String} appended as-is, or a {@link BlockPos} appended highlighted in color - the
+     *  coordinate colorizing every message that names one is built for here, in one place, rather
+     *  than in every call site. */
+    private static void notify(Player player, Object... parts) {
+        MutableComponent message = Component.literal("fl_zone_arts: ");
+        for (Object part : parts) {
+            if (part instanceof BlockPos pos) {
+                message.append(Component.literal(pos.toShortString()).withStyle(ChatFormatting.AQUA));
+            } else {
+                message.append(Component.literal(String.valueOf(part)));
+            }
+        }
+        player.displayClientMessage(message, true);
     }
 }

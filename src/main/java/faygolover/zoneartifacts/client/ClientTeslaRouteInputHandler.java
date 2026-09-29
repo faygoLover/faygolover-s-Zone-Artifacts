@@ -4,11 +4,18 @@ import faygolover.zoneartifacts.ZoneArtifacts;
 import faygolover.zoneartifacts.item.TeslaRouteToolItem;
 import faygolover.zoneartifacts.network.ModNetwork;
 import faygolover.zoneartifacts.network.TeslaRouteClickPacket;
+import net.minecraft.ChatFormatting;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+
+import java.util.List;
 
 /**
  * Left-click fallback for {@link TeslaRouteToolItem}, for the one case direct block-click events
@@ -29,12 +36,22 @@ public class ClientTeslaRouteInputHandler {
     @SubscribeEvent
     public static void onLeftClickEmpty(PlayerInteractEvent.LeftClickEmpty event) {
         Player player = event.getEntity();
-        if (TeslaRouteToolItem.heldStack(player) == null) return;
+        ItemStack stack = TeslaRouteToolItem.heldStack(player);
+        if (stack == null) return;
 
-        TeslaRouteClientTargeting.pick(player).ifPresent(pos -> {
+        TeslaRouteClientTargeting.pick(player).ifPresentOrElse(pos -> {
             ModNetwork.CHANNEL.sendToServer(new TeslaRouteClickPacket(pos));
             if (event.isCancelable()) {
                 event.setCanceled(true);
+            }
+        }, () -> {
+            // Nothing within reach even with the generous fallback box - purely local feedback (no
+            // server round trip needed to say "there was nothing to hit").
+            List<BlockPos> chain = TeslaRouteToolItem.getChain(stack);
+            if (!chain.isEmpty()) {
+                MutableComponent message = Component.literal("fl_zone_arts: Нет цели в досягаемости. Начало: ")
+                        .append(Component.literal(chain.get(0).toShortString()).withStyle(ChatFormatting.AQUA));
+                player.displayClientMessage(message, true);
             }
         });
     }

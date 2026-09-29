@@ -27,7 +27,10 @@ import java.util.Optional;
  */
 public final class TeslaRouteClientTargeting {
 
-    private static final double REACH = 6.0;
+    private static final double REACH = 8.0;
+
+    /** Matches {@code TeslaRouteTargeting}'s own margin - see its javadoc for why. */
+    private static final double HIT_INFLATE = 0.25;
 
     private TeslaRouteClientTargeting() {
     }
@@ -43,7 +46,7 @@ public final class TeslaRouteClientTargeting {
         double closestDistSq = Double.MAX_VALUE;
 
         for (BlockPos pos : TeslaRouteToolItem.getChain(stack)) {
-            Optional<Vec3> hit = new AABB(pos).clip(eye, reachEnd);
+            Optional<Vec3> hit = new AABB(pos).inflate(HIT_INFLATE).clip(eye, reachEnd);
             if (hit.isEmpty()) continue;
             double distSq = eye.distanceToSqr(hit.get());
             if (distSq < closestDistSq) {
@@ -54,7 +57,7 @@ public final class TeslaRouteClientTargeting {
 
         for (SyncTeslaRoutesPacket.Entry entry : ClientTeslaRouteCache.entriesFor(player.level().dimension())) {
             for (BlockPos pos : entry.waypoints()) {
-                Optional<Vec3> hit = new AABB(pos).clip(eye, reachEnd);
+                Optional<Vec3> hit = new AABB(pos).inflate(HIT_INFLATE).clip(eye, reachEnd);
                 if (hit.isEmpty()) continue;
                 double distSq = eye.distanceToSqr(hit.get());
                 if (distSq < closestDistSq) {

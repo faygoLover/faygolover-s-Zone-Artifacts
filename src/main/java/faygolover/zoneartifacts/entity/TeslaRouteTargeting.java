@@ -24,7 +24,12 @@ import java.util.Optional;
  */
 public final class TeslaRouteTargeting {
 
-    private static final double REACH = 6.0;
+    private static final double REACH = 8.0;
+
+    /** Waypoints are checked as a slightly bigger-than-a-block box, not the exact 1×1×1 cube - a
+     *  real click that's a hair off (or a marker block that isn't a full cube to begin with, like a
+     *  carpet or a slab) still counts as hitting the point, matching what the highlight box shows. */
+    private static final double HIT_INFLATE = 0.25;
 
     private TeslaRouteTargeting() {
     }
@@ -40,7 +45,7 @@ public final class TeslaRouteTargeting {
         double closestDistSq = Double.MAX_VALUE;
 
         for (BlockPos pos : TeslaRouteToolItem.getChain(stack)) {
-            Optional<Vec3> hit = new AABB(pos).clip(eye, reachEnd);
+            Optional<Vec3> hit = new AABB(pos).inflate(HIT_INFLATE).clip(eye, reachEnd);
             if (hit.isEmpty()) continue;
             double distSq = eye.distanceToSqr(hit.get());
             if (distSq < closestDistSq) {
@@ -51,7 +56,7 @@ public final class TeslaRouteTargeting {
 
         for (TeslaRoute route : TeslaSavedData.get(level).routes()) {
             for (BlockPos pos : route.waypoints()) {
-                Optional<Vec3> hit = new AABB(pos).clip(eye, reachEnd);
+                Optional<Vec3> hit = new AABB(pos).inflate(HIT_INFLATE).clip(eye, reachEnd);
                 if (hit.isEmpty()) continue;
                 double distSq = eye.distanceToSqr(hit.get());
                 if (distSq < closestDistSq) {

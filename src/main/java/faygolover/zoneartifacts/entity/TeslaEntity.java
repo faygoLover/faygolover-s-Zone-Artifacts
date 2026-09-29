@@ -4,7 +4,6 @@ import faygolover.zoneartifacts.ZoneArtifacts;
 import faygolover.zoneartifacts.network.ModNetwork;
 import faygolover.zoneartifacts.network.TeslaBumpPacket;
 import faygolover.zoneartifacts.network.TeslaElectrifyPacket;
-import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
@@ -36,30 +35,28 @@ import java.util.UUID;
 
 /**
  * A Tesla: a small ball of lightning that flies a closed loop of GM-placed waypoints ({@link
- * TeslaRoute}), diverting to chase a flagged player within range, and "popping" the instant she
- * touches a living entity — dealing damage, electrifying the target for a moment, and dealing a
- * second hit at the end of it — before disappearing and respawning on her route after a delay.
+ * TeslaRoute}), diverting to chase a flagged player within range, and popping — a discharge, then
+ * gone, respawning on her route after a delay — the instant she touches <em>anything</em> solid:
+ * a living target gets damaged and electrified first (see {@link #strike}); a block, or any other
+ * kind of entity in her way, just gets the discharge with nothing to damage (see {@link #pop}). She
+ * never "bounces" or gets stuck - any contact ends this instance outright.
  * <p>
  * She's a plain {@link Entity}, not a {@link LivingEntity}: she has no health and nothing can
  * damage her (the inherited {@link Entity#hurt} is a no-op unless a subclass overrides it, and
  * this one doesn't), and {@link #isPickable()} stays false so melee swings and projectiles never
  * even register her as a target — they simply pass through, which is the "let her be" the design
- * calls for. The only way to stop a chase is to make her hit a wall (see {@link #onBump}).
+ * calls for. Popping on contact is a one-way trip regardless of source, not something the player
+ * can trigger deliberately to "kill" her - see {@link #isInvulnerableTo}.
  * <p>
  * All movement is done by hand — a fresh {@link #move(MoverType, Vec3)} every tick toward whatever
  * the current target point is — rather than vanilla AI goals, since nothing about "always move in
- * a straight line at constant speed toward one point, and never react to being blocked except to
- * redirect" fits the goal-selector model. Real block collision still applies because {@code move}
- * always resolves it regardless of entity type; nothing here makes her solid to <em>other</em>
- * entities, so players and mobs simply fly through her body — the actual "did I touch someone"
- * check is her own manual overlap scan in {@link #tick()}, not collision response.
+ * a straight line at constant speed toward one point, and pop the instant that's blocked" fits the
+ * goal-selector model. Real block collision still applies because {@code move} always resolves it
+ * regardless of entity type; nothing here makes her solid to <em>other</em> entities, so players and
+ * mobs simply fly through her body — the actual "did I touch someone" check is her own manual
+ * overlap scan in {@link #tick()}, not collision response.
  */
 public class TeslaEntity extends Entity {
-
-    /** Minimum ticks between two bump-discharge events, so a Tesla stuck against an unreachable
-     *  waypoint (bad GM placement) or ramming a wall mid-chase doesn't flood sound/network with a
-     *  new discharge every single tick. */
-    private static final int BUMP_COOLDOWN_TICKS = 10;
 
     /** How close (in blocks) counts as "arrived" at a patrol waypoint. */
     private static final double WAYPOINT_ARRIVAL_DISTANCE = 0.6;
@@ -71,7 +68,6 @@ public class TeslaEntity extends Entity {
     private ResourceLocation typeId = new ResourceLocation(ZoneArtifacts.MODID, "tesla");
     private int waypointIndex;
     private int ageTicks;
-    private int bumpCooldown;
 
     @Nullable
     private UUID pursuingTarget;
@@ -180,18 +176,27 @@ public class TeslaEntity extends Entity {
             return;
         }
 
-        if (tryStrikeNearbyLiving(level, type)) {
-            return; // this instance was discarded inside strike(); nothing left to do.
+        if (tryHitNearby(level, type)) {
+            return; // this instance was discarded inside strike()/pop(); nothing left to do.
         }
 
         updatePursuitTarget(level, type);
         moveTowardCurrentTarget(level, type);
     }
 
-    private boolean tryStrikeNearbyLiving(ServerLevel level, TeslaType type) {
-        List<LivingEntity> hits = level.getEntitiesOfClass(LivingEntity.class, this.getBoundingBox(), LivingEntity::isAlive);
+    /** Any entity overlapping her this tick pops her: a living one gets the full damage+electrify
+     *  treatment ({@link #strike}); anything else (a boat, an item frame, dropped loot...) still
+     *  ends this instance, just without anything to damage (see {@link #pop}). */
+    private boolean tryHitNearby(ServerLevel level, TeslaType type) {
+        List<Entity> hits = level.getEntities(this, this.getBoundingBox(), entity -> true);
         if (hits.isEmpty()) return false;
-        strike(level, type, hits.get(0));
+
+        Entity hit = hits.get(0);
+        if (hit instanceof LivingEntity living && living.isAlive()) {
+            strike(level, type, living);
+        } else {
+            pop(level, type);
+        }
         return true;
     }
 
@@ -246,8 +251,8 @@ public class TeslaEntity extends Entity {
     // ---- pursuit ----------------------------------------------------------
 
     /** Only re-evaluated while not already pursuing (per design, a pursuit runs until it lands a
-     *  hit, loses the target, or gets dropped by a block bump — never re-targets mid-chase) and
-     *  cleared the instant the target stops qualifying: gone, dead, or the flag was lifted. */
+     *  hit or pops against something in the way — see {@link #pop} — never re-targets mid-chase)
+     *  and cleared the instant the target stops qualifying: gone, dead, or the flag was lifted. */
     private void updatePursuitTarget(ServerLevel level, TeslaType type) {
         if (pursuingTarget != null) {
             Entity current = level.getEntity(pursuingTarget);
@@ -304,10 +309,9 @@ public class TeslaEntity extends Entity {
             this.setYRot((float) (Mth.atan2(-motion.x, motion.z) * (180.0 / Math.PI)));
         }
 
-        if (bumpCooldown > 0) {
-            bumpCooldown--;
-        } else if (this.horizontalCollision || this.verticalCollision) {
-            onBump(level, type);
+        if (this.horizontalCollision || this.verticalCollision) {
+            pop(level, type);
+            return;
         }
 
         if (!pursuing && waypointCenter != null && this.position().closerThan(waypointCenter, WAYPOINT_ARRIVAL_DISTANCE)) {
@@ -318,15 +322,17 @@ public class TeslaEntity extends Entity {
         }
     }
 
-    /** Hitting solid terrain — whether idly patrolling or mid-chase — always does the same thing:
-     *  a cosmetic discharge and dropping whatever pursuit was in progress, never a "death". She
-     *  just redirects toward her current target fresh next tick. */
-    private void onBump(ServerLevel level, TeslaType type) {
-        bumpCooldown = BUMP_COOLDOWN_TICKS;
-        pursuingTarget = null;
-
+    /** {@link #strike} without a target: hitting solid terrain, or overlapping a non-living entity
+     *  (a boat, an item frame, dropped loot...) - nothing to damage or electrify, but she still pops
+     *  and disappears exactly the same way, discarded now with a fresh one scheduled on her route
+     *  after {@code respawnTicks}. Whether that's mid-patrol or mid-chase makes no difference; she
+     *  never "bounces off" a wall and keeps going. */
+    private void pop(ServerLevel level, TeslaType type) {
         TeslaBumpVisual bump = type.bump();
         ModNetwork.CHANNEL.send(PacketDistributor.DIMENSION.with(level::dimension),
                 new TeslaBumpPacket(this.position(), type.arc().color(), bump.boltCount(), bump.reach(), bump.durationTicks()));
+
+        TeslaSavedData.get(level).scheduleRespawn(routeId, type.respawnTicks());
+        this.discard();
     }
 }
