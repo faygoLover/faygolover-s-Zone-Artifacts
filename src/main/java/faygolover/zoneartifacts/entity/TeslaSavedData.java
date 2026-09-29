@@ -89,6 +89,25 @@ public class TeslaSavedData extends SavedData {
         setDirty();
     }
 
+    /** Wipes every persisted route and discards every live {@link TeslaEntity} in this level, along
+     *  with any pending respawn or second-hit bookkeeping - the "something went sideways, start
+     *  clean" escape hatch behind {@code /fl_zone_arts tesla_reset_routes}. Returns how many routes
+     *  were removed, purely for that command's own feedback message. Does not touch any player's
+     *  in-progress chain - see {@link TeslaRouteInteractionHandler#clearAllChains}. */
+    public int clearAll(ServerLevel level) {
+        int removed = routes.size();
+        for (Entity entity : level.getAllEntities()) {
+            if (entity instanceof TeslaEntity) {
+                entity.discard();
+            }
+        }
+        routes.clear();
+        pendingRespawnTicks.clear();
+        pendingSecondHits.clear();
+        setDirty();
+        return removed;
+    }
+
     public void scheduleRespawn(int routeId, int ticks) {
         pendingRespawnTicks.put(routeId, Math.max(1, ticks));
         setDirty();

@@ -36,6 +36,8 @@ public final class ModNetwork {
                 SyncTeslaTypesPacket::encode, SyncTeslaTypesPacket::decode, SyncTeslaTypesPacket::handle);
         CHANNEL.registerMessage(id++, SyncTeslaRoutesPacket.class,
                 SyncTeslaRoutesPacket::encode, SyncTeslaRoutesPacket::decode, SyncTeslaRoutesPacket::handle);
+        CHANNEL.registerMessage(id++, TeslaRouteClickPacket.class,
+                TeslaRouteClickPacket::encode, TeslaRouteClickPacket::decode, TeslaRouteClickPacket::handle);
     }
 
     private ModNetwork() {
