@@ -1,50 +1,41 @@
 package faygolover.zoneartifacts.network;
 
-import faygolover.zoneartifacts.client.TeslaVisualRenderer;
+import faygolover.zoneartifacts.client.TeslaEffectRenderer;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.network.NetworkEvent;
 
 import java.util.function.Supplier;
 
 /**
- * Server -&gt; client, sent the instant a Tesla lands a hit: "wrap entity {@code targetEntityId} in
- * arcs across its own surface for {@code durationTicks}." This is the "electrify the target like
- * in a cartoon" visual — separate from the ambient ball {@code TeslaVisualRenderer} already draws
- * around Tesla herself, and outliving her: she's discarded the same tick this is sent, but the
- * effect plays out on the target regardless of whether she's still around to see it.
+ * Sent when Tesla makes contact with a living entity: tells the client to render arcs crawling
+ * across that entity's own surface for the given duration ("электрофицируя её как в мультике").
  */
 public class TeslaElectrifyPacket {
 
+    private final int teslaEntityId;
     private final int targetEntityId;
     private final int durationTicks;
-    private final int color;
 
-    public TeslaElectrifyPacket(int targetEntityId, int durationTicks, int color) {
+    public TeslaElectrifyPacket(int teslaEntityId, int targetEntityId, int durationTicks) {
+        this.teslaEntityId = teslaEntityId;
         this.targetEntityId = targetEntityId;
         this.durationTicks = durationTicks;
-        this.color = color;
     }
 
-    public static void encode(TeslaElectrifyPacket packet, FriendlyByteBuf buf) {
-        buf.writeVarInt(packet.targetEntityId);
-        buf.writeVarInt(packet.durationTicks);
-        buf.writeInt(packet.color);
+    public TeslaElectrifyPacket(FriendlyByteBuf buf) {
+        this.teslaEntityId = buf.readVarInt();
+        this.targetEntityId = buf.readVarInt();
+        this.durationTicks = buf.readVarInt();
     }
 
-    public static TeslaElectrifyPacket decode(FriendlyByteBuf buf) {
-        int targetEntityId = buf.readVarInt();
-        int durationTicks = buf.readVarInt();
-        int color = buf.readInt();
-        return new TeslaElectrifyPacket(targetEntityId, durationTicks, color);
+    public void write(FriendlyByteBuf buf) {
+        buf.writeVarInt(teslaEntityId);
+        buf.writeVarInt(targetEntityId);
+        buf.writeVarInt(durationTicks);
     }
 
-    public static void handle(TeslaElectrifyPacket packet, Supplier<NetworkEvent.Context> ctx) {
-        ctx.get().enqueueWork(() ->
-                DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () ->
-                        TeslaVisualRenderer.onElectrify(packet.targetEntityId, packet.durationTicks, packet.color))
-        );
+    public void handle(Supplier<NetworkEvent.Context> ctx) {
+        ctx.get().enqueueWork(() -> TeslaEffectRenderer.onElectrify(teslaEntityId, targetEntityId, durationTicks));
         ctx.get().setPacketHandled(true);
     }
 }

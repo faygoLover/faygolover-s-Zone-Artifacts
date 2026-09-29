@@ -1,52 +1,79 @@
 package faygolover.zoneartifacts.client;
 
-import faygolover.zoneartifacts.network.SyncAnomalyCooldownPacket;
-import net.minecraft.core.BlockPos;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.level.Level;
 import faygolover.zoneartifacts.network.SyncAnomaliesPacket;
+import net.minecraft.core.BlockPos;
+import net.minecraft.resources.ResourceLocation;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
- * Client-side snapshot of "what anomalies exist and where", refreshed wholesale whenever a
- * {@link SyncAnomaliesPacket} arrives (join, dimension change, or any placement/removal/level
- * change) — or patched in place, one entry at a time, whenever a lighter-weight {@link
- * SyncAnomalyCooldownPacket} arrives (see {@link #updateCooldown}). Purely a rendering aid for
- * {@code AnomalyHighlightRenderer} — never authoritative, the server always re-checks for real
- * before acting on a click (see AnomalyTargeting).
+ * Client-side mirror of every placed anomaly. Kept per-dimension: a stray delta packet for a
+ * dimension the player has already left is simply ignored rather than needing to be filtered at
+ * the network layer.
  */
 public final class ClientAnomalyCache {
 
-    private static ResourceKey<Level> dimension = null;
-    private static List<SyncAnomaliesPacket.Entry> entries = List.of();
+    private static ResourceLocation currentDimension = null;
+    private static final Map<Key, Entry> ENTRIES = new HashMap<>();
+    private static final Set<Key> ON_COOLDOWN = new HashSet<>();
 
-    public static void set(ResourceKey<Level> dim, List<SyncAnomaliesPacket.Entry> newEntries) {
-        dimension = dim;
-        entries = newEntries;
+    private ClientAnomalyCache() {
     }
 
-    /** Patches a single entry's cooldown flag in place, without touching anything else about it —
-     *  the cheap counterpart to a full {@link #set}, driven by {@link SyncAnomalyCooldownPacket}. */
-    public static void updateCooldown(ResourceLocation typeId, BlockPos pos, boolean onCooldown) {
-        for (int i = 0; i < entries.size(); i++) {
-            SyncAnomaliesPacket.Entry entry = entries.get(i);
-            if (entry.typeId().equals(typeId) && entry.pos().equals(pos)) {
-                if (entry.onCooldown() == onCooldown) return;
-                List<SyncAnomaliesPacket.Entry> updated = new ArrayList<>(entries);
-                updated.set(i, new SyncAnomaliesPacket.Entry(entry.typeId(), entry.pos(), entry.level(), onCooldown));
-                entries = updated;
-                return;
-            }
+    public static void replaceAll(ResourceLocation dimension, List<SyncAnomaliesPacket.Entry> entries) {
+        currentDimension = dimension;
+        ENTRIES.clear();
+        ON_COOLDOWN.clear();
+        for (SyncAnomaliesPacket.Entry entry : entries) {
+            Entry local = new Entry(entry.typeId(), entry.pos(), entry.level());
+            ENTRIES.put(local.key(), local);
         }
     }
 
-    public static List<SyncAnomaliesPacket.Entry> entriesFor(ResourceKey<Level> dim) {
-        return dim.equals(dimension) ? entries : List.of();
+    public static void remove(ResourceLocation dimension, ResourceLocation typeId, BlockPos pos) {
+        if (!dimension.equals(currentDimension)) return;
+        Key key = new Key(typeId, pos);
+        ENTRIES.remove(key);
+        ON_COOLDOWN.remove(key);
     }
 
-    private ClientAnomalyCache() {
+    public static void setCooldown(ResourceLocation dimension, ResourceLocation typeId, BlockPos pos, boolean onCooldown) {
+        if (!dimension.equals(currentDimension)) return;
+        Key key = new Key(typeId, pos);
+        if (onCooldown) {
+            ON_COOLDOWN.add(key);
+        } else {
+            ON_COOLDOWN.remove(key);
+        }
+    }
+
+    public static boolean isOnCooldown(ResourceLocation typeId, BlockPos pos) {
+        return ON_COOLDOWN.contains(new Key(typeId, pos));
+    }
+
+    public static List<Entry> all() {
+        return List.copyOf(ENTRIES.values());
+    }
+
+    public static List<Entry> ofType(ResourceLocation typeId) {
+        List<Entry> result = new ArrayList<>();
+        for (Entry entry : ENTRIES.values()) {
+            if (entry.typeId().equals(typeId)) result.add(entry);
+        }
+        return result;
+    }
+
+    public record Key(ResourceLocation typeId, BlockPos pos) {
+    }
+
+    public record Entry(ResourceLocation typeId, BlockPos pos, int level) {
+        public Key key() {
+            return new Key(typeId, pos);
+        }
     }
 }

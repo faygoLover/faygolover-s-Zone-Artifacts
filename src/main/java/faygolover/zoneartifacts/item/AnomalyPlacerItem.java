@@ -2,117 +2,103 @@ package faygolover.zoneartifacts.item;
 
 import faygolover.zoneartifacts.anomaly.AnomalyInstance;
 import faygolover.zoneartifacts.anomaly.AnomalySavedData;
+import faygolover.zoneartifacts.anomaly.AnomalyTargeting;
 import faygolover.zoneartifacts.anomaly.AnomalyType;
 import faygolover.zoneartifacts.anomaly.AnomalyTypeManager;
 import faygolover.zoneartifacts.network.AnomalySyncHandler;
-import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 
-import javax.annotation.Nullable;
-import java.util.List;
 import java.util.Optional;
 
 /**
- * One instance of this item exists per anomaly type (see ModItems).
- * <p>
- * Interacting with an <em>existing</em> anomaly of this type (aiming anywhere inside its zone,
- * like clicking a light block) is handled elsewhere and cancels the vanilla interaction before
- * {@link #useOn} ever runs: right-click level-cycling goes through {@code AnomalyInteractionHandler}
- * (a server-side raytrace), left-click removal goes through {@code ClientAnomalyInputHandler}
- * + {@code RemoveAnomalyPacket} (has to start client-side — see that class's javadoc for why).
- * <p>
- * This class's {@link #useOn} is therefore just the fallback: right-click on a block with no
- * anomaly of this type on it yet places a new one at level 1.
+ * The "spawner"/"clicker" item for one anomaly type: right-click places, removes or (via
+ * {@link faygolover.zoneartifacts.anomaly.AnomalyInteractionHandler}, on left-click) cycles the
+ * level of that anomaly type. Behaves like placing and interacting with an ordinary block:
+ * <ul>
+ *     <li>Right-click, aiming at an existing anomaly's zone (anywhere inside it, not just its
+ *     anchor block) → removes it.</li>
+ *     <li>Right-click, aiming at a plain block with no anomaly in reach → places a new one, one
+ *     block level 1, adjacent to the clicked face (i.e. exactly where a normal block would land),
+ *     never anchored inside the block that was actually clicked.</li>
+ * </ul>
+ * Both {@link #useOn} (fires when the vanilla block raytrace lands on a real block) and
+ * {@link #use} (fires when it doesn't, e.g. aiming through open air into a zone that extends past
+ * solid geometry) run the same "am I aiming at an anomaly?" check via {@link AnomalyTargeting} —
+ * that check is a raw ray/AABB clip against the real, server-authoritative anomaly data, entirely
+ * independent of which particular block vanilla's own raytrace happened to resolve to.
  */
 public class AnomalyPlacerItem extends Item {
 
-    private final ResourceLocation anomalyTypeId;
+    private final ResourceLocation typeId;
 
-    public AnomalyPlacerItem(ResourceLocation anomalyTypeId, Properties properties) {
+    public AnomalyPlacerItem(ResourceLocation typeId, Properties properties) {
         super(properties);
-        this.anomalyTypeId = anomalyTypeId;
+        this.typeId = typeId;
     }
 
-    public ResourceLocation anomalyTypeId() {
-        return anomalyTypeId;
+    public ResourceLocation typeId() {
+        return typeId;
     }
 
-    @Nullable
-    public static ResourceLocation heldTypeId(Player player) {
-        ResourceLocation main = fromStack(player.getMainHandItem());
-        if (main != null) return main;
-        return fromStack(player.getOffhandItem());
-    }
-
-    @Nullable
-    private static ResourceLocation fromStack(ItemStack stack) {
-        return stack.getItem() instanceof AnomalyPlacerItem placer ? placer.anomalyTypeId() : null;
-    }
-
-    @Override
-    public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
-        // Keyed off this item's own description id (e.g. "item.fl_zone_arts.electra_placer") so
-        // any future anomaly placer picks up its own ".desc" lang entry automatically, with no new
-        // Java code — matching this class's own "one item per type, driven by data" design.
-        tooltip.add(Component.translatable(this.getDescriptionId() + ".desc").withStyle(ChatFormatting.GRAY));
+    /** @return the anomaly type this stack places, or {@code null} if it isn't a placer item at all. */
+    public static ResourceLocation typeIdOf(ItemStack stack) {
+        return stack.getItem() instanceof AnomalyPlacerItem placer ? placer.typeId : null;
     }
 
     @Override
     public InteractionResult useOn(UseOnContext context) {
         Level level = context.getLevel();
-        BlockPos pos = context.getClickedPos();
         Player player = context.getPlayer();
+        if (player == null) return InteractionResult.PASS;
 
-        if (level instanceof ServerLevel serverLevel) {
-            placeIfEmpty(serverLevel, player, pos);
-        }
-
-        return InteractionResult.sidedSuccess(level.isClientSide);
-    }
-
-    private void placeIfEmpty(ServerLevel serverLevel, @Nullable Player player, BlockPos pos) {
-        AnomalyType type = AnomalyTypeManager.get(anomalyTypeId);
-        if (type == null) {
-            notify(player, "тип аномалии «" + anomalyTypeId + "» не загружен (проверьте датапак / выполните /reload)");
-            return;
-        }
-
-        AnomalySavedData data = AnomalySavedData.get(serverLevel);
-        if (findAt(data, pos, anomalyTypeId).isPresent()) {
-            // An anomaly is already anchored exactly here; AnomalyInteractionHandler's raytrace
-            // should have caught the click and cycled its level before this ever runs. If it
-            // somehow didn't (e.g. clicking exactly on the block from an odd angle), do nothing
-            // rather than silently stacking a second one on top.
-            return;
-        }
-
-        data.add(new AnomalyInstance(anomalyTypeId, pos.immutable(), 1));
-        notify(player, "аномалия «" + anomalyTypeId + "» размещена в " + pos.toShortString() + " (уровень 1)");
-        AnomalySyncHandler.broadcast(serverLevel);
-    }
-
-    private static Optional<AnomalyInstance> findAt(AnomalySavedData data, BlockPos pos, ResourceLocation typeId) {
-        for (AnomalyInstance instance : List.copyOf(data.instances())) {
-            if (instance.pos().equals(pos) && instance.typeId().equals(typeId)) {
-                return Optional.of(instance);
+        if (!level.isClientSide && level instanceof ServerLevel serverLevel) {
+            Optional<AnomalyInstance> targeted = AnomalyTargeting.pick(serverLevel, player, typeId);
+            if (targeted.isPresent()) {
+                remove(serverLevel, targeted.get());
+            } else {
+                // Adjacent to the clicked face, exactly like placing any ordinary block — not
+                // anchored inside the block that was actually clicked.
+                BlockPos placeAt = context.getClickedPos().relative(context.getClickedFace());
+                place(serverLevel, placeAt);
             }
         }
-        return Optional.empty();
+        return InteractionResult.sidedSuccess(level.isClientSide());
     }
 
-    private static void notify(@Nullable Player player, String message) {
-        if (player != null) {
-            player.displayClientMessage(Component.literal("fl_zone_arts: " + message), true);
+    @Override
+    public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
+        ItemStack stack = player.getItemInHand(hand);
+
+        if (!level.isClientSide && level instanceof ServerLevel serverLevel) {
+            AnomalyTargeting.pick(serverLevel, player, typeId)
+                    .ifPresent(instance -> remove(serverLevel, instance));
         }
+        return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
+    }
+
+    private void place(ServerLevel level, BlockPos pos) {
+        AnomalyType type = AnomalyTypeManager.get(typeId);
+        if (type == null) return; // no datapack currently defines this type — silently do nothing
+
+        AnomalyInstance instance = new AnomalyInstance(typeId, pos, 1);
+        AnomalySavedData.get(level).add(instance);
+        AnomalySyncHandler.broadcastFullResync(level);
+    }
+
+    private void remove(ServerLevel level, AnomalyInstance instance) {
+        AnomalySavedData.get(level).remove(instance);
+        // A plain removal doesn't change any data the client still needs, so it's cheaper to send
+        // a targeted delta than to resend the whole per-dimension list.
+        AnomalySyncHandler.broadcastRemoval(level, instance);
     }
 }

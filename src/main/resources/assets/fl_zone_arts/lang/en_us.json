@@ -1,14 +1,6 @@
 {
-  "itemGroup.fl_zone_arts.anomalies": "Zone Artifacts: Anomalies",
-  "item.fl_zone_arts.electra_placer": "Electra Anomaly Placer",
-  "item.fl_zone_arts.electra_placer.desc": "Right-click a block to place or cycle an Electra anomaly.",
-  "item.fl_zone_arts.tesla_route_tool": "Tesla Route Tool",
-  "item.fl_zone_arts.tesla_route_tool.desc": "Right-click blocks to lay out a Tesla's patrol route.",
-  "item.fl_zone_arts.tesla_route_tool.desc2": "Click the first point again to close the loop.",
-  "entity.fl_zone_arts.tesla": "Tesla",
-  "death.attack.fl_zone_arts.anomaly_shock": "%1$s was electrocuted by an anomaly",
-  "subtitles.fl_zone_arts.electra_idle": "Electra crackles",
-  "subtitles.fl_zone_arts.electra_blast": "Electra discharges",
-  "subtitles.fl_zone_arts.electra_hit": "Electric shock",
-  "subtitles.fl_zone_arts.tesla_idle": "Tesla hums"
+  "itemGroup.fl_zone_arts.zone_artifacts": "Zone Artifacts",
+  "item.fl_zone_arts.electra_placer": "Electra Anomaly Spawner",
+  "item.fl_zone_arts.tesla_placer": "Tesla Route Builder",
+  "death.attack.fl_zone_arts.anomaly_shock": "%1$s was electrocuted by an anomaly"
 }

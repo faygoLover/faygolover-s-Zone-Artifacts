@@ -1,6 +1,5 @@
 {
   "message_id": "fl_zone_arts.anomaly_shock",
-  "scaling": "always",
-  "exhaustion": 0.1,
-  "effects": "hurt"
+  "scaling": "never",
+  "exhaustion": 0.1
 }

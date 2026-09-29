@@ -3,13 +3,8 @@ package faygolover.zoneartifacts.network;
 import faygolover.zoneartifacts.anomaly.AnomalyInstance;
 import faygolover.zoneartifacts.client.ClientAnomalyCache;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.level.Level;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.network.NetworkEvent;
 
 import java.util.ArrayList;
@@ -17,66 +12,53 @@ import java.util.List;
 import java.util.function.Supplier;
 
 /**
- * Server -> client: "here is the full list of placed anomalies in this dimension right now."
- * Sent on join/dimension change and whenever an anomaly is placed, removed or changes level.
- * Purely a rendering aid ({@link ClientAnomalyCache}) — no gameplay decision ever trusts it;
- * placement/removal/level changes stay server-authoritative (see AnomalyTargeting).
+ * Full resync of every placed anomaly in one dimension. Sent when a player (re)joins that
+ * dimension, and whenever an anomaly is placed or has its level changed — the only two changes
+ * that add or alter data the client doesn't already have. A plain removal uses the far cheaper
+ * {@link RemoveAnomalyPacket} instead of resending the whole list.
  */
 public class SyncAnomaliesPacket {
 
-    private final ResourceKey<Level> dimension;
+    private final ResourceLocation dimension;
     private final List<Entry> entries;
 
-    public SyncAnomaliesPacket(ResourceKey<Level> dimension, List<Entry> entries) {
+    public SyncAnomaliesPacket(ResourceLocation dimension, List<Entry> entries) {
         this.dimension = dimension;
         this.entries = entries;
     }
 
-    public static SyncAnomaliesPacket of(ResourceKey<Level> dimension, List<AnomalyInstance> instances) {
-        List<Entry> entries = new ArrayList<>(instances.size());
-        for (AnomalyInstance instance : instances) {
-            entries.add(new Entry(instance.typeId(), instance.pos(), instance.level(), instance.cooldownTicks() > 0));
-        }
-        return new SyncAnomaliesPacket(dimension, entries);
-    }
-
-    public static void encode(SyncAnomaliesPacket packet, FriendlyByteBuf buf) {
-        buf.writeResourceLocation(packet.dimension.location());
-        buf.writeVarInt(packet.entries.size());
-        for (Entry entry : packet.entries) {
-            buf.writeResourceLocation(entry.typeId());
-            buf.writeBlockPos(entry.pos());
-            buf.writeVarInt(entry.level());
-            buf.writeBoolean(entry.onCooldown());
-        }
-    }
-
-    public static SyncAnomaliesPacket decode(FriendlyByteBuf buf) {
-        ResourceKey<Level> dimension = ResourceKey.create(Registries.DIMENSION, buf.readResourceLocation());
+    public SyncAnomaliesPacket(FriendlyByteBuf buf) {
+        this.dimension = buf.readResourceLocation();
         int count = buf.readVarInt();
-        List<Entry> entries = new ArrayList<>(count);
+        List<Entry> list = new ArrayList<>(count);
         for (int i = 0; i < count; i++) {
             ResourceLocation typeId = buf.readResourceLocation();
             BlockPos pos = buf.readBlockPos();
             int level = buf.readVarInt();
-            boolean onCooldown = buf.readBoolean();
-            entries.add(new Entry(typeId, pos, level, onCooldown));
+            list.add(new Entry(typeId, pos, level));
         }
-        return new SyncAnomaliesPacket(dimension, entries);
+        this.entries = list;
     }
 
-    public static void handle(SyncAnomaliesPacket packet, Supplier<NetworkEvent.Context> ctx) {
-        ctx.get().enqueueWork(() ->
-                DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> ClientAnomalyCache.set(packet.dimension, packet.entries))
-        );
+    public void write(FriendlyByteBuf buf) {
+        buf.writeResourceLocation(dimension);
+        buf.writeVarInt(entries.size());
+        for (Entry entry : entries) {
+            buf.writeResourceLocation(entry.typeId());
+            buf.writeBlockPos(entry.pos());
+            buf.writeVarInt(entry.level());
+        }
+    }
+
+    public void handle(Supplier<NetworkEvent.Context> ctx) {
+        ctx.get().enqueueWork(() -> ClientAnomalyCache.replaceAll(dimension, entries));
         ctx.get().setPacketHandled(true);
     }
 
-    /** {@code onCooldown} drives both the client-side idle-loop sound handler ({@code
-     *  AnomalyAmbientSoundHandler}) and the ambient lightning arcs ({@code AnomalyArcRenderer}):
-     *  both stop the instant this flips to true and resume the instant it flips back. In practice
-     *  this flag is usually kept current by the much lighter {@link SyncAnomalyCooldownPacket}
-     *  rather than a full resend of this packet — see that class's javadoc. */
-    public record Entry(ResourceLocation typeId, BlockPos pos, int level, boolean onCooldown) {
+    public static Entry entryOf(AnomalyInstance instance) {
+        return new Entry(instance.typeId(), instance.pos(), instance.level());
+    }
+
+    public record Entry(ResourceLocation typeId, BlockPos pos, int level) {
     }
 }
