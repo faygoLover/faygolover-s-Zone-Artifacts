@@ -14,6 +14,11 @@ public final class Gravi {
 
     public static final float HITBOX = 0.25f;
     public static final ResourceLocation POP_SOUND = id("gravy_hit");
+    /** Its pops are heard, but they don't hurt the ears. */
+    public static final float POP_VOLUME = 0.6f;
+    /** A low hum while it floats. */
+    public static final ResourceLocation IDLE_SOUND = id("gravi_idle");
+    public static final float IDLE_VOLUME = 0.35f;
     public static final ResourceLocation DAMAGE_TYPE = id("anomaly_gravity");
     /** A pop sucks in for this long, then bursts. */
     public static final int WINDUP_TICKS = 8;

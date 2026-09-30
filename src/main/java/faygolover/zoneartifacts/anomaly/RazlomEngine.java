@@ -252,9 +252,9 @@ public final class RazlomEngine {
     /** Living: alive, not a spectator, not a player in creative. Projectile: still flying (an
      *  arrow stuck in the ground doesn't keep setting it off). */
     private static boolean targetable(Entity entity) {
-        if (!entity.isAlive() || entity.isSpectator()) return false;
+        if (!entity.isAlive() || AnomalyCombat.spectatorExempt(entity)) return false;
         if (entity instanceof Projectile) return Gravity.flying(entity);
         if (!(entity instanceof LivingEntity)) return false;
-        return !(entity instanceof Player player && player.isCreative());
+        return !AnomalyCombat.creativeExempt(entity);
     }
 }

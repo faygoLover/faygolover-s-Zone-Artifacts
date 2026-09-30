@@ -1,6 +1,12 @@
 package faygolover.zoneartifacts.client.rust;
 
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.BufferBuilder;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexBuffer;
+import com.mojang.blaze3d.vertex.VertexFormat;
+import net.minecraft.client.renderer.ShaderInstance;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import faygolover.zoneartifacts.ZoneArtifacts;
 import faygolover.zoneartifacts.anomaly.AnomalyGeometry;
@@ -77,7 +83,22 @@ public final class RustClient {
         long spotSeen;
         @Nullable
         ZoneLoopSound crackle;
+        /** The moss layers, built once per scan (not every frame) around {@link #origin}. */
+        final VertexBuffer[] layers = new VertexBuffer[LAYERS.length];
+        boolean dirty = true;
+        BlockPos origin = BlockPos.ZERO;
+
+        void close() {
+            for (int i = 0; i < layers.length; i++) {
+                if (layers[i] != null) layers[i].close();
+                layers[i] = null;
+            }
+        }
     }
+
+    private static final ResourceLocation[] LAYERS = {MOSS, FUZZ_A, FUZZ_B};
+    private static final RenderType[] LAYER_TYPES = {MossRenderType.of(MOSS), MossRenderType.of(FUZZ_A), MossRenderType.of(FUZZ_B)};
+    private static final double[] LAYER_OFFSETS = {0.003, 0.028, 0.055};
 
     private static final Map<BlockPos, Zone> ZONES = new HashMap<>();
     private static final Map<Entity, Long> LAST_DUST = new java.util.WeakHashMap<>();
@@ -129,7 +150,7 @@ public final class RustClient {
         }
         for (int i = 0; i < 40; i++) {
             Vec3 v = new Vec3(RANDOM.nextGaussian() * 0.15, 0.15 + RANDOM.nextDouble() * 0.3, RANDOM.nextGaussian() * 0.15);
-            level.addParticle(ModParticles.EMBER.get(), at.x, at.y + 0.2, at.z, v.x, v.y, v.z);
+            faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, ModParticles.EMBER.get(), at.x, at.y + 0.2, at.z, v.x, v.y, v.z);
         }
         for (int i = 0; i < 16; i++) {
             Vec3 dir = new Vec3(RANDOM.nextGaussian(), -Math.abs(RANDOM.nextGaussian()) - 0.2, RANDOM.nextGaussian()).normalize();
@@ -144,6 +165,7 @@ public final class RustClient {
         Minecraft mc = Minecraft.getInstance();
         ClientLevel level = mc.level;
         if (level == null || mc.player == null) {
+            ZONES.values().forEach(Zone::close);
             ZONES.clear();
             return;
         }
@@ -166,12 +188,16 @@ public final class RustClient {
             dust(level, z, now);
             smoulder(mc, level, z, now);
         }
-        ZONES.keySet().removeIf(p -> !seen.contains(p));
+        ZONES.entrySet().removeIf(e -> {
+            if (seen.contains(e.getKey())) return false;
+            e.getValue().close();
+            return true;
+        });
     }
 
     /** Every open face of the solid blocks in the zone. */
     private static void scan(ClientLevel level, Zone z) {
-        AABB zone = AnomalyGeometry.centeredAabb(z.entry.pos(), z.entry.size());
+        AABB zone = AnomalyGeometry.box(z.entry);
         int[] out = new int[MAX_FACES * 4];
         int n = 0;
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
@@ -195,11 +221,43 @@ public final class RustClient {
             }
         }
         z.faces = java.util.Arrays.copyOf(out, n * 4);
+        z.dirty = true;
+    }
+
+    /** Bakes the moss of a zone into its vertex buffers: positions around its origin, light and shade in the colour. */
+    private static void build(ClientLevel level, Zone z) {
+        z.dirty = false;
+        z.origin = z.entry.pos();
+        int[] f = z.faces;
+        int[] light = new int[f.length / 4];
+        BlockPos.MutableBlockPos lp = new BlockPos.MutableBlockPos();
+        for (int i = 0, k = 0; i + 3 < f.length; i += 4, k++) {
+            Direction d = DIRS[f[i + 3]];
+            light[k] = LevelRenderer.getLightColor(level, lp.set(f[i] + d.getStepX(), f[i + 1] + d.getStepY(), f[i + 2] + d.getStepZ()));
+        }
+        for (int layer = 0; layer < LAYERS.length; layer++) {
+            if (f.length == 0) {
+                if (z.layers[layer] != null) z.layers[layer].close();
+                z.layers[layer] = null;
+                continue;
+            }
+            BufferBuilder builder = new BufferBuilder(f.length * DefaultVertexFormat.BLOCK.getVertexSize() + 256);
+            builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.BLOCK);
+            for (int i = 0, k = 0; i + 3 < f.length; i += 4, k++) {
+                Direction d = DIRS[f[i + 3]];
+                int shade = (int) (255 * level.getShade(d, true));
+                face(builder, null, z.origin, f[i], f[i + 1], f[i + 2], d, LAYER_OFFSETS[layer], shade, shade, shade, light[k], layer);
+            }
+            if (z.layers[layer] == null) z.layers[layer] = new VertexBuffer(VertexBuffer.Usage.STATIC);
+            z.layers[layer].bind();
+            z.layers[layer].upload(builder.end());
+            VertexBuffer.unbind();
+        }
     }
 
     /** Rusty dust at the feet of whoever walks in it (not sneaking). */
     private static void dust(ClientLevel level, Zone z, long now) {
-        AABB zone = AnomalyGeometry.centeredAabb(z.entry.pos(), z.entry.size());
+        AABB zone = AnomalyGeometry.box(z.entry);
         int eff = ModClientConfig.effective(z.entry.intensity());
         List<LivingEntity> walkers = level.getEntitiesOfClass(LivingEntity.class, zone, e -> e.isAlive() && !e.isSpectator());
         for (LivingEntity e : walkers) {
@@ -226,7 +284,7 @@ public final class RustClient {
         if (RANDOM.nextFloat() < 0.3f + 0.5f * heat) {
             double a = RANDOM.nextDouble() * Math.PI * 2.0;
             double d = r * Math.sqrt(RANDOM.nextDouble());
-            level.addParticle(ModParticles.EMBER.get(), z.spot.x + Math.cos(a) * d, z.spot.y + 0.05, z.spot.z + Math.sin(a) * d,
+            faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, ModParticles.EMBER.get(), z.spot.x + Math.cos(a) * d, z.spot.y + 0.05, z.spot.z + Math.sin(a) * d,
                     0.0, 0.02 + RANDOM.nextDouble() * 0.03 * heat, 0.0);
         }
         if (z.crackle == null || z.crackle.isStopped()) {
@@ -262,45 +320,69 @@ public final class RustClient {
         float time = (now % 72000L) + partial;
         Vec3 cam = event.getCamera().getPosition();
         PoseStack poseStack = event.getPoseStack();
+        // Before the camera offset: the moss buffers are placed relative to it in float precision.
+        Matrix4f view = new Matrix4f(poseStack.last().pose());
         poseStack.pushPose();
         poseStack.translate(-cam.x, -cam.y, -cam.z);
         Matrix4f m = poseStack.last().pose();
-        Matrix3f nm = poseStack.last().normal();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         double r = ModCommonConfig.RUST_SPOT_RADIUS.get();
 
-        ResourceLocation[] layers = {MOSS, FUZZ_A, FUZZ_B};
-        double[] offsets = {0.003, 0.028, 0.055};
+        // The moss: ready-made layers, one draw each.
+        for (int layer = 0; layer < LAYERS.length; layer++) {
+            RenderType type = LAYER_TYPES[layer];
+            type.setupRenderState();
+            ShaderInstance shader = RenderSystem.getShader();
+            if (shader != null) {
+                if (shader.CHUNK_OFFSET != null) shader.CHUNK_OFFSET.set(0.0f, 0.0f, 0.0f);
+                for (Zone z : ZONES.values()) {
+                    if (z.entry != null && !z.entry.visible()) continue;
+                    if (z.entry == null) continue;
+                    if (z.dirty) build(level, z);
+                    VertexBuffer vbo = z.layers[layer];
+                    if (vbo == null) continue;
+                    Matrix4f mv = new Matrix4f(view).translate((float) (z.origin.getX() - cam.x), (float) (z.origin.getY() - cam.y),
+                            (float) (z.origin.getZ() - cam.z));
+                    vbo.bind();
+                    vbo.drawWithShader(mv, RenderSystem.getProjectionMatrix(), shader);
+                }
+                VertexBuffer.unbind();
+            }
+            type.clearRenderState();
+        }
+
+        // Where it's red-hot: those few faces again over the top, tinted, every frame.
         BlockPos.MutableBlockPos lp = new BlockPos.MutableBlockPos();
-        for (int layer = 0; layer < layers.length; layer++) {
-            RenderType type = RenderType.entityCutoutNoCull(layers[layer]);
-            VertexConsumer vc = buffers.getBuffer(type);
+        for (int layer = 0; layer < LAYERS.length; layer++) {
+            boolean any = false;
+            RenderType type = LAYER_TYPES[layer];
             for (Zone z : ZONES.values()) {
-                if (z.entry == null) continue;
+                if (z.entry != null && !z.entry.visible()) continue;
+                if (z.entry == null || z.spot == null) continue;
                 float heat = heat(z, now, partial);
+                if (heat <= 0.01f) continue;
+                VertexConsumer vc = buffers.getBuffer(type);
+                any = true;
                 int[] f = z.faces;
                 for (int i = 0; i + 3 < f.length; i += 4) {
                     Direction d = DIRS[f[i + 3]];
-                    lp.set(f[i] + d.getStepX(), f[i + 1] + d.getStepY(), f[i + 2] + d.getStepZ());
-                    int light = LevelRenderer.getLightColor(level, lp);
-                    float h = 0.0f;
-                    if (z.spot != null) {
-                        double dist = Math.sqrt(sq(f[i] + 0.5 + d.getStepX() * 0.5 - z.spot.x) + sq(f[i + 1] + 0.5 + d.getStepY() * 0.5 - z.spot.y)
-                                + sq(f[i + 2] + 0.5 + d.getStepZ() * 0.5 - z.spot.z));
-                        h = heat * (float) Mth.clamp(1.0 - (dist - r * 0.5) / (r * 0.8), 0.0, 1.0);
-                    }
-                    int red = 255;
-                    int green = (int) Mth.lerp(h, 255, 95);
-                    int blue = (int) Mth.lerp(h, 255, 80);
-                    face(vc, m, nm, f[i], f[i + 1], f[i + 2], d, offsets[layer], red, green, blue, light, layer);
+                    double dist = Math.sqrt(sq(f[i] + 0.5 + d.getStepX() * 0.5 - z.spot.x) + sq(f[i + 1] + 0.5 + d.getStepY() * 0.5 - z.spot.y)
+                            + sq(f[i + 2] + 0.5 + d.getStepZ() * 0.5 - z.spot.z));
+                    float h = heat * (float) Mth.clamp(1.0 - (dist - r * 0.5) / (r * 0.8), 0.0, 1.0);
+                    if (h <= 0.01f) continue;
+                    int light = LevelRenderer.getLightColor(level, lp.set(f[i] + d.getStepX(), f[i + 1] + d.getStepY(), f[i + 2] + d.getStepZ()));
+                    float shade = level.getShade(d, true);
+                    face(vc, m, null, f[i], f[i + 1], f[i + 2], d, LAYER_OFFSETS[layer] + 0.002, (int) (255 * shade),
+                            (int) (Mth.lerp(h, 255, 95) * shade), (int) (Mth.lerp(h, 255, 80) * shade), light, layer);
                 }
             }
-            buffers.endBatch(type);
+            if (any) buffers.endBatch(type);
         }
 
         // The glow of the red-hot moss (drawn after, additively).
         VertexConsumer glow = buffers.getBuffer(GlowRenderType.GLOW);
         for (Zone z : ZONES.values()) {
+            if (z.entry != null && !z.entry.visible()) continue;
             if (z.spot == null || z.entry == null) continue;
             float heat = heat(z, now, partial);
             float pulse = 0.8f + 0.2f * Mth.sin(time * 0.09f) + 0.08f * Mth.sin(time * 0.31f);
@@ -322,9 +404,10 @@ public final class RustClient {
         return v * v;
     }
 
-    /** One face of a block, lifted {@code off} off it, the texture tiled over two blocks. */
-    private static void face(VertexConsumer vc, Matrix4f m, Matrix3f nm, int x, int y, int z, Direction d, double off,
-                             int r, int g, int b, int light, int layer) {
+    /** One face of a block, lifted {@code off} off it, the texture tiled over two blocks. Through {@code m}
+     *  (drawn now), or else relative to {@code origin} (into a vertex buffer). */
+    private static void face(VertexConsumer vc, @Nullable Matrix4f m, @Nullable BlockPos origin, int x, int y, int z, Direction d,
+                             double off, int r, int g, int b, int light, int layer) {
         float[][] c = corners(x, y, z, d, off);
         Vector3f n = d.step();
         // World-space tiling, two blocks per texture: which quarter of the tile this face is.
@@ -366,8 +449,12 @@ public final class RustClient {
             }
             float u = Mth.clamp((a + layer - baseA) * 0.5f, 0.0f, 1.0f);
             float v = Mth.clamp((bb + layer * 3 - baseB) * 0.5f, 0.0f, 1.0f);
-            vc.vertex(m, p[0], p[1], p[2]).color(r, g, b, 255).uv(u, v).overlayCoords(OverlayTexture.NO_OVERLAY)
-                    .uv2(light).normal(nm, n.x(), n.y(), n.z()).endVertex();
+            if (m != null) {
+                vc.vertex(m, p[0], p[1], p[2]);
+            } else {
+                vc.vertex(p[0] - origin.getX(), p[1] - origin.getY(), p[2] - origin.getZ());
+            }
+            vc.color(r, g, b, 255).uv(u, v).uv2(light).normal(n.x(), n.y(), n.z()).endVertex();
         }
     }
 

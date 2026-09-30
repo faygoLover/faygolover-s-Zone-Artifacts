@@ -175,6 +175,7 @@ public final class Gas {
         if (frame.isEmpty()) return;
 
         Vec3 cam = event.getCamera().getPosition();
+        frame.removeIf(f -> faygolover.zoneartifacts.client.ClientAnomalyCache.hiddenAt(f.pos()));
         frame.sort(Comparator.comparingDouble((FramePuff f) -> f.pos().distanceToSqr(cam)).reversed());
 
         PoseStack poseStack = lateStagePose(event);

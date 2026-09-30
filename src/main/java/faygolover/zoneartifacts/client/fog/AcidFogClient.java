@@ -109,7 +109,7 @@ public final class AcidFogClient {
         Set<BlockPos> seen = new HashSet<>();
         for (SyncAnomaliesPacket.Entry entry : ClientAnomalyCache.entriesFor(level.dimension())) {
             if (!AnomalyTypeIds.ACID_FOG.equals(entry.typeId())) continue;
-            AABB zone = AnomalyGeometry.centeredAabb(entry.pos(), entry.size());
+            AABB zone = AnomalyGeometry.box(entry);
             Vec3 c = zone.getCenter();
             if (c.distanceToSqr(cam) > VISIBLE_RADIUS * VISIBLE_RADIUS) continue;
             seen.add(entry.pos());
@@ -177,7 +177,7 @@ public final class AcidFogClient {
         for (int i = 0; i < drops; i++) {
             double a = RANDOM.nextDouble() * Math.PI * 2.0;
             double s = 0.03 + RANDOM.nextDouble() * 0.06;
-            level.addParticle(ModParticles.CHEM_DROP.get(),
+            faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, ModParticles.CHEM_DROP.get(),
                     jet.at.x + RANDOM.nextGaussian() * 0.2, jet.at.y + 0.2, jet.at.z + RANDOM.nextGaussian() * 0.2,
                     Math.cos(a) * s, 0.35 + RANDOM.nextDouble() * 0.3, Math.sin(a) * s);
         }

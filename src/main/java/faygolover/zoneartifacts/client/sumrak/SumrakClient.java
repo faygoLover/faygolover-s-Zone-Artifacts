@@ -10,7 +10,14 @@ import faygolover.zoneartifacts.config.ModClientConfig;
 import faygolover.zoneartifacts.network.SyncAnomaliesPacket;
 import faygolover.zoneartifacts.registry.ModSounds;
 import net.minecraft.client.Minecraft;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.Camera;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.renderer.DimensionSpecialEffects;
+import net.minecraft.world.level.dimension.BuiltinDimensionTypes;
+import net.minecraftforge.client.event.RegisterDimensionSpecialEffectsEvent;
+import net.minecraftforge.client.event.RenderLevelStageEvent;
+import org.joml.Matrix4f;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
@@ -41,7 +48,12 @@ public final class SumrakClient {
     private static final int INNER = 0x030304;
     private static final int OUTER = 0x0A0A0E;
 
+    /** How far inside the edge something must be before it's gone: first it sinks into the dark. */
+    private static final double SWALLOW = 0.6;
+
     private static final List<AABB> ZONES = new ArrayList<>();
+    /** Hidden this frame and marked invisible (so vanilla drops their shadows too), to put back after. */
+    private static final List<Entity> MASKED = new ArrayList<>();
     private static final List<Integer> DENSITY = new ArrayList<>();
     private static float inside;
     private static float prevInside;
@@ -63,6 +75,11 @@ public final class SumrakClient {
 
     public static float inside(float partial) {
         return Mth.lerp(partial, prevInside, inside);
+    }
+
+    /** Brightness left for glows seen from inside (they ignore fog: the Moon, comets…). */
+    public static float glowLight() {
+        return 1.0f - 0.97f * Mth.clamp(inside, 0.0f, 1.0f);
     }
 
     /** Volume factor for a sound: from inside nearly nothing is heard; from inside out, nothing. */
@@ -92,7 +109,7 @@ public final class SumrakClient {
         float target = 0.0f;
         for (SyncAnomaliesPacket.Entry entry : ClientAnomalyCache.entriesFor(level.dimension())) {
             if (!AnomalyTypeIds.SUMRAK.equals(entry.typeId())) continue;
-            AABB zone = AnomalyGeometry.centeredAabb(entry.pos(), entry.size());
+            AABB zone = AnomalyGeometry.box(entry);
             if (zone.getCenter().distanceTo(eye) > NEAR + entry.size()) continue;
             ZONES.add(zone);
             DENSITY.add(ModClientConfig.effective(entry.intensity()));
@@ -107,10 +124,24 @@ public final class SumrakClient {
         }
     }
 
-    /** Those inside can't be seen from outside. */
+    /** Those deep enough inside can't be seen from outside — nor their shadows. */
     @SubscribeEvent
     public static void onRenderLiving(RenderLivingEvent.Pre<?, ?> event) {
-        if (hidden(event.getEntity())) event.setCanceled(true);
+        Entity e = event.getEntity();
+        if (!hidden(e)) return;
+        event.setCanceled(true);
+        // Vanilla draws the shadow right after, unless the entity is invisible.
+        if (!e.isInvisible()) {
+            e.setInvisible(true);
+            MASKED.add(e);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onRenderStage(RenderLevelStageEvent event) {
+        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_ENTITIES || MASKED.isEmpty()) return;
+        for (Entity e : MASKED) e.setInvisible(false);
+        MASKED.clear();
     }
 
     @SubscribeEvent
@@ -120,9 +151,12 @@ public final class SumrakClient {
 
     private static boolean hidden(Entity entity) {
         if (ZONES.isEmpty()) return false;
-        Vec3 c = entity.getBoundingBox().getCenter();
+        AABB box = entity.getBoundingBox();
         for (AABB zone : ZONES) {
-            if (zone.contains(c) && zone != cameraZone) return true;
+            if (zone == cameraZone) continue;
+            AABB inner = zone.deflate(SWALLOW);
+            if (box.minX >= inner.minX && box.maxX <= inner.maxX && box.minY >= inner.minY && box.maxY <= inner.maxY
+                    && box.minZ >= inner.minZ && box.maxZ <= inner.maxZ) return true;
         }
         return false;
     }
@@ -140,7 +174,7 @@ public final class SumrakClient {
             int eff = DENSITY.get(zi);
             double volume = zone.getXsize() * zone.getYsize() * zone.getZsize();
             double step = Math.max(1.1, Math.cbrt(volume / 380.0));
-            float alpha = Mth.clamp(0.5f + 0.06f * eff, 0.5f, 0.85f);
+            float alpha = Mth.clamp(0.82f + 0.04f * eff, 0.82f, 0.97f);
             int nx = Math.max(1, (int) Math.round(zone.getXsize() / step));
             int ny = Math.max(1, (int) Math.round(zone.getYsize() / step));
             int nz = Math.max(1, (int) Math.round(zone.getZsize() / step));
@@ -166,11 +200,30 @@ public final class SumrakClient {
                             p = p.add(outward.scale(curl));
                         }
                         if (p.distanceToSqr(cam) < 0.8) continue;
-                        double r = step * (0.72 + 0.12 * Math.sin(time * 0.017 + seed));
-                        out.add(new Gas.FramePuff(p, r, edge ? alpha * 0.75f : alpha, INNER, OUTER, seed));
+                        double r = step * (0.92 + 0.12 * Math.sin(time * 0.017 + seed));
+                        out.add(new Gas.FramePuff(p, r, edge ? alpha * 0.88f : alpha, INNER, OUTER, seed));
                     }
                 }
             }
+        }
+    }
+
+    /** Inside, no sky at all: the Moon and the stars are drawn without fog and would shine through. */
+    @Mod.EventBusSubscriber(modid = ZoneArtifacts.MODID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.MOD)
+    public static final class Sky {
+
+        private Sky() {
+        }
+
+        @SubscribeEvent
+        public static void onRegisterEffects(RegisterDimensionSpecialEffectsEvent event) {
+            event.register(BuiltinDimensionTypes.OVERWORLD_EFFECTS, new DimensionSpecialEffects.OverworldEffects() {
+                @Override
+                public boolean renderSky(ClientLevel level, int ticks, float partialTick, PoseStack poseStack, Camera camera,
+                                         Matrix4f projectionMatrix, boolean isFoggy, Runnable setupFog) {
+                    return inside(partialTick) > 0.5f;
+                }
+            });
         }
     }
 }

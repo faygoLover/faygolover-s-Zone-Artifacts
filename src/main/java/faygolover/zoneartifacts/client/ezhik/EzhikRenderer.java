@@ -24,20 +24,22 @@ import net.minecraftforge.client.model.data.ModelData;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The Hedgehog: a patch of the host block's own surface risen into rounded lumps and spikes — a
- * phyllotaxis spiral, the big ones in the middle leaning out, the small ones round the rim — all
- * wearing the host block's texture (mapped as if it were still the flat face, so it stretches up the
- * spikes) and tint, lit by the world. They move in slow moods that blend into each other: growing
- * out and sinking back, trembling, a pulse running out from the middle.
+ * The Hedgehog: an urchin buried in the host block — every spike runs out of one centre under the
+ * face, all alike, and only the part that pierces the face is seen: long in the middle, the rim ones
+ * mere stubs. They wear the host block's texture (mapped as if it were still the flat face) and
+ * tint, lit by the world. Slowly: all lean together as the centre drifts aside, now and then the
+ * centre sinks and they all draw in, rings of shortening run out from the middle, and each changes
+ * its length a little on its own. No trembling.
  */
 public class EzhikRenderer implements BlockEntityRenderer<EzhikBlockEntity> {
 
     private static final int SEGMENTS = 8;
-    private static final float[] RING_T = {-0.04f, 0.3f, 0.62f, 0.86f, 1.0f};
-    private static final float[] RING_R = {1.08f, 0.92f, 0.66f, 0.34f, 0.0f};
+    private static final float[] RING_T = {0.0f, 0.35f, 0.65f, 0.84f, 0.95f, 1.0f};
+    private static final float[] RING_R = {1.0f, 0.96f, 0.8f, 0.55f, 0.28f, 0.0f};
 
     public EzhikRenderer(BlockEntityRendererProvider.Context context) {
     }
@@ -79,50 +81,67 @@ public class EzhikRenderer implements BlockEntityRenderer<EzhikBlockEntity> {
         Matrix4f m = pose.pose();
         Matrix3f nm = pose.normal();
 
-        // Moods, cross-fading: out/in, trembling, a pulse running outwards.
-        double moodTime = time * 0.004 * Math.max(0.05, speed);
-        double[] mood = new double[3];
-        for (int k = 0; k < 3; k++) {
-            double ph = moodTime - k / 3.0;
-            mood[k] = Math.pow(Math.max(0.0, Math.cos((ph - Math.floor(ph)) * Math.PI * 2.0)), 2.0);
-        }
-        double sum = mood[0] + mood[1] + mood[2] + 1.0E-6;
-        double wOut = mood[0] / sum;
-        double wShake = mood[1] / sum;
-        double wPulse = mood[2] / sum;
-
-        // A low mound under them all (so no gap shows at their feet).
-        mound(vc, m, nm, sprite, c, n, t, b, r, cr, cg, cb, packedLight, hostPos, be.getBlockPos());
-
+        // One urchin buried in the block: every spike runs out of the same centre, all alike; only
+        // where one pierces the face (its hole) is it seen — long in the middle, a stub at the rim.
         long seed = be.getBlockPos().asLong() * 0x9E3779B97F4A7C15L;
         RandomSource rand = RandomSource.create(seed);
-        double ts = time * Math.max(0.05, speed);
-        for (int i = 0; i < count; i++) {
-            double f = (i + 0.5) / count;
-            double rho = r * Math.sqrt(f) * 0.92;
-            double ang = i * 2.39996 + rand.nextDouble() * 0.3;
-            double jitter = rand.nextDouble();
-            double k = rho / Math.max(0.01, r);
-            double baseR = r * (0.2 - 0.1 * k) * (0.8 + 0.4 * jitter) + 0.02;
-            double height = r * (0.62 - 0.4 * Math.pow(k, 1.3)) * (0.75 + 0.5 * jitter);
-
-            double out = 0.45 + 0.55 * (0.5 + 0.5 * Math.sin(ts * 0.025 + jitter * 6.0));
-            double shake = 0.06 * Math.sin(ts * 1.9 + i * 3.1) + 0.04 * Math.sin(ts * 2.7 + i);
-            double pulse = 0.35 * Math.max(0.0, Math.sin(ts * 0.09 - k * 5.0));
-            double grow = wOut * out + wShake * (0.8 + shake) + wPulse * (0.6 + pulse);
-            double h = height * Mth.clamp(grow, 0.15, 1.5);
-
-            Vec3 radial = t.scale(Math.cos(ang)).add(b.scale(Math.sin(ang)));
-            Vec3 axis = n.add(radial.scale(0.9 * k + 0.15 * (jitter - 0.5))).normalize();
-            Vec3 foot = c.add(radial.scale(rho)).add(n.scale(0.002 + 0.05 * (1.0 - k * k) * Math.min(1.0, r)));
-            if (wShake > 0.05) {
-                Vec3 side = radial.cross(n);
-                foot = foot.add(side.scale(wShake * 0.01 * Math.sin(ts * 2.3 + i * 1.7)));
-            }
-            spike(vc, m, nm, sprite, foot, axis, baseR, h, c, t, b, cr, cg, cb, packedLight);
+        double ts = time * Math.max(0.0, speed);
+        float s0 = (float) ((seed >>> 16) & 0xFFFF) / 6553.6f;
+        double depth = be.depth() * r;
+        // The centre wanders a little to the side (all spikes lean together)…
+        double shiftA = 0.22 * r * Math.sin(ts * 0.0061 + s0);
+        double shiftB = 0.22 * r * Math.sin(ts * 0.0047 + s0 * 1.7);
+        // …and now and then sinks deeper (all of them draw in).
+        double sink = depth * 0.9 * Math.pow(Math.max(0.0, Math.sin(ts * 0.0023 + s0 * 2.3)), 8.0);
+        Vec3 centre = c.subtract(n.scale(depth + sink)).add(t.scale(shiftA)).add(b.scale(shiftB));
+        // Every spike this long from the centre: the rim ones just break the surface.
+        double length = Math.sqrt(depth * depth + r * r) + 0.12 * r;
+        // Rings of shortening running out from the middle, now and then (deep enough to hide them).
+        double waveMood = Math.pow(Math.max(0.0, Math.sin(ts * 0.0035 + s0 * 0.7)), 3.0);
+        double thick = r * 0.22 + 0.03;
+        List<double[]> holes = scatter(rand, count, r * 0.95);
+        for (int i = 0; i < holes.size(); i++) {
+            double rho = holes.get(i)[0];
+            double ang = holes.get(i)[1];
+            double phase = rand.nextDouble() * Math.PI * 2.0;
+            Vec3 hole = c.add(t.scale(Math.cos(ang) * rho)).add(b.scale(Math.sin(ang) * rho));
+            Vec3 toHole = hole.subtract(centre);
+            double inside = toHole.length();
+            Vec3 dir = toHole.scale(1.0 / Math.max(1.0E-4, inside));
+            double own = length * (1.0 + 0.06 * Math.sin(ts * 0.011 + phase));
+            double wave = waveMood * length * 0.75 * Math.pow(Math.max(0.0, Math.sin(ts * 0.03 - rho / Math.max(0.05, r) * 4.0)), 4.0);
+            double shown = own - wave - inside;
+            if (shown <= 0.01) continue;
+            // As thick where it comes out as the spike is there (thinner the farther from the centre).
+            double baseR = thick * Mth.clamp(1.0 - inside / (own * 1.1), 0.35, 1.0);
+            spike(vc, m, nm, sprite, hole.subtract(dir.scale(0.06 * r + 0.01)), dir, baseR, shown + 0.06 * r + 0.01, c, t, b, cr, cg, cb, packedLight);
         }
     }
 
+    /** Where the holes are: {distance from the middle, angle}, scattered but not on top of each other. */
+    private static List<double[]> scatter(RandomSource rand, int count, double radius) {
+        List<double[]> out = new ArrayList<>();
+        double minGap = radius * 1.6 / Math.sqrt(Math.max(1, count));
+        for (int tries = 0; tries < count * 12 && out.size() < count; tries++) {
+            double rho = radius * Math.sqrt(rand.nextDouble());
+            double ang = rand.nextDouble() * Math.PI * 2.0;
+            double x = Math.cos(ang) * rho;
+            double y = Math.sin(ang) * rho;
+            boolean free = true;
+            for (double[] o : out) {
+                double dx = Math.cos(o[1]) * o[0] - x;
+                double dy = Math.sin(o[1]) * o[0] - y;
+                if (dx * dx + dy * dy < minGap * minGap) {
+                    free = false;
+                    break;
+                }
+            }
+            if (free) out.add(new double[]{rho, ang});
+        }
+        return out;
+    }
+
+    /** A thick, round-tipped spike from {@code foot} along {@code axis}, {@code h} long. */
     private static void spike(VertexConsumer vc, Matrix4f m, Matrix3f nm, TextureAtlasSprite sprite, Vec3 foot, Vec3 axis,
                               double baseR, double h, Vec3 c, Vec3 t, Vec3 b, int cr, int cg, int cb, int light) {
         Vec3 u = axis.cross(Math.abs(axis.y) > 0.9 ? new Vec3(1, 0, 0) : new Vec3(0, 1, 0)).normalize();
@@ -131,13 +150,13 @@ public class EzhikRenderer implements BlockEntityRenderer<EzhikBlockEntity> {
         Vec3[][] p = new Vec3[rings][SEGMENTS + 1];
         Vec3[][] nrm = new Vec3[rings][SEGMENTS + 1];
         for (int k = 0; k < rings; k++) {
-            double along = RING_T[k] * h;
-            double rr = RING_R[k] * baseR;
+            Vec3 mid = foot.add(axis.scale(RING_T[k] * h));
+            double rr = RING_R[k] * Math.min(baseR, h * 0.45);
             for (int s = 0; s <= SEGMENTS; s++) {
                 double a = Math.PI * 2.0 * s / SEGMENTS;
                 Vec3 dir = u.scale(Math.cos(a)).add(v.scale(Math.sin(a)));
-                p[k][s] = foot.add(axis.scale(along)).add(dir.scale(rr));
-                nrm[k][s] = dir.scale(0.8).add(axis.scale(0.2 + 0.6 * RING_T[Math.max(0, k)])).normalize();
+                p[k][s] = mid.add(dir.scale(rr));
+                nrm[k][s] = dir.scale(0.8).add(axis.scale(0.2 + 0.6 * RING_T[k])).normalize();
             }
         }
         for (int k = 0; k < rings - 1; k++) {
@@ -146,30 +165,6 @@ public class EzhikRenderer implements BlockEntityRenderer<EzhikBlockEntity> {
                 put(vc, m, nm, sprite, p[k][s + 1], nrm[k][s + 1], c, t, b, cr, cg, cb, light);
                 put(vc, m, nm, sprite, p[k + 1][s + 1], nrm[k + 1][s + 1], c, t, b, cr, cg, cb, light);
                 put(vc, m, nm, sprite, p[k + 1][s], nrm[k + 1][s], c, t, b, cr, cg, cb, light);
-            }
-        }
-    }
-
-    /** A low round swelling of the face under the spikes, its rim flush with the face. */
-    private static void mound(VertexConsumer vc, Matrix4f m, Matrix3f nm, TextureAtlasSprite sprite, Vec3 c, Vec3 n, Vec3 t, Vec3 b,
-                              double r, int cr, int cg, int cb, int light, BlockPos host, BlockPos self) {
-        int rings = 5;
-        int seg = 16;
-        double top = 0.05 * Math.min(1.0, r);
-        for (int k = 0; k < rings; k++) {
-            double r0 = r * k / rings;
-            double r1 = r * (k + 1) / rings;
-            double h0 = 0.002 + top * (1.0 - (r0 / r) * (r0 / r));
-            double h1 = 0.002 + top * (1.0 - (r1 / r) * (r1 / r));
-            for (int s = 0; s < seg; s++) {
-                double a0 = Math.PI * 2.0 * s / seg;
-                double a1 = Math.PI * 2.0 * (s + 1) / seg;
-                Vec3 d0 = t.scale(Math.cos(a0)).add(b.scale(Math.sin(a0)));
-                Vec3 d1 = t.scale(Math.cos(a1)).add(b.scale(Math.sin(a1)));
-                put(vc, m, nm, sprite, c.add(d0.scale(r0)).add(n.scale(h0)), n, c, t, b, cr, cg, cb, light);
-                put(vc, m, nm, sprite, c.add(d1.scale(r0)).add(n.scale(h0)), n, c, t, b, cr, cg, cb, light);
-                put(vc, m, nm, sprite, c.add(d1.scale(r1)).add(n.scale(h1)), n, c, t, b, cr, cg, cb, light);
-                put(vc, m, nm, sprite, c.add(d0.scale(r1)).add(n.scale(h1)), n, c, t, b, cr, cg, cb, light);
             }
         }
     }

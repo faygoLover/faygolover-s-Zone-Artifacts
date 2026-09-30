@@ -87,12 +87,12 @@ public final class GraviClient {
                     if (pop.normal() != null && dir.dot(pop.normal()) < 0) dir = dir.scale(-1);
                     Vec3 from = p.add(dir.scale(0.7 + RANDOM.nextDouble() * 0.3));
                     Vec3 v = p.subtract(from).scale(1.0 / 7.0);
-                    level.addParticle(ModParticles.GRAV_DUST.get(), from.x, from.y, from.z, v.x, v.y, v.z);
+                    faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, ModParticles.GRAV_DUST.get(), from.x, from.y, from.z, v.x, v.y, v.z);
                 }
                 if (pop.surface() != null && RANDOM.nextInt(2) == 0) {
                     Vec3 from = p.subtract(pop.normal() != null ? pop.normal().scale(0.25) : Vec3.ZERO);
                     Vec3 v = p.subtract(from).scale(0.2).add(RANDOM.nextGaussian() * 0.02, 0.0, RANDOM.nextGaussian() * 0.02);
-                    level.addParticle(new BlockParticleOption(ParticleTypes.BLOCK, pop.surface()), from.x, from.y, from.z, v.x, v.y, v.z);
+                    faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, new BlockParticleOption(ParticleTypes.BLOCK, pop.surface()), from.x, from.y, from.z, v.x, v.y, v.z);
                 }
             } else if (now == pop.due()) {
                 // The snap.
@@ -100,12 +100,12 @@ public final class GraviClient {
                     Vec3 v = new Vec3(RANDOM.nextGaussian(), RANDOM.nextGaussian(), RANDOM.nextGaussian()).normalize()
                             .scale(0.12 + RANDOM.nextDouble() * 0.15);
                     if (pop.normal() != null && v.dot(pop.normal()) < 0) v = v.subtract(pop.normal().scale(2.0 * v.dot(pop.normal())));
-                    level.addParticle(ModParticles.GRAV_DUST.get(), p.x, p.y, p.z, v.x, v.y, v.z);
+                    faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, ModParticles.GRAV_DUST.get(), p.x, p.y, p.z, v.x, v.y, v.z);
                 }
                 if (pop.surface() != null) {
                     for (int i = 0; i < 6; i++) {
                         Vec3 v = new Vec3(RANDOM.nextGaussian() * 0.12, 0.12 + RANDOM.nextDouble() * 0.12, RANDOM.nextGaussian() * 0.12);
-                        level.addParticle(new BlockParticleOption(ParticleTypes.BLOCK, pop.surface()), p.x, p.y, p.z, v.x, v.y, v.z);
+                        faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, new BlockParticleOption(ParticleTypes.BLOCK, pop.surface()), p.x, p.y, p.z, v.x, v.y, v.z);
                     }
                 }
             }

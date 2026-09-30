@@ -32,7 +32,7 @@ public final class Razlom {
     public static final ResourceLocation JET_SOUND = id("razlom_jet");
     public static final float JET_VOLUME = 1.0f;
     /** Zharka's hum, quieter. */
-    public static final ResourceLocation IDLE_SOUND = id("zharka_idle");
+    public static final ResourceLocation IDLE_SOUND = id("razlom_idle");
     public static final float IDLE_VOLUME = 0.35f;
     public static final float JET_IDLE_VOLUME = 0.6f;
     /** The Cold Razlom plays the same sounds, lower. */

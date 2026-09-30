@@ -110,6 +110,7 @@ public final class RazlomRenderer {
         buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
 
         for (RazlomClientHandler.State state : RazlomClientHandler.states()) {
+            if (!state.entry().visible()) continue;
             Palette pal = palette(state);
             float widthScale = (float) Mth.clamp(Math.sqrt(state.entry().size()), 1.0, 2.0);
             for (RazlomClientHandler.Crack crack : state.cracks()) {

@@ -3,7 +3,7 @@ package faygolover.zoneartifacts.client.gravi;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import faygolover.zoneartifacts.ZoneArtifacts;
-import faygolover.zoneartifacts.item.AnomalyTunerItem;
+import faygolover.zoneartifacts.item.PdaItem;
 import faygolover.zoneartifacts.item.TeslaRoutePlacerItem;
 import faygolover.zoneartifacts.tesla.GraviEntity;
 import faygolover.zoneartifacts.tesla.RouteKind;
@@ -40,7 +40,7 @@ public class GraviRenderer extends EntityRenderer<GraviEntity> {
                        MultiBufferSource buffers, int packedLight) {
         Player player = Minecraft.getInstance().player;
         if (player == null || !entity.getState().isVisible()) return;
-        boolean show = AnomalyTunerItem.isHeld(player) || TeslaRoutePlacerItem.heldKind(player) == RouteKind.GRAVI;
+        boolean show = PdaItem.holds(player) || TeslaRoutePlacerItem.heldKind(player) == RouteKind.GRAVI;
         if (!show) return;
         VertexConsumer lines = buffers.getBuffer(RenderType.lines());
         double h = entity.getBbHeight();

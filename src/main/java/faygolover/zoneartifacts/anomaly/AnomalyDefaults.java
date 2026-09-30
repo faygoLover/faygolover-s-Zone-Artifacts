@@ -37,6 +37,8 @@ public final class AnomalyDefaults {
     public static double range(ResourceLocation typeId) {
         if (AnomalyTypeIds.KHLOPUSHKA.equals(typeId)) return ModCommonConfig.KHLOP_RANGE.get();
         if (AnomalyTypeIds.FIREFLY.equals(typeId)) return ModCommonConfig.FIREFLY_HEIGHT.get();
+        if (AnomalyTypeIds.BUBBLES.equals(typeId)) return ModCommonConfig.BUBBLES_RADIUS.get();
+        if (AnomalyTypeIds.RUST.equals(typeId)) return ModCommonConfig.RUST_CHARGE_EVERY.get();
         return 0.0;
     }
 
@@ -140,20 +142,45 @@ public final class AnomalyDefaults {
         return "anomaly.fl_zone_arts." + typeId.getPath();
     }
 
+    /** Zones that may be boxes of their own proportions (width, height, length set apart in the KPK):
+     *  the ones whose area is just their box. The rest (balls, puddles, gravity, cracks…) keep one size. */
+    public static boolean boxShaped(ResourceLocation typeId) {
+        return AnomalyTypeIds.ELECTRA.equals(typeId) || AnomalyTypeIds.isThermal(typeId) || AnomalyTypeIds.ACID_FOG.equals(typeId)
+                || AnomalyTypeIds.DYMKA.equals(typeId) || AnomalyTypeIds.SUMRAK.equals(typeId) || AnomalyTypeIds.PSI.equals(typeId)
+                || AnomalyTypeIds.POPPY.equals(typeId) || AnomalyTypeIds.RUST.equals(typeId) || AnomalyTypeIds.KHLOPUSHKA.equals(typeId)
+                || AnomalyTypeIds.FIREFLY.equals(typeId) || AnomalyTypeIds.SWAMP.equals(typeId) || AnomalyTypeIds.LIFT.equals(typeId);
+    }
+
+    /** The KPK switches that mean something for this kind (bits as {@link AnomalyInstance#switchBits}): damage only
+     *  where it can hurt, sound only where it makes any, "acts on creative" only where it acts on anyone. */
+    public static int switchMask(ResourceLocation typeId) {
+        int mask = 1 | 8;
+        if (tunable(typeId, TunerKind.DAMAGE)) mask |= 2;
+        boolean silent = AnomalyTypeIds.LIFT.equals(typeId) || AnomalyTypeIds.FIREFLY.equals(typeId)
+                || AnomalyTypeIds.FANTOM.equals(typeId) || AnomalyTypeIds.SWAMP.equals(typeId);
+        if (!silent) mask |= 4;
+        boolean onlyLooks = AnomalyTypeIds.FIREFLY.equals(typeId) || AnomalyTypeIds.FANTOM.equals(typeId)
+                || AnomalyTypeIds.DYMKA.equals(typeId) || AnomalyTypeIds.SUMRAK.equals(typeId);
+        if (!onlyLooks) mask |= 16;
+        return mask;
+    }
+
     /** Which tuners make sense for a zone anomaly: speed only for the gravitational ones (their
      *  force), cooldown and damage not for the harmless, always-on Podushka; targeting never. */
     public static boolean tunable(ResourceLocation typeId, TunerKind kind) {
         return switch (kind) {
             case SPEED -> AnomalyTypeIds.isGravity(typeId) || AnomalyTypeIds.LIFT.equals(typeId) || AnomalyTypeIds.ACID_FOG.equals(typeId)
+                    || AnomalyTypeIds.AMOEBA.equals(typeId)
                     || AnomalyTypeIds.SWAMP.equals(typeId) || AnomalyTypeIds.BUBBLES.equals(typeId)
                     || AnomalyTypeIds.KHLOPUSHKA.equals(typeId) || AnomalyTypeIds.FIREFLY.equals(typeId);
-            case COOLDOWN -> !AnomalyTypeIds.PODUSHKA.equals(typeId) && !AnomalyTypeIds.LIFT.equals(typeId)
+            case COOLDOWN -> !AnomalyTypeIds.PODUSHKA.equals(typeId) && !AnomalyTypeIds.LIFT.equals(typeId) && !AnomalyTypeIds.RUST.equals(typeId)
                     && !AnomalyTypeIds.DYMKA.equals(typeId) && !AnomalyTypeIds.SUMRAK.equals(typeId)
                     && !AnomalyTypeIds.FIREFLY.equals(typeId) && !AnomalyTypeIds.FANTOM.equals(typeId);
             case DAMAGE -> !AnomalyTypeIds.PODUSHKA.equals(typeId) && !AnomalyTypeIds.LIFT.equals(typeId)
                     && !AnomalyTypeIds.DYMKA.equals(typeId) && !AnomalyTypeIds.SUMRAK.equals(typeId) && !AnomalyTypeIds.PSI.equals(typeId)
                     && !AnomalyTypeIds.FIREFLY.equals(typeId) && !AnomalyTypeIds.FANTOM.equals(typeId);
-            case TARGETING -> AnomalyTypeIds.KHLOPUSHKA.equals(typeId) || AnomalyTypeIds.FIREFLY.equals(typeId);
+            case TARGETING -> AnomalyTypeIds.KHLOPUSHKA.equals(typeId) || AnomalyTypeIds.FIREFLY.equals(typeId)
+                    || AnomalyTypeIds.BUBBLES.equals(typeId) || AnomalyTypeIds.RUST.equals(typeId);
             default -> true;
         };
     }
@@ -167,6 +194,7 @@ public final class AnomalyDefaults {
         if (AnomalyTypeIds.SWAMP.equals(typeId)) {
             if (kind == TunerKind.COOLDOWN) return "tuner.fl_zone_arts.damage_interval";
             if (kind == TunerKind.SPEED) return "tuner.fl_zone_arts.sink_speed";
+            if (kind == TunerKind.INTENSITY) return "tuner.fl_zone_arts.shore_width";
         }
         if (kind == TunerKind.INTENSITY && (AnomalyTypeIds.DYMKA.equals(typeId) || AnomalyTypeIds.SUMRAK.equals(typeId))) return "tuner.fl_zone_arts.density";
         if (AnomalyTypeIds.PSI.equals(typeId)) {
@@ -181,7 +209,7 @@ public final class AnomalyDefaults {
         if (AnomalyTypeIds.BUBBLES.equals(typeId)) {
             if (kind == TunerKind.COOLDOWN) return "tuner.fl_zone_arts.first_spawn";
             if (kind == TunerKind.INTENSITY) return "tuner.fl_zone_arts.count";
-            if (kind == TunerKind.DAMAGE) return "tuner.fl_zone_arts.burst_damage";
+            if (kind == TunerKind.TARGETING) return "tuner.fl_zone_arts.burst_radius";
             if (kind == TunerKind.SPEED) return "tuner.fl_zone_arts.drift_speed";
         }
         if (AnomalyTypeIds.KHLOPUSHKA.equals(typeId)) {
@@ -202,8 +230,10 @@ public final class AnomalyDefaults {
         if (AnomalyTypeIds.RUST.equals(typeId)) {
             if (kind == TunerKind.COOLDOWN) return "tuner.fl_zone_arts.charge_interval";
             if (kind == TunerKind.DAMAGE) return "tuner.fl_zone_arts.dust_damage";
+            if (kind == TunerKind.TARGETING) return "tuner.fl_zone_arts.charge_every";
         }
         if (kind == TunerKind.SPEED && AnomalyTypeIds.ACID_FOG.equals(typeId)) return "tuner.fl_zone_arts.jet_frequency";
+        if (kind == TunerKind.SPEED && AnomalyTypeIds.AMOEBA.equals(typeId)) return "tuner.fl_zone_arts.inflate_speed";
         if (kind == TunerKind.SPEED && AnomalyTypeIds.isGravity(typeId)) {
             return AnomalyTypeIds.PODUSHKA.equals(typeId) ? "tuner.fl_zone_arts.bounce_height" : "tuner.fl_zone_arts.force";
         }

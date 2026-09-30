@@ -22,3 +22,12 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Build leftovers
+javac.*.args
+__pycache__/
+*.pyc
+
+# Working notes (not part of the mod)
+CLAUDE.md
+docs/specs/

@@ -102,9 +102,9 @@ public final class Gravity {
     /** What the gravitational anomalies move: living things (not players in creative or
      *  spectators), items, experience orbs and projectiles; never riders or anomaly entities. */
     public static boolean movable(Entity entity) {
-        if (!entity.isAlive() || entity.isSpectator() || entity.isPassenger()) return false;
+        if (!entity.isAlive() || AnomalyCombat.spectatorExempt(entity) || entity.isPassenger()) return false;
         if (entity instanceof TeslaEntity || entity instanceof ArmorStand) return false;
-        if (entity instanceof Player player && player.isCreative()) return false;
+        if (AnomalyCombat.creativeExempt(entity)) return false;
         return entity instanceof LivingEntity || entity instanceof ItemEntity
                 || entity instanceof ExperienceOrb || entity instanceof Projectile;
     }

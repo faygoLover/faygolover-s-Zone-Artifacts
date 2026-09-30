@@ -99,36 +99,36 @@ public final class CometEffectRenderer {
         BLASTS.add(blast);
 
         // Particles, all at once.
-        level.addParticle(ParticleTypes.FLASH, center.x, center.y, center.z, 0.0, 0.0, 0.0);
+        faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, ParticleTypes.FLASH, center.x, center.y, center.z, 0.0, 0.0, 0.0);
         int flames = (int) (24 * factor * Math.sqrt(size));
         for (int i = 0; i < flames; i++) {
             Vec3 v = outward(rand, normal).scale(0.08 + rand.nextDouble() * 0.25 * Math.sqrt(size));
-            level.addParticle(cold ? ParticleTypes.SOUL_FIRE_FLAME : ParticleTypes.FLAME, center.x, center.y, center.z, v.x, v.y, v.z);
+            faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, cold ? ParticleTypes.SOUL_FIRE_FLAME : ParticleTypes.FLAME, center.x, center.y, center.z, v.x, v.y, v.z);
         }
         int sparks = (int) (30 * factor * Math.sqrt(size));
         for (int i = 0; i < sparks; i++) {
             Vec3 v = outward(rand, normal).scale(0.05 + rand.nextDouble() * 0.12);
             if (cold) {
-                level.addParticle(ParticleTypes.SNOWFLAKE, center.x, center.y, center.z, v.x, v.y + 0.02, v.z);
+                faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, ParticleTypes.SNOWFLAKE, center.x, center.y, center.z, v.x, v.y + 0.02, v.z);
             } else {
-                level.addParticle(ModParticles.EMBER.get(), center.x, center.y, center.z, v.x, v.y + 0.02, v.z);
+                faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, ModParticles.EMBER.get(), center.x, center.y, center.z, v.x, v.y + 0.02, v.z);
             }
         }
         for (int i = 0; i < 4 + (int) (3 * factor); i++) {
             if (cold) {
                 Vec3 v = outward(rand, normal).scale(0.02).add(0, 0.03, 0);
-                level.addParticle(ParticleTypes.SOUL, center.x, center.y, center.z, v.x, v.y, v.z);
+                faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, ParticleTypes.SOUL, center.x, center.y, center.z, v.x, v.y, v.z);
             } else {
-                level.addParticle(ParticleTypes.LAVA, center.x, center.y, center.z, 0.0, 0.0, 0.0);
+                faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, ParticleTypes.LAVA, center.x, center.y, center.z, 0.0, 0.0, 0.0);
             }
         }
         for (int i = 0; i < 6 + (int) (4 * factor); i++) {
             Vec3 p = center.add(randomUnit(rand).scale(radius * 0.3 * rand.nextDouble()));
             Vec3 v = outward(rand, normal).scale(0.03).add(0, 0.03, 0);
             if (cold) {
-                level.addParticle(ModParticles.FROST_MIST.get(), p.x, p.y, p.z, v.x, v.y, v.z);
+                faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, ModParticles.FROST_MIST.get(), p.x, p.y, p.z, v.x, v.y, v.z);
             } else {
-                level.addParticle(ParticleTypes.LARGE_SMOKE, p.x, p.y, p.z, v.x, v.y, v.z);
+                faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, ParticleTypes.LARGE_SMOKE, p.x, p.y, p.z, v.x, v.y, v.z);
             }
         }
     }

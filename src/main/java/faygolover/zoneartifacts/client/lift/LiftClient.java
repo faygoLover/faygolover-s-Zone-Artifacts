@@ -66,16 +66,25 @@ public final class LiftClient {
         LocalPlayer player = mc.player;
         ClientLevel level = mc.level;
         if (player == null || level == null || mc.isPaused()) return;
-        boolean free = !player.isCreative() && !player.isSpectator() && !player.isPassenger() && !player.getAbilities().flying;
+        boolean gm = player.isCreative() || player.isSpectator() || player.getAbilities().flying;
 
         List<AABB> zones = new ArrayList<>();
         List<SyncAnomaliesPacket.Entry> entries = new ArrayList<>();
         for (SyncAnomaliesPacket.Entry entry : ClientAnomalyCache.entriesFor(level.dimension())) {
             if (!AnomalyTypeIds.LIFT.equals(entry.typeId())) continue;
-            zones.add(AnomalyGeometry.centeredAabb(entry.pos(), entry.size()));
+            zones.add(AnomalyGeometry.box(entry));
             entries.add(entry);
         }
         AABB box = player.getBoundingBox();
+        // A GM (creative, spectator, flying) only if a Lift they're in is set to act on them too.
+        boolean free = !player.isPassenger();
+        if (gm) {
+            boolean targeted = false;
+            for (SyncAnomaliesPacket.Entry e : entries) {
+                if (e.targetsGm() && AnomalyGeometry.box(e).intersects(box)) targeted = true;
+            }
+            free = free && targeted;
+        }
         AABB column = free ? Lift.column(zones, box) : null;
         if (column == null) {
             ticksInside = 0;
@@ -124,13 +133,13 @@ public final class LiftClient {
         for (SyncAnomaliesPacket.Entry entry : ClientAnomalyCache.entriesFor(level.dimension())) {
             if (!AnomalyTypeIds.LIFT.equals(entry.typeId())) continue;
             if (Vec3.atCenterOf(entry.pos()).distanceToSqr(cam) > VISIBLE_RADIUS * VISIBLE_RADIUS) continue;
-            AABB zone = AnomalyGeometry.centeredAabb(entry.pos(), entry.size());
+            AABB zone = AnomalyGeometry.box(entry);
             // Now and then a speck of dust drifting up from the ground.
             double rate = 0.015 * ModClientConfig.effective(entry.intensity()) * Math.max(1.0, entry.size() * entry.size());
             if (RANDOM.nextDouble() < rate) {
                 double x = Mth.lerp(RANDOM.nextDouble(), zone.minX, zone.maxX);
                 double z = Mth.lerp(RANDOM.nextDouble(), zone.minZ, zone.maxZ);
-                level.addParticle(ModParticles.GRAV_DUST.get(), x, zone.minY + 0.05, z,
+                faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, ModParticles.GRAV_DUST.get(), x, zone.minY + 0.05, z,
                         (RANDOM.nextDouble() - 0.5) * 0.004, 0.012 + RANDOM.nextDouble() * 0.01, (RANDOM.nextDouble() - 0.5) * 0.004);
             }
         }
@@ -143,7 +152,7 @@ public final class LiftClient {
         float time = (now % 72000L) + partial;
         for (SyncAnomaliesPacket.Entry entry : ClientAnomalyCache.entriesFor(mc.level.dimension())) {
             if (!AnomalyTypeIds.LIFT.equals(entry.typeId())) continue;
-            AABB zone = AnomalyGeometry.centeredAabb(entry.pos(), entry.size());
+            AABB zone = AnomalyGeometry.box(entry);
             Vec3 base = new Vec3((zone.minX + zone.maxX) * 0.5, zone.minY, (zone.minZ + zone.maxZ) * 0.5);
             out.add(new Distortion.Haze(base, Math.max(zone.getXsize(), zone.getZsize()), zone.getYsize(), 0.012,
                     time * 0.01, 1.0, false, 1.0f, entry.pos().hashCode() * 0.01));

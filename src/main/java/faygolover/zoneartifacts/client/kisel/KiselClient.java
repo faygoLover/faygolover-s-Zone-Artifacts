@@ -11,6 +11,7 @@ import com.mojang.blaze3d.vertex.VertexFormat;
 import faygolover.zoneartifacts.ZoneArtifacts;
 import faygolover.zoneartifacts.anomaly.AnomalyGeometry;
 import faygolover.zoneartifacts.anomaly.AnomalyTypeIds;
+import faygolover.zoneartifacts.anomaly.Kisel;
 import faygolover.zoneartifacts.anomaly.Razlom;
 import faygolover.zoneartifacts.client.ClientAnomalyCache;
 import faygolover.zoneartifacts.client.GlowRenderType;
@@ -51,7 +52,7 @@ import java.util.Set;
  * Kisel's look and sound: a puddle of thick, dark green liquid. Its glow isn't spread over the whole
  * of it but sits in a few seething spots (more of them the bigger it is): there the liquid is lighter,
  * glowing bubbles rise and burst, and a soft green light falls on the ground and walls close by
- * (faked: additive patches on the surfaces). When something is in it, it seethes: it spreads out,
+ * (faked: additive patches on the surfaces). When something is in it, it seethes: it builds out in tongues,
  * new seething spots open up, the old ones boil harder and glow brighter, steam rises. A quiet
  * bubbling loop, louder while it seethes; of several Kisels close together only the nearest few
  * are heard, the nearest the loudest, each at its own pitch (the hiss is the server's).
@@ -62,8 +63,6 @@ public final class KiselClient {
     private static final double VISIBLE_RADIUS = 48.0;
     private static final int RINGS = 10;
     private static final int SEGMENTS = 36;
-    /** At rest the puddle keeps to this part of its full (seething) size. */
-    private static final double REST_SCALE = 0.72;
     /** How many Kisels are heard at once, and how loud each by closeness rank. */
     private static final float[] RANK_GAIN = {1.0f, 0.4f, 0.2f};
     private static final int GLOW_RGB = 0x4CD01E;
@@ -94,13 +93,9 @@ public final class KiselClient {
     private KiselClient() {
     }
 
-    /** The puddle's full radius (seething); at rest it is {@link #REST_SCALE} of it. */
-    private static double fullRadius(SyncAnomaliesPacket.Entry entry) {
-        return entry.size() * 0.5 * 0.95;
-    }
-
-    private static double radiusNow(State state, float activity) {
-        return fullRadius(state.entry) * (REST_SCALE + (1.0 - REST_SCALE) * activity);
+    /** The puddle at rest reaches just past where stepping wakes it. */
+    private static double restRadius(SyncAnomaliesPacket.Entry entry) {
+        return Kisel.reactRadius(entry.size()) * 1.04;
     }
 
     /** How much of a spot shows at this activity (the extra ones open up as it seethes). */
@@ -136,7 +131,7 @@ public final class KiselClient {
             state.prevActivity = state.activity;
             state.activity = entry.active() ? Math.min(1.0f, state.activity + 0.08f) : Math.max(0.0f, state.activity - 0.02f);
 
-            AABB zone = AnomalyGeometry.centeredAabb(entry.pos(), entry.size());
+            AABB zone = AnomalyGeometry.box(entry);
             Vec3 c = zone.getCenter();
             float act = state.activity;
             int eff = ModClientConfig.effective(entry.intensity());
@@ -148,7 +143,7 @@ public final class KiselClient {
                 for (int i = 0; i < n; i++) {
                     double bx = c.x + hot.dx() + RANDOM.nextGaussian() * hot.radius() * 0.35;
                     double bz = c.z + hot.dz() + RANDOM.nextGaussian() * hot.radius() * 0.35;
-                    level.addParticle(ModParticles.KISEL_BUBBLE.get(), bx, state.surfaceY + 0.02, bz,
+                    faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, ModParticles.KISEL_BUBBLE.get(), bx, state.surfaceY + 0.02, bz,
                             0.0, 0.004 + 0.008 * act, 0.0);
                 }
                 if (act > 0.25f && RANDOM.nextInt(14) == 0) {
@@ -182,15 +177,15 @@ public final class KiselClient {
 
     /** The surface; where the seething spots are; and where each one's light falls. */
     private static void scan(ClientLevel level, State state) {
-        AABB zone = AnomalyGeometry.centeredAabb(state.entry.pos(), state.entry.size());
+        AABB zone = AnomalyGeometry.box(state.entry);
         Vec3 c = zone.getCenter();
         Double ground = Razlom.groundY(level, c.x, c.z, zone.maxY, zone.minY - 3.0);
         state.surfaceY = (ground != null ? ground : zone.minY) + 0.06;
         state.scannedSize = state.entry.size();
 
         double size = state.entry.size();
-        double full = fullRadius(state.entry);
-        double rest = full * REST_SCALE;
+        double rest = restRadius(state.entry);
+        Kisel.Tongue[] tongues = Kisel.tongues(state.entry.pos().asLong());
         int base = Mth.clamp((int) Math.round(0.5 + 0.55 * size * size), 1, 10);
         int extra = Math.max(1, Math.round(base * 0.7f));
         RandomSource shape = RandomSource.create(state.entry.pos().asLong() * 0x9E3779B97F4A7C15L);
@@ -202,7 +197,13 @@ public final class KiselClient {
             double dx = 0.0, dz = 0.0;
             for (int attempt = 0; attempt < 8; attempt++) {
                 double a = shape.nextDouble() * Math.PI * 2.0;
-                double d = isExtra ? full * (0.5 + 0.28 * shape.nextDouble()) : rest * 0.62 * Math.sqrt(shape.nextDouble());
+                double d = rest * 0.62 * Math.sqrt(shape.nextDouble());
+                if (isExtra) {
+                    // New spots open up out in the tongues it builds while seething.
+                    Kisel.Tongue t = tongues[(i - base) % tongues.length];
+                    a = t.angle() + (shape.nextDouble() - 0.5) * t.width();
+                    d = rest + Kisel.reactRadius(size) * t.reach() * (0.35 + 0.35 * shape.nextDouble());
+                }
                 if (base == 1 && i == 0) d *= 0.4;
                 dx = Math.cos(a) * d;
                 dz = Math.sin(a) * d;
@@ -259,7 +260,9 @@ public final class KiselClient {
         RenderSystem.depthMask(false);
         BufferBuilder body = Tesselator.getInstance().getBuilder();
         body.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
-        for (State state : STATES.values()) surface(body, m, state, time, Mth.lerp(partial, state.prevActivity, state.activity));
+        for (State state : STATES.values()) {
+            if (state.entry.visible()) surface(body, m, state, time, Mth.lerp(partial, state.prevActivity, state.activity));
+        }
         BufferUploader.drawWithShader(body.end());
         RenderSystem.depthMask(true);
         RenderSystem.enableCull();
@@ -269,8 +272,9 @@ public final class KiselClient {
         MultiBufferSource.BufferSource bufferSource = mc.renderBuffers().bufferSource();
         VertexConsumer glow = bufferSource.getBuffer(GlowRenderType.GLOW);
         for (State state : STATES.values()) {
+            if (!state.entry.visible()) continue;
             float act = Mth.lerp(partial, state.prevActivity, state.activity);
-            AABB zone = AnomalyGeometry.centeredAabb(state.entry.pos(), state.entry.size());
+            AABB zone = AnomalyGeometry.box(state.entry);
             Vec3 c = zone.getCenter();
             float strength = 0.16f + 0.24f * act;
             double reach = Math.min(3.0, 1.2 + 0.3 * state.entry.size());
@@ -299,10 +303,10 @@ public final class KiselClient {
 
     /** The puddle: dark liquid with a soft torn rim, lighter around its seething spots. */
     private static void surface(VertexConsumer buffer, Matrix4f m, State state, float time, float activity) {
-        AABB zone = AnomalyGeometry.centeredAabb(state.entry.pos(), state.entry.size());
+        AABB zone = AnomalyGeometry.box(state.entry);
         Vec3 c = zone.getCenter();
-        double r0 = radiusNow(state, activity);
-        float s0 = (state.entry.pos().hashCode() & 0xFFFF) / 6553.6f;
+        long seed = state.entry.pos().asLong();
+        Kisel.Tongue[] tongues = Kisel.tongues(seed);
         double y0 = state.surfaceY;
         Vec3[][] p = new Vec3[RINGS + 1][SEGMENTS + 1];
         int[][] col = new int[RINGS + 1][SEGMENTS + 1];
@@ -311,8 +315,8 @@ public final class KiselClient {
             double rho = i / (double) RINGS;
             for (int j = 0; j <= SEGMENTS; j++) {
                 double phi = Math.PI * 2.0 * j / SEGMENTS;
-                double edge = 0.8 + 0.12 * Math.sin(phi * 3.0 + s0) + 0.08 * Math.sin(phi * 7.0 - s0) + 0.04 * Math.sin(phi * 11.0 + s0 * 2.0);
-                double r = rho * r0 * edge;
+                // Its edge: just past the react circle at rest, tongues building out while it seethes.
+                double r = rho * Kisel.outline(state.entry.size(), seed, tongues, phi, activity);
                 double x = c.x + Math.cos(phi) * r;
                 double z = c.z + Math.sin(phi) * r;
                 double heat = 0.0;

@@ -49,8 +49,8 @@ public final class WebEngine {
                 }
                 if (!level.isLoaded(BlockPos.containing(s.a)) || !level.isLoaded(BlockPos.containing(s.b))) continue;
                 AABB box = new AABB(s.a, s.b).inflate(0.05);
-                for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, box, x -> x.isAlive() && !x.isSpectator())) {
-                    if (e instanceof Player p && p.isCreative()) continue;
+                for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, box, x -> x.isAlive() && !AnomalyCombat.spectatorExempt(x))) {
+                    if (AnomalyCombat.creativeExempt(e)) continue;
                     AABB body = e.getBoundingBox();
                     Optional<Vec3> cut = body.clip(s.a, s.b);
                     Vec3 at = cut.orElse(body.contains(s.a) ? s.a : body.contains(s.b) ? s.b : null);

@@ -14,8 +14,20 @@ import net.minecraft.world.phys.Vec3;
 public class AnomalyInstance {
 
     private final ResourceLocation typeId;
-    private final BlockPos pos;
+    private BlockPos pos;
     private double size;
+    /** Width (x), height (y), length (z) in blocks where the zone may be a box ({@link AnomalyDefaults#boxShaped});
+     *  0 = a cube of {@link #size}. */
+    private double sizeX;
+    private double sizeY;
+    private double sizeZ;
+    /** The KPK's switches: working at all, hurting, heard, seen. */
+    private boolean enabled = true;
+    private boolean harmful = true;
+    private boolean audible = true;
+    private boolean visible = true;
+    /** Acts on players in creative / spectator mode too (the KPK's fifth switch; off by default). */
+    private boolean targetsGm;
     private double cooldownSeconds;
     private float damage;
     private int intensity;
@@ -67,6 +79,72 @@ public class AnomalyInstance {
 
     public BlockPos pos() {
         return pos;
+    }
+
+    /** Moved with the KPK. */
+    public void setPos(BlockPos pos) {
+        this.pos = pos.immutable();
+    }
+
+    public double sizeX() {
+        return sizeX > 0 ? sizeX : size;
+    }
+
+    public double sizeY() {
+        return sizeY > 0 ? sizeY : size;
+    }
+
+    public double sizeZ() {
+        return sizeZ > 0 ? sizeZ : size;
+    }
+
+    /** A box of its own proportions (the largest side stands in as its "size" wherever one number is needed). */
+    public void setDimensions(double x, double y, double z) {
+        this.sizeX = x;
+        this.sizeY = y;
+        this.sizeZ = z;
+        this.size = Math.max(x, Math.max(y, z));
+    }
+
+    /** Back to a cube of its size. */
+    public void clearDimensions() {
+        this.sizeX = 0;
+        this.sizeY = 0;
+        this.sizeZ = 0;
+    }
+
+    public boolean enabled() {
+        return enabled;
+    }
+
+    public boolean harmful() {
+        return harmful;
+    }
+
+    public boolean audible() {
+        return audible;
+    }
+
+    public boolean visible() {
+        return visible;
+    }
+
+    public boolean targetsGm() {
+        return targetsGm;
+    }
+
+    /** From the packed bits ({@link #switchBits}). */
+    public void setSwitchBits(int bits) {
+        this.enabled = (bits & 1) != 0;
+        this.harmful = (bits & 2) != 0;
+        this.audible = (bits & 4) != 0;
+        this.visible = (bits & 8) != 0;
+        this.targetsGm = (bits & 16) != 0;
+    }
+
+    /** The switches packed: bit 0 enabled, 1 harmful, 2 audible, 3 visible, 4 acts on creative / spectators. */
+    public int switchBits() {
+        return (enabled ? 1 : 0) | (harmful ? 2 : 0) | (audible ? 4 : 0) | (visible ? 8 : 0) | (targetsGm ? 16 : 0);
     }
 
     public double size() {
@@ -212,6 +290,16 @@ public class AnomalyInstance {
         tag.putInt("intensity", intensity);
         tag.putDouble("range", range);
         tag.putFloat("yaw", yaw);
+        if (sizeX > 0) {
+            tag.putDouble("size_x", sizeX);
+            tag.putDouble("size_y", sizeY);
+            tag.putDouble("size_z", sizeZ);
+        }
+        tag.putBoolean("enabled", enabled);
+        tag.putBoolean("harmful", harmful);
+        tag.putBoolean("audible", audible);
+        tag.putBoolean("visible", visible);
+        tag.putBoolean("targets_gm", targetsGm);
         return tag;
     }
 
@@ -229,6 +317,16 @@ public class AnomalyInstance {
         if (tag.contains("speed")) instance.speed = tag.getDouble("speed");
         instance.range = tag.contains("range") ? tag.getDouble("range") : AnomalyDefaults.range(typeId);
         if (tag.contains("yaw")) instance.yaw = tag.getFloat("yaw");
+        if (tag.contains("size_x")) {
+            instance.sizeX = tag.getDouble("size_x");
+            instance.sizeY = tag.getDouble("size_y");
+            instance.sizeZ = tag.getDouble("size_z");
+        }
+        if (tag.contains("enabled")) instance.enabled = tag.getBoolean("enabled");
+        if (tag.contains("harmful")) instance.harmful = tag.getBoolean("harmful");
+        if (tag.contains("audible")) instance.audible = tag.getBoolean("audible");
+        if (tag.contains("visible")) instance.visible = tag.getBoolean("visible");
+        instance.targetsGm = tag.getBoolean("targets_gm");
         return instance;
     }
 }

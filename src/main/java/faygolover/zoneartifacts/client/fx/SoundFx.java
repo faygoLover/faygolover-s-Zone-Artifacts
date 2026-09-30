@@ -1,5 +1,7 @@
 package faygolover.zoneartifacts.client.fx;
 
+import net.minecraft.client.Minecraft;
+import faygolover.zoneartifacts.client.ClientAnomalyCache;
 import faygolover.zoneartifacts.ZoneArtifacts;
 import faygolover.zoneartifacts.client.dymka.DymkaClient;
 import faygolover.zoneartifacts.client.poppy.PoppyClient;
@@ -47,19 +49,38 @@ public final class SoundFx {
     private static boolean own(ResourceLocation id) {
         if (!ZoneArtifacts.MODID.equals(id.getNamespace())) return false;
         String p = id.getPath();
-        return p.equals("sumrak_drone") || p.equals("psi_hum") || p.startsWith("psi_whisper") || p.equals("poppy_hum")
-                || p.startsWith("dymka_distant") || p.equals("khlopushka_ring");
+        return p.equals("sumrak_drone") || p.startsWith("psi_voices") || p.equals("psi_polter") || p.equals("poppy_hum")
+                || p.startsWith("dymka_distant") || p.equals("dymka_inside");
     }
 
     @SubscribeEvent(priority = EventPriority.LOW)
     public static void onPlaySound(PlaySoundEvent event) {
         SoundInstance sound = event.getSound();
-        if (sound == null || sound instanceof TickableSoundInstance || sound instanceof Muffled) return;
+        if (sound != null && muted(sound)) {
+            event.setSound(null);
+            return;
+        }
+        // Loops aren't wrapped either: whoever started one stops it by its identity (a wrapped
+        // one could never be stopped — the Electra's hum kept on after it was removed).
+        if (sound == null || sound instanceof TickableSoundInstance || sound instanceof Muffled || sound.isLooping()) return;
         SoundSource source = sound.getSource();
         if (source == SoundSource.MASTER || source == SoundSource.MUSIC || source == SoundSource.RECORDS) return;
         if (own(sound.getLocation())) return;
         if (!anyNearby()) return;
         event.setSound(new Muffled(sound));
+    }
+
+    /** Our own sound from (or, heard in the head, while standing in) a zone whose KPK "sound" switch is off. */
+    private static boolean muted(SoundInstance sound) {
+        if (!ZoneArtifacts.MODID.equals(sound.getLocation().getNamespace())) return false;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null) return false;
+        net.minecraft.world.phys.Vec3 at = sound.isRelative() || sound.getAttenuation() == SoundInstance.Attenuation.NONE
+                ? mc.gameRenderer.getMainCamera().getPosition() : new net.minecraft.world.phys.Vec3(sound.getX(), sound.getY(), sound.getZ());
+        for (faygolover.zoneartifacts.network.SyncAnomaliesPacket.Entry e : ClientAnomalyCache.allEntriesFor(mc.level.dimension())) {
+            if (!e.audible() && faygolover.zoneartifacts.anomaly.AnomalyGeometry.zoneAabb(e).inflate(2.0).contains(at)) return true;
+        }
+        return false;
     }
 
     private static boolean anyNearby() {

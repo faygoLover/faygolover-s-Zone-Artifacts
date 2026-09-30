@@ -97,7 +97,7 @@ public final class FireflyClient {
                 s.prevGround = new double[n];
                 java.util.Arrays.fill(s.ground, Double.NaN);
             }
-            AABB zone = AnomalyGeometry.centeredAabb(entry.pos(), entry.size());
+            AABB zone = AnomalyGeometry.box(entry);
             for (int i = 0; i < n; i++) {
                 double[] p = path(s, i, zone, now);
                 Double g = Razlom.groundY(level, p[0], p[2], zone.maxY, zone.minY - 4.0);
@@ -124,8 +124,9 @@ public final class FireflyClient {
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         VertexConsumer vc = buffers.getBuffer(GlowRenderType.GLOW);
         for (Swarm s : SWARMS.values()) {
+            if (s.entry != null && !s.entry.visible()) continue;
             if (s.entry == null || s.ground.length != s.seeds.length) continue;
-            AABB zone = AnomalyGeometry.centeredAabb(s.entry.pos(), s.entry.size());
+            AABB zone = AnomalyGeometry.box(s.entry);
             double h = height(s.entry);
             for (int i = 0; i < s.seeds.length; i++) {
                 if (Double.isNaN(s.ground[i])) continue;

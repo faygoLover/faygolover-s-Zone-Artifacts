@@ -79,7 +79,8 @@ public final class SwampClient {
         List<SwampPhysics.Zone> out = new ArrayList<>();
         for (SyncAnomaliesPacket.Entry entry : ClientAnomalyCache.entriesFor(level.dimension())) {
             if (AnomalyTypeIds.SWAMP.equals(entry.typeId())) {
-                out.add(new SwampPhysics.Zone(entry.pos(), entry.size(), entry.speed(), 0.0f, 1.0));
+                out.add(new SwampPhysics.Zone(entry.pos(), entry.size(), entry.speed(), 0.0f, 1.0, entry.intensity(),
+                        entry.sizeX(), entry.sizeY(), entry.sizeZ()));
             }
         }
         return out;
@@ -129,7 +130,7 @@ public final class SwampClient {
         float target = 0.0f;
         for (SwampPhysics.Zone zone : zones) {
             if (!zone.pos().closerThan(mc.player.blockPosition(), zone.size() + 64.0)) continue;
-            Swamp.Columns cols = Swamp.columns(level, zone.pos(), zone.size());
+            Swamp.Columns cols = zone.columns(level);
             if (cols.liquefied(eye.x, eye.y, eye.z)) {
                 target = 1.0f;
             } else if (cols.depthAt(eye.x, eye.z) > 0 && eye.y >= cols.surface() && eye.y < cols.surface() + 0.3
@@ -180,7 +181,7 @@ public final class SwampClient {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) return;
         for (SwampPhysics.Zone zone : zones(mc.level)) {
-            Swamp.Columns cols = Swamp.columns(mc.level, zone.pos(), zone.size());
+            Swamp.Columns cols = zone.columns(mc.level);
             if (cols.depthAt(sound.getX(), sound.getZ()) > 0 && sound.getY() < cols.surface() + 1.5 && sound.getY() > cols.surface() - 3.0) {
                 event.setSound(null);
                 return;
@@ -215,12 +216,9 @@ public final class SwampClient {
         RenderSystem.depthMask(false);
         BufferBuilder buffer = Tesselator.getInstance().getBuilder();
         buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
-        for (SwampPhysics.Zone zone : zones) {
-            if (Vec3.atCenterOf(zone.pos()).distanceToSqr(cam) > 56.0 * 56.0) continue;
-            sheen(buffer, m, Swamp.columns(level, zone.pos(), zone.size()), cam);
-        }
         for (Iterator<Ripple> it = RIPPLES.iterator(); it.hasNext(); ) {
             Ripple r = it.next();
+            if (faygolover.zoneartifacts.client.ClientAnomalyCache.hiddenAt(r.at())) continue;
             float age = (now - r.born() + partial) / RIPPLE_LIFE;
             if (age > 1.0f) continue;
             ring(buffer, m, r, age);
@@ -230,30 +228,6 @@ public final class SwampClient {
         RenderSystem.enableCull();
         RenderSystem.disableBlend();
         poseStack.popPose();
-    }
-
-    /** A barely-there gloss on the surface, stronger at grazing angles (too smooth for ground). */
-    private static void sheen(BufferBuilder buffer, Matrix4f m, Swamp.Columns cols, Vec3 cam) {
-        double y = cols.surface() + 0.004;
-        if (cam.y < y) return;
-        AABB r = cols.region;
-        for (int x = Mth.floor(r.minX); x <= Mth.floor(r.maxX - 1.0E-6); x++) {
-            for (int z = Mth.floor(r.minZ); z <= Mth.floor(r.maxZ - 1.0E-6); z++) {
-                if (cols.depthAt(x, z) <= 0) continue;
-                sheenVertex(buffer, m, x, y, z, cam);
-                sheenVertex(buffer, m, x, y, z + 1, cam);
-                sheenVertex(buffer, m, x + 1, y, z + 1, cam);
-                sheenVertex(buffer, m, x + 1, y, z, cam);
-            }
-        }
-    }
-
-    private static void sheenVertex(BufferBuilder buffer, Matrix4f m, double x, double y, double z, Vec3 cam) {
-        Vec3 to = new Vec3(x - cam.x, y - cam.y, z - cam.z);
-        double len = to.length();
-        double grazing = len < 1.0E-4 ? 0.0 : 1.0 - Math.abs(to.y / len);
-        int a = (int) (255 * 0.07 * grazing * grazing * grazing);
-        buffer.vertex(m, (float) x, (float) y, (float) z).color(210, 220, 230, a).endVertex();
     }
 
     /** A slow ring: a pale crest and a dark trough just inside it, only over the swamp. */

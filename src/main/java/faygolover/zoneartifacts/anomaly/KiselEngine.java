@@ -26,6 +26,8 @@ import java.util.WeakHashMap;
 public final class KiselEngine {
 
     private static final Map<AnomalyInstance, Integer> CALM = new WeakHashMap<>();
+    /** How far it has spread, 0..1: grows while it seethes, shrinks back after (same pace as the look). */
+    private static final Map<AnomalyInstance, Float> GROW = new WeakHashMap<>();
     private static final Map<AnomalyInstance, Integer> HISS = new WeakHashMap<>();
     /** How long each item has been soaking (items dissolve slowly, one at a time). */
     private static final Map<ItemEntity, Integer> SOAK = new WeakHashMap<>();
@@ -43,11 +45,26 @@ public final class KiselEngine {
     public static void tick(ServerLevel level, AnomalyInstance instance) {
         AABB zone = AnomalyGeometry.zoneAabb(instance);
         double surface = surfaceY(level, instance);
-        AABB box = Kisel.contactBox(zone, surface);
-        List<Entity> in = level.getEntities((Entity) null, box, KiselEngine::eaten);
+        Vec3 c = zone.getCenter();
+        long seed = instance.pos().asLong();
+        Kisel.Tongue[] tongues = Kisel.tongues(seed);
+        // Waking: only within its react circle, which never grows.
+        double react = Kisel.reactRadius(instance.size());
+        AABB reactBox = new AABB(c.x - react, surface - 0.6, c.z - react, c.x + react, surface + Kisel.CONTACT_HEIGHT, c.z + react);
+        boolean touched = !level.getEntities((Entity) null, reactBox,
+                e -> eaten(e) && Math.hypot(e.getX() - c.x, e.getZ() - c.z) <= react + e.getBbWidth() / 2.0).isEmpty();
+        float grow = GROW.getOrDefault(instance, 0.0f);
+        grow = instance.active() ? Math.min(1.0f, grow + 0.08f) : Math.max(0.0f, grow - 0.02f);
+        GROW.put(instance, grow);
+        // Eating: all over the puddle as it is now (it spreads while seething).
+        double reach = Kisel.maxReach(instance.size());
+        AABB puddleBox = new AABB(c.x - reach, surface - 0.6, c.z - reach, c.x + reach, surface + Kisel.CONTACT_HEIGHT, c.z + reach);
+        final float g = grow;
+        List<Entity> in = level.getEntities((Entity) null, puddleBox, e -> eaten(e)
+                && Kisel.inPuddle(c.x, c.z, instance.size(), seed, tongues, g, e.getX(), e.getZ(), e.getBbWidth() / 2.0));
 
         int calm = CALM.getOrDefault(instance, 0);
-        if (!in.isEmpty()) {
+        if (touched || (instance.active() && !in.isEmpty())) {
             calm = Kisel.CALM_TICKS;
             if (!instance.active()) {
                 instance.setActive(true);
@@ -114,8 +131,8 @@ public final class KiselEngine {
     }
 
     private static boolean eaten(Entity entity) {
-        if (!entity.isAlive() || entity.isSpectator()) return false;
-        if (entity instanceof Player player && player.isCreative()) return false;
+        if (!entity.isAlive() || AnomalyCombat.spectatorExempt(entity)) return false;
+        if (AnomalyCombat.creativeExempt(entity)) return false;
         return entity instanceof ItemEntity || entity instanceof LivingEntity
                 || (entity instanceof Projectile && !(entity instanceof net.minecraft.world.entity.projectile.FishingHook));
     }

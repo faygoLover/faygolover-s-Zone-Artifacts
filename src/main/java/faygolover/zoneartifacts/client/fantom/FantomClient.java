@@ -20,7 +20,7 @@ import net.minecraftforge.fml.common.Mod;
 import org.joml.Matrix4f;
 
 /**
- * Phantom light: blue lights set tightly in five evenly spaced upright lines (the two outer ones
+ * Phantom light: pale blue-white lights, each drawn out upright a little, set tightly in five close upright lines (the two outer ones
  * shorter), the row across the way the GM faced when placing it, standing on the anomaly's block.
  * Each flickers on its own like a flame or an arc, twitching a little. Seen from afar they shine;
  * coming near, they fade, and at {@code goneAt} there is nothing.
@@ -48,6 +48,7 @@ public final class FantomClient {
         VertexConsumer vc = null;
         Matrix4f m = null;
         for (SyncAnomaliesPacket.Entry entry : ClientAnomalyCache.entriesFor(mc.level.dimension())) {
+            if (!entry.visible()) continue;
             if (!AnomalyTypeIds.FANTOM.equals(entry.typeId())) continue;
             Vec3 base = new Vec3(entry.pos().getX() + 0.5, entry.pos().getY(), entry.pos().getZ() + 0.5);
             double size = entry.size();
@@ -67,8 +68,9 @@ public final class FantomClient {
             }
             double yaw = Math.toRadians(entry.yaw());
             Vec3 across = new Vec3(Math.cos(yaw), 0.0, Math.sin(yaw));
-            int perLine = Mth.clamp(4 + entry.intensity() * 2, 3, 40);
-            double spacing = size / 4.0;
+            int perLine = Mth.clamp(5 + entry.intensity() * 3, 3, 60);
+            // Lines close together, lights close along them (some nearly running into one another).
+            double spacing = size / 7.0;
             float glowScale = (float) Math.max(1.0, dist / 40.0); // stays visible far off
             int seedBase = entry.pos().hashCode();
             for (int line = 0; line < 5; line++) {
@@ -78,7 +80,8 @@ public final class FantomClient {
                 Vec3 foot = base.add(across.scale((line - 2) * spacing)).add(0.0, outer ? size * 0.19 : 0.0, 0.0);
                 for (int k = 0; k < n; k++) {
                     float seed = seedBase * 0.013f + line * 17.3f + k * 5.1f;
-                    double y = height * (k + 0.5) / n;
+                    // Unevenly along the line: here and there two almost touch.
+                    double y = height * Mth.clamp((k + 0.5 + 0.38 * Mth.sin(seed * 12.9898f)) / n, 0.0, 1.0);
                     // A flame's flicker, now and then an arc's twitch.
                     float flick = 0.55f + 0.3f * Mth.sin(time * 0.37f + seed) + 0.15f * Mth.sin(time * 1.13f + seed * 2.0f);
                     boolean spark = Mth.sin(time * 0.071f + seed * 3.3f) > 0.985f;
@@ -86,10 +89,14 @@ public final class FantomClient {
                     double jx = 0.02 * Mth.sin(time * 0.9f + seed) + (spark ? 0.06 * Mth.sin(time * 7.0f + seed) : 0.0);
                     double jy = 0.02 * Mth.sin(time * 0.7f + seed * 1.7f);
                     Vec3 p = foot.add(across.scale(jx)).add(0.0, y + jy, 0.0);
-                    int halo = (int) (70 * fade * flick);
-                    int core = (int) Math.min(255, 230 * fade * flick);
-                    LightningDraw.glow(m, vc, p, 0.22 * glowScale, cam, 60, 140, 255, halo, 12);
-                    LightningDraw.glow(m, vc, p, 0.06 * glowScale, cam, 190, 235, 255, core, 10);
+                    int halo = (int) (60 * fade * flick);
+                    int core = (int) Math.min(255, 220 * fade * flick);
+                    LightningDraw.glow(m, vc, p, 0.2 * glowScale, cam, 110, 165, 255, halo, 12);
+                    // Each light drawn out upright a little (a short streak rather than a dot).
+                    double stretch = 0.035 * glowScale;
+                    LightningDraw.glow(m, vc, p.add(0.0, stretch, 0.0), 0.05 * glowScale, cam, 215, 238, 255, core, 10);
+                    LightningDraw.glow(m, vc, p, 0.055 * glowScale, cam, 225, 242, 255, core, 10);
+                    LightningDraw.glow(m, vc, p.add(0.0, -stretch, 0.0), 0.05 * glowScale, cam, 215, 238, 255, core, 10);
                 }
             }
         }

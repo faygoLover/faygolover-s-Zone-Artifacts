@@ -93,7 +93,7 @@ public final class GoreClient {
             Vec3 p = new Vec3(x + (random.nextDouble() - 0.5) * width, y + random.nextDouble() * height, z + (random.nextDouble() - 0.5) * width);
             Vec3 v = new Vec3(random.nextGaussian(), Math.abs(random.nextGaussian()) * 0.8 + 0.4, random.nextGaussian())
                     .normalize().scale(0.12 + random.nextDouble() * 0.3);
-            level.addParticle(ModParticles.BLOOD.get(), p.x, p.y, p.z, v.x, v.y, v.z);
+            faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, ModParticles.BLOOD.get(), p.x, p.y, p.z, v.x, v.y, v.z);
         }
 
         // Blotches where the spray lands: a big one under the body, more around.

@@ -5,9 +5,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import faygolover.zoneartifacts.ZoneArtifacts;
 import faygolover.zoneartifacts.client.GlowRenderType;
 import faygolover.zoneartifacts.client.distortion.Distortion;
-import faygolover.zoneartifacts.client.fx.HumLoop;
 import faygolover.zoneartifacts.client.tesla.LightningDraw;
-import faygolover.zoneartifacts.registry.ModSounds;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -21,6 +19,7 @@ import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.joml.Matrix4f;
+import org.joml.Vector3f;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -49,8 +48,6 @@ public final class KhlopushkaClient {
     private static float flashStrength;
     private static int flashTicks;
     private static long flashStart = -1;
-    @Nullable
-    private static HumLoop ringing;
 
     private KhlopushkaClient() {
     }
@@ -65,15 +62,7 @@ public final class KhlopushkaClient {
             case 1 -> {
                 CLOTS.removeIf(c -> c.at().distanceToSqr(at) < 0.25);
                 BLASTS.add(new Blast(at, value, now));
-                level.addParticle(ParticleTypes.FLASH, at.x, at.y, at.z, 0.0, 0.0, 0.0);
-                for (int i = 0; i < 40; i++) {
-                    Vec3 v = new Vec3(RANDOM.nextGaussian(), RANDOM.nextGaussian(), RANDOM.nextGaussian()).normalize().scale(0.2 + RANDOM.nextDouble() * 0.4);
-                    level.addParticle(ParticleTypes.FIREWORK, at.x, at.y, at.z, v.x, v.y, v.z);
-                }
-                for (int i = 0; i < 12; i++) {
-                    Vec3 v = new Vec3(RANDOM.nextGaussian(), RANDOM.nextGaussian() + 0.5, RANDOM.nextGaussian()).scale(0.04);
-                    level.addParticle(ParticleTypes.LARGE_SMOKE, at.x, at.y, at.z, v.x, v.y, v.z);
-                }
+                // Nothing lingers after it: the flash of light (drawn here) and it's gone.
             }
             default -> {
                 // Blinded: the stronger flash wins.
@@ -82,10 +71,6 @@ public final class KhlopushkaClient {
                     flashStrength = value;
                     flashTicks = Math.max(10, ticks);
                     flashStart = now;
-                }
-                if (ringing == null || ringing.isStopped()) {
-                    ringing = new HumLoop(ModSounds.KHLOPUSHKA_RING.get(), () -> 0.8 * flash(0.0f));
-                    mc.getSoundManager().play(ringing);
                 }
             }
         }
@@ -97,9 +82,10 @@ public final class KhlopushkaClient {
         if (mc.level == null || flashStart < 0) return 0.0f;
         float t = (mc.level.getGameTime() - flashStart) + partial;
         if (t < 0) return 0.0f;
-        if (t < 6) return flashStrength;
-        float k = 1.0f - (t - 6) / Math.max(1.0f, flashTicks - 6);
-        return k <= 0.0f ? 0.0f : flashStrength * (float) Math.pow(k, 0.6);
+        float hold = Math.min(20.0f, flashTicks * 0.3f);
+        if (t < hold) return flashStrength;
+        float k = 1.0f - (t - hold) / Math.max(1.0f, flashTicks - hold);
+        return k <= 0.0f ? 0.0f : flashStrength * (float) Math.pow(k, 0.4);
     }
 
     /** Deafened by the bang. */
@@ -126,7 +112,7 @@ public final class KhlopushkaClient {
             float t = Mth.clamp((now - c.start()) / (float) c.ticks(), 0.0f, 1.0f);
             if (RANDOM.nextFloat() < 0.2f + 0.8f * t) {
                 Vec3 v = new Vec3(RANDOM.nextGaussian(), RANDOM.nextGaussian(), RANDOM.nextGaussian()).scale(0.08 + 0.1 * t);
-                level.addParticle(ParticleTypes.ELECTRIC_SPARK, c.at().x, c.at().y, c.at().z, v.x, v.y, v.z);
+                faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, ParticleTypes.ELECTRIC_SPARK, c.at().x, c.at().y, c.at().z, v.x, v.y, v.z);
             }
         }
     }
@@ -147,22 +133,67 @@ public final class KhlopushkaClient {
         Matrix4f m = poseStack.last().pose();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         VertexConsumer vc = buffers.getBuffer(GlowRenderType.GLOW);
+        Vector3f left = event.getCamera().getLeftVector();
+        Vector3f up = event.getCamera().getUpVector();
         for (Clot c : CLOTS) {
+            if (faygolover.zoneartifacts.client.ClientAnomalyCache.hiddenAt(c.at())) continue;
             float t = Mth.clamp((now - c.start() + partial) / c.ticks(), 0.0f, 1.0f);
             float flicker = 1.0f + (0.1f + 0.35f * t) * Mth.sin(time * (1.3f + 2.0f * t)) * Mth.sin(time * 0.7f + 1.0f);
             double core = (0.06 + 0.22 * t) * flicker;
-            LightningDraw.glow(m, vc, c.at(), (0.35 + 0.9 * t) * flicker, cam, 120, 170, 255, (int) (60 + 90 * t), 18);
-            LightningDraw.glow(m, vc, c.at(), core * 2.2, cam, 255, 240, 200, (int) (140 + 80 * t), 16);
+            LightningDraw.glow(m, vc, c.at(), (0.35 + 0.9 * t) * flicker, cam, 150, 185, 255, (int) (60 + 90 * t), 18);
+            LightningDraw.glow(m, vc, c.at(), core * 2.2, cam, 225, 235, 255, (int) (140 + 80 * t), 16);
             LightningDraw.glow(m, vc, c.at(), core, cam, 255, 255, 255, 250, 14);
+            // The four long rays of a star (as it looks through the eye), the side ones longest.
+            star(vc, m, c.at(), left, up, (0.5 + 1.6 * t) * flicker, (0.35 + 1.0 * t) * flicker, (0.03 + 0.05 * t) * flicker,
+                    (int) (120 + 135 * t), time * 0.01f * t);
         }
         for (Blast b : BLASTS) {
+            if (faygolover.zoneartifacts.client.ClientAnomalyCache.hiddenAt(b.at())) continue;
             float t = Mth.clamp((now - b.born() + partial) / BLAST_TICKS, 0.0f, 1.0f);
             float a = (1.0f - t) * (1.0f - t);
-            LightningDraw.glow(m, vc, b.at(), b.radius() * (0.4 + 1.0 * t), cam, 255, 250, 230, (int) (230 * a), 24);
+            LightningDraw.glow(m, vc, b.at(), b.radius() * (0.4 + 1.0 * t), cam, 240, 245, 255, (int) (230 * a), 24);
             LightningDraw.glow(m, vc, b.at(), b.radius() * (0.2 + 0.4 * t), cam, 255, 255, 255, (int) (255 * a), 18);
+            star(vc, m, b.at(), left, up, b.radius() * (1.2 + 1.5 * t), b.radius() * (0.8 + 1.0 * t), 0.12 * (1.0 - t) + 0.03,
+                    (int) (255 * a), 0.0f);
         }
         buffers.endBatch(GlowRenderType.GLOW);
         poseStack.popPose();
+    }
+
+    /** Four thin rays from {@code at} in the camera's plane: sideways {@code wide} long, up and down {@code tall}. */
+    private static void star(VertexConsumer vc, Matrix4f m, Vec3 at, Vector3f left, Vector3f up, double wide, double tall,
+                             double thick, int alpha, float turn) {
+        float cos = Mth.cos(turn);
+        float sin = Mth.sin(turn);
+        Vector3f a = new Vector3f(left).mul(cos).add(new Vector3f(up).mul(sin));
+        Vector3f b = new Vector3f(up).mul(cos).sub(new Vector3f(left).mul(sin));
+        ray(vc, m, at, a, b, wide, thick, alpha);
+        ray(vc, m, at, new Vector3f(a).negate(), b, wide, thick, alpha);
+        ray(vc, m, at, b, a, tall, thick, alpha);
+        ray(vc, m, at, new Vector3f(b).negate(), a, tall, thick, alpha);
+    }
+
+    /** One ray: bright and a little wide at the middle, fading to nothing at its thin tip. */
+    private static void ray(VertexConsumer vc, Matrix4f m, Vec3 at, Vector3f dir, Vector3f side, double length, double thick, int alpha) {
+        float x = (float) at.x;
+        float y = (float) at.y;
+        float z = (float) at.z;
+        float sx = side.x() * (float) thick;
+        float sy = side.y() * (float) thick;
+        float sz = side.z() * (float) thick;
+        float tx = x + dir.x() * (float) length;
+        float ty = y + dir.y() * (float) length;
+        float tz = z + dir.z() * (float) length;
+        int a = Mth.clamp(alpha, 0, 255);
+        vc.vertex(m, x - sx, y - sy, z - sz).color(215, 230, 255, 0).endVertex();
+        vc.vertex(m, x, y, z).color(255, 255, 255, a).endVertex();
+        vc.vertex(m, tx, ty, tz).color(200, 220, 255, 0).endVertex();
+        vc.vertex(m, x + sx, y + sy, z + sz).color(215, 230, 255, 0).endVertex();
+        // And the other way round (the glow culls back faces; which side faces us depends on the ray).
+        vc.vertex(m, x + sx, y + sy, z + sz).color(215, 230, 255, 0).endVertex();
+        vc.vertex(m, tx, ty, tz).color(200, 220, 255, 0).endVertex();
+        vc.vertex(m, x, y, z).color(255, 255, 255, a).endVertex();
+        vc.vertex(m, x - sx, y - sy, z - sz).color(215, 230, 255, 0).endVertex();
     }
 
     public static void collect(List<Distortion.Patch> out, long now, float partial) {

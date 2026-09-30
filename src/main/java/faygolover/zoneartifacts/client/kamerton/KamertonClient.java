@@ -44,7 +44,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Kamerton's look: a ball of thin glass needles in nested shells, all pointing at its middle — pale,
+ * Kamerton's look: a lumpy cloud of thin glass needles, each pointing its own way — pale,
  * translucent, glinting as the eye moves (brightest seen side-on), twinkling here and there. They
  * lean aside round whoever is among them. A quiet high ringing, louder while something moves in it,
  * and a faint shimmer of the air.
@@ -54,10 +54,11 @@ public final class KamertonClient {
 
     private static final double NEAR = 64.0;
     private static final int MAX_NEEDLES = 1500;
+    private static final int NEEDLE = 8;
 
     private static final class Ball {
         SyncAnomaliesPacket.Entry entry;
-        float[] needles = new float[0]; // dir x,y,z, base radius, length, seed
+        float[] needles = new float[0]; // NEEDLE floats each: middle x,y,z (from the centre), direction x,y,z, length, seed
         float activity;
         float prevActivity;
         List<AABB> bodies = new ArrayList<>();
@@ -74,32 +75,37 @@ public final class KamertonClient {
         double r = b.entry.size() / 2.0;
         int eff = ModClientConfig.effective(b.entry.intensity());
         RandomSource rand = RandomSource.create(b.entry.pos().asLong() * 7919L);
-        List<Float> out = new ArrayList<>();
         double scale = Math.min(1.0, r / 2.5) * 0.7 + 0.3;
-        int total = 0;
-        for (int k = 0; k < 6 && total < MAX_NEEDLES; k++) {
-            double rho = r * (1.0 - k * 0.17);
-            if (rho < 0.35) break;
-            int n = Mth.clamp((int) (4.0 * Math.PI * rho * rho * 2.2 * eff / 3.0), 10, 420);
-            n = Math.min(n, MAX_NEEDLES - total);
-            for (int i = 0; i < n; i++) {
-                // A Fibonacci sphere, jittered.
-                double y = 1.0 - 2.0 * (i + 0.5) / n;
-                double rr = Math.sqrt(Math.max(0.0, 1.0 - y * y));
-                double phi = i * 2.39996 + k * 0.7 + rand.nextDouble() * 0.2;
-                Vec3 dir = new Vec3(Math.cos(phi) * rr, y, Math.sin(phi) * rr)
-                        .add(rand.nextGaussian() * 0.06, rand.nextGaussian() * 0.06, rand.nextGaussian() * 0.06).normalize();
-                out.add((float) dir.x);
-                out.add((float) dir.y);
-                out.add((float) dir.z);
-                out.add((float) (rho + rand.nextGaussian() * 0.04));
-                out.add((float) ((0.22 + rand.nextDouble() * 0.3) * scale));
-                out.add(rand.nextFloat() * 100.0f);
-            }
-            total += n;
+        // A lumpy cloud rather than a ball: how far it reaches in each direction wanders (a few
+        // slow waves over the directions), always within the zone's own ball.
+        double[][] lumps = new double[4][4];
+        for (double[] l : lumps) {
+            Vec3 d = new Vec3(rand.nextGaussian(), rand.nextGaussian(), rand.nextGaussian()).normalize();
+            l[0] = d.x;
+            l[1] = d.y;
+            l[2] = d.z;
+            l[3] = 1.5 + rand.nextDouble() * 2.5;
         }
-        float[] arr = new float[out.size()];
-        for (int i = 0; i < arr.length; i++) arr[i] = out.get(i);
+        int n = Mth.clamp((int) (4.0 / 3.0 * Math.PI * r * r * r * 6.5 * eff / 3.0), 20, MAX_NEEDLES);
+        float[] arr = new float[n * NEEDLE];
+        for (int i = 0; i < n; i++) {
+            Vec3 at = new Vec3(rand.nextGaussian(), rand.nextGaussian(), rand.nextGaussian()).normalize();
+            double reach = 0.0;
+            for (double[] l : lumps) reach += Math.sin((at.x * l[0] + at.y * l[1] + at.z * l[2]) * l[3] + l[3]);
+            reach = r * (0.62 + 0.38 * (0.5 + 0.5 * Math.tanh(reach * 0.6)));
+            double rho = reach * Math.cbrt(rand.nextDouble());
+            // Each one pointing its own way.
+            Vec3 dir = new Vec3(rand.nextGaussian(), rand.nextGaussian(), rand.nextGaussian()).normalize();
+            int k = i * NEEDLE;
+            arr[k] = (float) (at.x * rho);
+            arr[k + 1] = (float) (at.y * rho);
+            arr[k + 2] = (float) (at.z * rho);
+            arr[k + 3] = (float) dir.x;
+            arr[k + 4] = (float) dir.y;
+            arr[k + 5] = (float) dir.z;
+            arr[k + 6] = (float) ((0.22 + rand.nextDouble() * 0.3) * scale);
+            arr[k + 7] = rand.nextFloat() * 100.0f;
+        }
         b.needles = arr;
     }
 
@@ -117,7 +123,7 @@ public final class KamertonClient {
         Set<BlockPos> seen = new HashSet<>();
         for (SyncAnomaliesPacket.Entry entry : ClientAnomalyCache.entriesFor(level.dimension())) {
             if (!AnomalyTypeIds.KAMERTON.equals(entry.typeId())) continue;
-            AABB zone = AnomalyGeometry.centeredAabb(entry.pos(), entry.size());
+            AABB zone = AnomalyGeometry.box(entry);
             if (zone.getCenter().distanceTo(cam) > NEAR + entry.size()) continue;
             seen.add(entry.pos());
             Ball b = BALLS.computeIfAbsent(entry.pos(), p -> new Ball());
@@ -145,7 +151,7 @@ public final class KamertonClient {
         float time = (now % 72000L) + partial;
         for (Ball b : BALLS.values()) {
             if (b.entry == null) continue;
-            Vec3 c = AnomalyGeometry.centeredAabb(b.entry.pos(), b.entry.size()).getCenter();
+            Vec3 c = AnomalyGeometry.box(b.entry).getCenter();
             out.add(Distortion.Lens.shimmer(c, b.entry.size() / 2.0, 0.012, time * 0.03, 0.7f));
         }
     }
@@ -175,15 +181,15 @@ public final class KamertonClient {
         glass.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
         List<Vec3[]> drawn = new ArrayList<>();
         for (Ball b : BALLS.values()) {
+            if (b.entry != null && !b.entry.visible()) continue;
             if (b.entry == null) continue;
-            Vec3 c = AnomalyGeometry.centeredAabb(b.entry.pos(), b.entry.size()).getCenter();
+            Vec3 c = AnomalyGeometry.box(b.entry).getCenter();
             float[] a = b.needles;
-            for (int i = 0; i + 5 < a.length; i += 6) {
-                Vec3 dir = new Vec3(a[i], a[i + 1], a[i + 2]);
-                double rho = a[i + 3];
-                double len = a[i + 4];
-                Vec3 base = c.add(dir.scale(rho));
-                Vec3 tip = c.add(dir.scale(Math.max(0.05, rho - len)));
+            for (int i = 0; i + NEEDLE - 1 < a.length; i += NEEDLE) {
+                Vec3 mid0 = c.add(a[i], a[i + 1], a[i + 2]);
+                Vec3 half = new Vec3(a[i + 3], a[i + 4], a[i + 5]).scale(a[i + 6] * 0.5);
+                Vec3 base = mid0.subtract(half);
+                Vec3 tip = mid0.add(half);
                 // Leaning aside round anyone among them.
                 for (AABB body : b.bodies) {
                     Vec3 mid = base.add(tip).scale(0.5);
@@ -198,7 +204,7 @@ public final class KamertonClient {
                         tip = tip.add(push);
                     }
                 }
-                drawn.add(new Vec3[]{base, tip, new Vec3(a[i + 5], 0, 0)});
+                drawn.add(new Vec3[]{base, tip, new Vec3(a[i + 7], 0, 0)});
                 shard(glass, m, base, tip, cam, 205, 232, 245, 70);
             }
         }

@@ -65,6 +65,8 @@ public final class Distortion {
         final Vec3 anchor;
         final double size;
         final double blur;
+        /** Colours coming apart through it (red one way, blue the other), in screen fractions. */
+        double chroma;
 
         Patch(Vec3 anchor, double size, double blur) {
             this.anchor = anchor;
@@ -81,6 +83,11 @@ public final class Distortion {
 
         /** Point (i, j): out[0..2] drawn at, out[3..5] sampled from (world), out[6] alpha. */
         abstract void point(int i, int j, double[] out);
+
+        public Patch chroma(double amount) {
+            this.chroma = amount;
+            return this;
+        }
     }
 
     /** Round, facing the camera. {@code pinch}: shows what's further out, drawing things towards
@@ -264,6 +271,7 @@ public final class Distortion {
         List<Patch> patches = new ArrayList<>();
         DistortionSources.collect(mc, patches, now, partial, cam);
         patches.removeIf(p -> {
+            if (faygolover.zoneartifacts.client.ClientAnomalyCache.hiddenAt(p.anchor)) return true;
             Vec3 to = p.anchor.subtract(cam);
             if (to.lengthSqr() > MAX_DISTANCE * MAX_DISTANCE) return true;
             // Behind the camera, all of it.
@@ -306,6 +314,19 @@ public final class Distortion {
             }
         }
         BufferUploader.drawWithShader(buffer.end());
+        List<Patch> split = ready.stream().filter(p -> p.chroma > 1.0E-5).toList();
+        if (!split.isEmpty()) {
+            // Red shifted one way, blue the other: only that channel is written each time.
+            RenderSystem.colorMask(true, false, false, false);
+            buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
+            for (Patch p : split) draw(buffer, pose, toScreen, cam, p, (float) p.chroma, (float) (p.chroma * 0.4), 1.0f);
+            BufferUploader.drawWithShader(buffer.end());
+            RenderSystem.colorMask(false, false, true, false);
+            buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
+            for (Patch p : split) draw(buffer, pose, toScreen, cam, p, (float) -p.chroma, (float) (-p.chroma * 0.4), 1.0f);
+            BufferUploader.drawWithShader(buffer.end());
+            RenderSystem.colorMask(true, true, true, true);
+        }
         RenderSystem.depthMask(true);
         RenderSystem.enableCull();
         RenderSystem.disableBlend();

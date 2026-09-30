@@ -9,8 +9,9 @@ import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import faygolover.zoneartifacts.ZoneArtifacts;
-import faygolover.zoneartifacts.client.TunerClientHandler;
-import faygolover.zoneartifacts.item.AnomalyTunerItem;
+import faygolover.zoneartifacts.client.pda.PdaClientHandler;
+import faygolover.zoneartifacts.pda.PdaTarget;
+import faygolover.zoneartifacts.item.PdaItem;
 import faygolover.zoneartifacts.item.TeslaRoutePlacerItem;
 import faygolover.zoneartifacts.network.SyncTeslaRoutesPacket;
 import faygolover.zoneartifacts.tesla.RouteKind;
@@ -73,10 +74,10 @@ public final class TeslaRouteRenderer {
         Player player = mc.player;
         if (player == null || mc.level == null) return;
         boolean placer = TeslaRoutePlacerItem.isHeld(player);
-        boolean tuner = !placer && AnomalyTunerItem.isHeld(player);
+        boolean tuner = !placer && PdaItem.holds(player);
         if (!placer && !tuner) return;
 
-        // A placer shows only routes of its own kind; a tuner shows all of them.
+        // A placer shows only routes of its own kind; the KPK shows all of them.
         RouteKind heldKind = placer ? TeslaRoutePlacerItem.heldKind(player) : null;
         List<SyncTeslaRoutesPacket.Entry> routes = new ArrayList<>();
         for (SyncTeslaRoutesPacket.Entry route : TeslaClientCache.routesFor(mc.level.dimension())) {
@@ -88,8 +89,9 @@ public final class TeslaRouteRenderer {
             aimed = hit.isPresent() && TeslaGeometry.beatsBlock(hit.get(), TeslaClientHandler.blockHitDistanceSq(player))
                     ? Optional.of(hit.get().ref()) : Optional.empty();
         } else {
-            TunerClientHandler.Target target = TunerClientHandler.pick(player);
-            aimed = target != null ? Optional.ofNullable(target.waypoint()) : Optional.empty();
+            PdaTarget target = PdaClientHandler.pick(player);
+            aimed = target != null && target.kind() == PdaTarget.ROUTE
+                    ? Optional.of(new TeslaGeometry.WaypointRef(target.id(), target.index(), target.pos())) : Optional.empty();
         }
         BlockPos preview = placer && aimed.isEmpty() ? previewPos(mc, player, routes) : null;
 

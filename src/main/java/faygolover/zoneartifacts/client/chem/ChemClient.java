@@ -99,6 +99,12 @@ public final class ChemClient {
      * the body, circle it for a while on a slanted orbit and sink back in (each on its own cycle, a
      * new orbit every time).
      */
+    /** From {@code p} towards the camera, unit. */
+    private static Vec3 cam(Vec3 p) {
+        Vec3 d = net.minecraft.client.Minecraft.getInstance().gameRenderer.getMainCamera().getPosition().subtract(p);
+        return d.lengthSqr() < 1.0E-8 ? Vec3.ZERO : d.normalize();
+    }
+
     private static void satellites(List<Gas.FramePuff> out, ChemCometEntity comet, Vec3 c, double size, float time) {
         int count = Math.max(1, (ModClientConfig.effective(comet.getIntensity()) + 1) / 2);
         for (int i = 0; i < count; i++) {
@@ -113,12 +119,15 @@ public final class ChemClient {
             if (!Double.isFinite(start.x)) continue;
             double out01 = Math.sin(Math.PI * phase);
             double rise = Math.min(1.0, out01 * 1.6);
-            double dist = (0.2 + (0.17 + 0.1 * orbit.nextDouble()) * rise) * size; // close round the clot
+            double dist = (0.2 + (0.06 + 0.08 * orbit.nextDouble()) * rise) * size; // close round the clot
             double angle = phase * Math.PI * 2.0 * (1.0 + orbit.nextInt(2)) * (orbit.nextBoolean() ? 1 : -1);
             Vec3 dir = rotate(start, axis, angle);
             double r = (0.05 + 0.03 * orbit.nextDouble()) * size * (0.4 + 0.6 * rise);
-            out.add(new Gas.FramePuff(c.add(dir.scale(dist)), r, (float) (0.9 * Math.min(1.0, rise * 2.0)), ACID, ACID_DARK,
-                    orbit.nextFloat() * 10f, true));
+            Vec3 at = c.add(dir.scale(dist));
+            float shown = (float) Math.min(1.0, rise * 2.0);
+            // A little haze round each, like the clot's own.
+            out.add(new Gas.FramePuff(at.add(cam(at).scale(-0.02 * size)), r * 2.3, 0.4f * shown, OLIVE, YELLOW_GREEN, orbit.nextFloat() * 10f));
+            out.add(new Gas.FramePuff(at, r, 0.9f * shown, ACID, ACID_DARK, orbit.nextFloat() * 10f, true));
         }
     }
 
@@ -152,7 +161,7 @@ public final class ChemClient {
                         30 + RANDOM.nextInt(15), 0.32f, OLIVE, YELLOW_GREEN, RANDOM.nextFloat() * 10f).drag(0.96));
             }
             if (RANDOM.nextInt(35) == 0) {
-                level.addParticle(ModParticles.CHEM_DROP.get(), c.x + RANDOM.nextGaussian() * 0.1 * size,
+                faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, ModParticles.CHEM_DROP.get(), c.x + RANDOM.nextGaussian() * 0.1 * size,
                         c.y - 0.3 * size, c.z + RANDOM.nextGaussian() * 0.1 * size, motion.x * 0.5, -0.03, motion.z * 0.5);
             }
         }

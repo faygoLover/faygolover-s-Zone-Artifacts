@@ -13,15 +13,20 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 
-/** The Hedgehog's settings (the tuners): the patch's radius, how many spikes, how fast they move. */
+/** The Hedgehog's settings: the patch's radius (and the spikes' length with it), how many spikes, how fast they move, how deep its centre sits. */
 public class EzhikBlockEntity extends BlockEntity {
 
     public static final double MIN_RADIUS = 0.3;
     public static final double MAX_RADIUS = 4.0;
+    public static final double DEFAULT_DEPTH = 0.6;
+    public static final double MIN_DEPTH = 0.1;
+    public static final double MAX_DEPTH = 2.0;
 
     private double radius;
     private int intensity;
     private double speed = 1.0;
+    /** How deep the urchin's centre sits under the face, as a part of the radius (the targeting tuner). */
+    private double depth = DEFAULT_DEPTH;
 
     public EzhikBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.EZHIK.get(), pos, state);
@@ -44,6 +49,15 @@ public class EzhikBlockEntity extends BlockEntity {
 
     public double speed() {
         return speed;
+    }
+
+    public double depth() {
+        return depth;
+    }
+
+    public void setDepth(double depth) {
+        this.depth = Mth.clamp(depth, MIN_DEPTH, MAX_DEPTH);
+        changed();
     }
 
     public void setRadius(double radius) {
@@ -72,6 +86,7 @@ public class EzhikBlockEntity extends BlockEntity {
         if (tag.contains("radius")) radius = tag.getDouble("radius");
         if (tag.contains("intensity")) intensity = tag.getInt("intensity");
         if (tag.contains("speed")) speed = tag.getDouble("speed");
+        if (tag.contains("depth")) depth = tag.getDouble("depth");
     }
 
     @Override
@@ -80,6 +95,7 @@ public class EzhikBlockEntity extends BlockEntity {
         tag.putDouble("radius", radius);
         tag.putInt("intensity", intensity);
         tag.putDouble("speed", speed);
+        tag.putDouble("depth", depth);
     }
 
     @Override

@@ -35,8 +35,8 @@ public final class ColdEffects {
 
     /** Freezes an entity for {@code seconds}. Creative players and spectators are left alone. */
     public static void freeze(Entity entity, int seconds) {
-        if (seconds <= 0 || entity.isSpectator()) return;
-        if (entity instanceof Player player && player.isCreative()) return;
+        if (seconds <= 0 || AnomalyCombat.spectatorExempt(entity)) return;
+        if (AnomalyCombat.creativeExempt(entity)) return;
         entity.clearFire();
         if (!(entity instanceof LivingEntity living)) return;
         if (living.canFreeze()) {

@@ -77,6 +77,7 @@ public final class IneyFrostRenderer {
         Map<ThermalClientHandler.Key, Cache> used = new HashMap<>();
         for (Map.Entry<ThermalClientHandler.Key, ThermalClientHandler.State> e : ThermalClientHandler.states()) {
             ThermalClientHandler.State state = e.getValue();
+            if (e.getValue().entry() != null && !e.getValue().entry().visible()) continue;
             if (state.isZharka() || state.faces().isEmpty()) continue;
 
             Cache cache = CACHES.get(e.getKey());

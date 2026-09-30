@@ -75,7 +75,14 @@ public final class TeslaClientHandler {
         for (Entity entity : mc.level.entitiesForRendering()) {
             if (!(entity instanceof TeslaEntity tesla) || !tesla.getState().isVisible()) continue;
             if (IDLE_SOUNDS.containsKey(tesla.getId())) continue;
-            if (tesla instanceof GraviEntity) continue; // silent: only its pops are heard
+            if (tesla instanceof GraviEntity) {
+                SoundEvent hum = ForgeRegistries.SOUND_EVENTS.getValue(faygolover.zoneartifacts.tesla.Gravi.IDLE_SOUND);
+                if (hum == null) continue;
+                TeslaIdleSound idle = new TeslaIdleSound(tesla, hum, faygolover.zoneartifacts.tesla.Gravi.IDLE_VOLUME, 1.0f);
+                IDLE_SOUNDS.put(tesla.getId(), idle);
+                mc.getSoundManager().play(idle);
+                continue;
+            }
             if (tesla instanceof ChemCometEntity) {
                 SoundEvent chem = ForgeRegistries.SOUND_EVENTS.getValue(ChemComet.IDLE_SOUND);
                 if (chem == null) continue;

@@ -141,7 +141,7 @@ public final class ModCommonConfig {
     public static final ForgeConfigSpec.DoubleValue RUST_CHARGE_SECONDS;
     public static final ForgeConfigSpec.DoubleValue RUST_DUST_DAMAGE;
     public static final ForgeConfigSpec.IntValue RUST_INTENSITY;
-    public static final ForgeConfigSpec.DoubleValue RUST_CHARGE_CHANCE;
+    public static final ForgeConfigSpec.IntValue RUST_CHARGE_EVERY;
     public static final ForgeConfigSpec.DoubleValue RUST_SPOT_SECONDS;
     public static final ForgeConfigSpec.DoubleValue RUST_SPOT_RADIUS;
     public static final ForgeConfigSpec.DoubleValue RUST_BLAST_DAMAGE;
@@ -156,6 +156,7 @@ public final class ModCommonConfig {
     public static final ForgeConfigSpec.DoubleValue BUBBLES_SIZE;
     public static final ForgeConfigSpec.DoubleValue BUBBLES_FIRST_SECONDS;
     public static final ForgeConfigSpec.DoubleValue BUBBLES_DAMAGE;
+    public static final ForgeConfigSpec.DoubleValue BUBBLES_RADIUS;
     public static final ForgeConfigSpec.IntValue BUBBLES_COUNT;
     public static final ForgeConfigSpec.DoubleValue BUBBLES_RESPAWN_SECONDS;
 
@@ -587,8 +588,8 @@ public final class ModCommonConfig {
         RUST_DUST_DAMAGE = b.comment("Dust damage every half second, half-hearts (the damage tuner).")
                 .defineInRange("dustDamage", 1.0, 0.0, 1000.0);
         RUST_INTENSITY = b.defineInRange("intensity", 3, 1, 50);
-        RUST_CHARGE_CHANCE = b.comment("Once the interval has passed, the chance of each raised puff to be charged.")
-                .defineInRange("chargeChance", 0.25, 0.0, 1.0);
+        RUST_CHARGE_EVERY = b.comment("Every this many raised puffs of dust (while there is no red-hot patch), one is charged.")
+                .defineInRange("chargeEveryPuffs", 20, 1, 10000);
         RUST_SPOT_SECONDS = b.comment("How long a red-hot patch stays hot, seconds.").defineInRange("spotSeconds", 300.0, 5.0, 36000.0);
         RUST_SPOT_RADIUS = b.comment("Its radius, blocks.").defineInRange("spotRadius", 1.5, 0.5, 8.0);
         RUST_BLAST_DAMAGE = b.comment("Damage of the blast, half-hearts.").defineInRange("blastDamage", 14.0, 0.0, 1000.0);
@@ -612,8 +613,9 @@ public final class ModCommonConfig {
         BUBBLES_SIZE = b.comment("Size of a newly placed zone, blocks.").defineInRange("size", 6.0, 1.0, 128.0);
         BUBBLES_FIRST_SECONDS = b.comment("Pause before the first bubble appears, seconds (the cooldown tuner).")
                 .defineInRange("firstSpawnSeconds", 10.0, 0.0, 3600.0);
-        BUBBLES_DAMAGE = b.comment("Damage of a burst at its middle, half-hearts; the blast radius grows with it (the damage tuner).")
+        BUBBLES_DAMAGE = b.comment("Damage of a burst at its middle, half-hearts (the damage tuner).")
                 .defineInRange("damage", 4.0, 0.0, 1000.0);
+        BUBBLES_RADIUS = b.comment("Radius of a burst, blocks (the targeting tuner).").defineInRange("burstRadius", 2.0, 0.5, 8.0);
         BUBBLES_COUNT = b.comment("How many bubbles (the effects tuner).").defineInRange("count", 5, 1, 50);
         BUBBLES_RESPAWN_SECONDS = b.comment("A new bubble every this many seconds until there are enough.")
                 .defineInRange("respawnSeconds", 2.0, 0.1, 600.0);
@@ -624,14 +626,15 @@ public final class ModCommonConfig {
                 "(damage tuner) to everyone within blastRadius (full up close, a third at the edge), and a blinding flash for",
                 "whoever was looking at it closer than the targeting tuner (10). Effects tuner = how hard and long it blinds.").push("khlopushka");
         KHLOP_SIZE = b.comment("Size of a newly placed zone, blocks.").defineInRange("size", 8.0, 1.0, 128.0);
-        KHLOP_INTERVAL = b.comment("Seconds between clots (the cooldown tuner).").defineInRange("intervalSeconds", 12.0, 1.0, 3600.0);
+        KHLOP_INTERVAL = b.comment("Pause after a blast before the next clot, seconds (the cooldown tuner). The first one comes a",
+                "quarter of a second after someone walks in.").defineInRange("pauseAfterBlastSeconds", 2.0, 0.1, 3600.0);
         KHLOP_DAMAGE = b.comment("Heat damage up close, half-hearts (the damage tuner).").defineInRange("damage", 8.0, 0.0, 1000.0);
         KHLOP_INTENSITY = b.defineInRange("intensity", 3, 1, 50);
         KHLOP_RANGE = b.comment("It blinds those looking at it closer than this, blocks (the targeting tuner).")
                 .defineInRange("blindRange", 10.0, 1.0, 64.0);
-        KHLOP_CHARGE_SECONDS = b.comment("How long it gathers itself at speed x1, seconds.").defineInRange("chargeSeconds", 2.0, 0.2, 60.0);
+        KHLOP_CHARGE_SECONDS = b.comment("How long it gathers itself at speed x1, seconds.").defineInRange("clotSeconds", 1.0, 0.1, 60.0);
         KHLOP_RADIUS = b.comment("Radius of the heat damage, blocks.").defineInRange("blastRadius", 3.0, 0.5, 16.0);
-        KHLOP_BLIND_SECONDS = b.comment("How long the flash blinds at effects 3, seconds.").defineInRange("blindSeconds", 5.0, 0.5, 60.0);
+        KHLOP_BLIND_SECONDS = b.comment("How long the flash blinds at effects 3, seconds.").defineInRange("blindTime", 9.0, 0.5, 60.0);
         b.pop();
 
         b.comment("Firefly: small wandering lights (effects tuner = how many) no higher than the targeting tuner above the",

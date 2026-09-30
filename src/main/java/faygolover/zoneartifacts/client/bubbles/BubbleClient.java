@@ -33,13 +33,13 @@ public final class BubbleClient {
         if (level == null) return;
         POPS.add(new Pop(at, radius, level.getGameTime()));
         if (POPS.size() > 32) POPS.remove(0);
-        level.addParticle(ParticleTypes.FLASH, at.x, at.y, at.z, 0.0, 0.0, 0.0);
+        faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, ParticleTypes.FLASH, at.x, at.y, at.z, 0.0, 0.0, 0.0);
         for (int i = 0; i < 24; i++) {
             Vec3 v = new Vec3(RANDOM.nextGaussian(), RANDOM.nextGaussian(), RANDOM.nextGaussian()).normalize().scale(0.15 + RANDOM.nextDouble() * 0.2);
-            level.addParticle(ModParticles.GRAV_DUST.get(), at.x, at.y, at.z, v.x, v.y, v.z);
+            faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, ModParticles.GRAV_DUST.get(), at.x, at.y, at.z, v.x, v.y, v.z);
         }
         for (int i = 0; i < 10; i++) {
-            level.addParticle(ParticleTypes.BUBBLE_POP, at.x + RANDOM.nextGaussian() * 0.3, at.y + RANDOM.nextGaussian() * 0.3,
+            faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, ParticleTypes.BUBBLE_POP, at.x + RANDOM.nextGaussian() * 0.3, at.y + RANDOM.nextGaussian() * 0.3,
                     at.z + RANDOM.nextGaussian() * 0.3, 0.0, 0.0, 0.0);
         }
     }

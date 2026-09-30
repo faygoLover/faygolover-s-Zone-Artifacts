@@ -119,9 +119,9 @@ public final class GravityEngine {
 
     /** Living (not creative/spectator) or a projectile still in flight. Items never set it off. */
     private static boolean triggers(Entity entity) {
-        if (!entity.isAlive() || entity.isSpectator() || entity instanceof ArmorStand) return false;
+        if (!entity.isAlive() || AnomalyCombat.spectatorExempt(entity) || entity instanceof ArmorStand) return false;
         if (entity instanceof Projectile) return Gravity.flying(entity);
-        return entity instanceof LivingEntity && !(entity instanceof Player player && player.isCreative());
+        return entity instanceof LivingEntity && !AnomalyCombat.creativeExempt(entity);
     }
 
     private static void start(ServerLevel level, AnomalyInstance instance) {
@@ -256,8 +256,8 @@ public final class GravityEngine {
     }
 
     private static boolean hurtable(LivingEntity entity) {
-        if (!entity.isAlive() || entity.isSpectator()) return false;
-        return !(entity instanceof Player player && player.isCreative());
+        if (!entity.isAlive() || AnomalyCombat.spectatorExempt(entity)) return false;
+        return !AnomalyCombat.creativeExempt(entity);
     }
 
     /** Items within {@code radius} of the center vanish in a puff (Karusel: measured to its axis,

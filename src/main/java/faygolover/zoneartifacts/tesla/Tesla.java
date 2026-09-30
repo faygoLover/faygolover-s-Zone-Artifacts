@@ -28,7 +28,7 @@ public final class Tesla {
     public static final float IDLE_VOLUME = 0.6f;
     public static final float IDLE_PITCH = 1.0f;
 
-    public static final ResourceLocation CONTACT_SOUND = id("electra_blast_living");
+    public static final ResourceLocation CONTACT_SOUND = id("tesla_blast");
     public static final ResourceLocation BLOCK_SOUND = id("electra_blast_nut");
     public static final List<ResourceLocation> HIT_SOUNDS = List.of(id("electra_hit"), id("electra_hit1"));
     public static final float SOUND_VOLUME = 0.8f;

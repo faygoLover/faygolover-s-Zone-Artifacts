@@ -1,45 +1,68 @@
 {
   "electra_idle": {
-    "subtitle": "subtitles.fl_zone_arts.electra_idle",
     "sounds": [
-      "fl_zone_arts:electra_idle"
-    ]
+      {
+        "name": "fl_zone_arts:electra_idle1",
+        "stream": true
+      },
+      "fl_zone_arts:electra_idle2"
+    ],
+    "subtitle": "subtitles.fl_zone_arts.electra_idle"
   },
   "electra_blast_nut": {
-    "subtitle": "subtitles.fl_zone_arts.electra_blast",
     "sounds": [
-      "fl_zone_arts:electra_blast_nut"
-    ]
+      "fl_zone_arts:electra_blast_nut1",
+      "fl_zone_arts:electra_blast_nut2"
+    ],
+    "subtitle": "subtitles.fl_zone_arts.electra_blast"
   },
   "electra_blast_living": {
-    "subtitle": "subtitles.fl_zone_arts.electra_blast",
     "sounds": [
       "fl_zone_arts:electra_blast_living"
-    ]
+    ],
+    "subtitle": "subtitles.fl_zone_arts.electra_blast"
   },
   "electra_hit": {
-    "subtitle": "subtitles.fl_zone_arts.electra_hit",
     "sounds": [
       "fl_zone_arts:electra_hit"
-    ]
+    ],
+    "subtitle": "subtitles.fl_zone_arts.electra_hit"
   },
   "electra_hit1": {
-    "subtitle": "subtitles.fl_zone_arts.electra_hit",
     "sounds": [
       "fl_zone_arts:electra_hit1"
-    ]
+    ],
+    "subtitle": "subtitles.fl_zone_arts.electra_hit"
   },
   "tesla_idle": {
-    "subtitle": "subtitles.fl_zone_arts.tesla_idle",
     "sounds": [
       "fl_zone_arts:tesla_idle"
-    ]
+    ],
+    "subtitle": "subtitles.fl_zone_arts.tesla_idle"
+  },
+  "tesla_blast": {
+    "sounds": [
+      "fl_zone_arts:tesla_blast"
+    ],
+    "subtitle": "subtitles.fl_zone_arts.tesla_blast"
   },
   "zharka_idle": {
-    "subtitle": "subtitles.fl_zone_arts.zharka_idle",
     "sounds": [
-      "fl_zone_arts:zharka_idle"
-    ]
+      {
+        "name": "fl_zone_arts:zharka_idle",
+        "stream": true
+      }
+    ],
+    "subtitle": "subtitles.fl_zone_arts.zharka_idle"
+  },
+  "zharka_blow": {
+    "sounds": [
+      {
+        "name": "fl_zone_arts:zharka_blow",
+        "stream": true
+      }
+    ],
+    "subtitle": "subtitles.fl_zone_arts.zharka_blow"
   },
   "iney_idle": {
     "subtitle": "subtitles.fl_zone_arts.iney_idle",
@@ -67,58 +90,91 @@
     ]
   },
   "iney_enter": {
-    "subtitle": "subtitles.fl_zone_arts.iney_enter",
     "sounds": [
       "fl_zone_arts:iney_enter"
-    ]
+    ],
+    "subtitle": "subtitles.fl_zone_arts.iney_enter"
   },
-  "comet_idle": {
-    "subtitle": "subtitles.fl_zone_arts.comet_idle",
+  "razlom_idle": {
     "sounds": [
-      "fl_zone_arts:comet_idle"
-    ]
-  },
-  "comet_explode": {
-    "subtitle": "subtitles.fl_zone_arts.comet_explode",
-    "sounds": [
-      "fl_zone_arts:comet_explode"
-    ]
+      {
+        "name": "fl_zone_arts:razlom_idle",
+        "stream": true
+      }
+    ],
+    "subtitle": "subtitles.fl_zone_arts.razlom_idle"
   },
   "razlom_jet": {
-    "subtitle": "subtitles.fl_zone_arts.razlom_jet",
     "sounds": [
       "fl_zone_arts:razlom_jet"
-    ]
+    ],
+    "subtitle": "subtitles.fl_zone_arts.razlom_jet"
+  },
+  "comet_idle": {
+    "sounds": [
+      "fl_zone_arts:comet_idle"
+    ],
+    "subtitle": "subtitles.fl_zone_arts.comet_idle"
+  },
+  "comet_explode": {
+    "sounds": [
+      "fl_zone_arts:comet_explode1",
+      "fl_zone_arts:comet_explode2"
+    ],
+    "subtitle": "subtitles.fl_zone_arts.comet_explode"
   },
   "plesh_blowout": {
-    "subtitle": "subtitles.fl_zone_arts.plesh_blowout",
     "sounds": [
-      "fl_zone_arts:plesh_blowout1",
-      {
-        "name": "fl_zone_arts:plesh_blowout2",
-        "volume": 0.75
-      }
-    ]
+      "fl_zone_arts:plesh_blowout"
+    ],
+    "subtitle": "subtitles.fl_zone_arts.plesh_blowout"
+  },
+  "plesh_idle": {
+    "sounds": [
+      "fl_zone_arts:plesh_idle1",
+      "fl_zone_arts:plesh_idle2",
+      "fl_zone_arts:plesh_idle3"
+    ],
+    "subtitle": "subtitles.fl_zone_arts.plesh_idle"
+  },
+  "plesh_hum": {
+    "sounds": [
+      "fl_zone_arts:plesh_hum"
+    ],
+    "subtitle": "subtitles.fl_zone_arts.plesh_hum"
+  },
+  "karusel_hum": {
+    "sounds": [
+      "fl_zone_arts:karusel_hum"
+    ],
+    "subtitle": "subtitles.fl_zone_arts.karusel_hum"
   },
   "voronka_blowout": {
-    "subtitle": "subtitles.fl_zone_arts.voronka_blowout",
     "sounds": [
       "fl_zone_arts:voronka_blowout"
-    ]
+    ],
+    "subtitle": "subtitles.fl_zone_arts.voronka_blowout"
+  },
+  "voronka_idle": {
+    "sounds": [
+      "fl_zone_arts:voronka_idle"
+    ],
+    "subtitle": "subtitles.fl_zone_arts.voronka_idle"
   },
   "karusel_blowout": {
-    "subtitle": "subtitles.fl_zone_arts.karusel_blowout",
     "sounds": [
-      "fl_zone_arts:karusel_blowout"
-    ]
+      "fl_zone_arts:karusel_blowout1",
+      "fl_zone_arts:karusel_blowout2"
+    ],
+    "subtitle": "subtitles.fl_zone_arts.karusel_blowout"
   },
   "karusel_idle": {
-    "subtitle": "subtitles.fl_zone_arts.karusel_idle",
     "sounds": [
       "fl_zone_arts:karusel_idle1",
       "fl_zone_arts:karusel_idle2",
       "fl_zone_arts:karusel_idle3"
-    ]
+    ],
+    "subtitle": "subtitles.fl_zone_arts.karusel_idle"
   },
   "podushka_bounce": {
     "subtitle": "subtitles.fl_zone_arts.podushka_bounce",
@@ -132,48 +188,40 @@
     ]
   },
   "anomaly_body_tear": {
-    "subtitle": "subtitles.fl_zone_arts.anomaly_body_tear",
     "sounds": [
       "fl_zone_arts:anomaly_body_tear"
-    ]
-  },
-  "plesh_idle": {
-    "subtitle": "subtitles.fl_zone_arts.plesh_idle",
-    "sounds": [
-      "fl_zone_arts:plesh_idle1",
-      "fl_zone_arts:plesh_idle2",
-      "fl_zone_arts:plesh_idle3"
-    ]
-  },
-  "voronka_idle": {
-    "subtitle": "subtitles.fl_zone_arts.voronka_idle",
-    "sounds": [
-      "fl_zone_arts:voronka_idle"
-    ]
-  },
-  "chem_comet_idle": {
-    "subtitle": "subtitles.fl_zone_arts.chem_comet_idle",
-    "sounds": [
-      {
-        "name": "fl_zone_arts:kisel_idle",
-        "pitch": 0.8
-      }
-    ]
-  },
-  "chem_comet_burst": {
-    "subtitle": "subtitles.fl_zone_arts.chem_comet_burst",
-    "sounds": [
-      {
-        "name": "fl_zone_arts:pukh_puff",
-        "pitch": 0.7
-      }
-    ]
+    ],
+    "subtitle": "subtitles.fl_zone_arts.anomaly_body_tear"
   },
   "gravy_hit": {
-    "subtitle": "subtitles.fl_zone_arts.gravy_hit",
     "sounds": [
-      "fl_zone_arts:gravy_hit"
-    ]
+      "fl_zone_arts:gravy_hit1",
+      "fl_zone_arts:gravy_hit2",
+      "fl_zone_arts:gravy_hit3",
+      "fl_zone_arts:gravy_hit4"
+    ],
+    "subtitle": "subtitles.fl_zone_arts.gravy_hit"
+  },
+  "gravi_idle": {
+    "sounds": [
+      "fl_zone_arts:gravi_idle"
+    ],
+    "subtitle": "subtitles.fl_zone_arts.gravi_idle"
+  },
+  "chem_comet_idle": {
+    "sounds": [
+      {
+        "name": "fl_zone_arts:chem_comet_idle",
+        "stream": true
+      }
+    ],
+    "subtitle": "subtitles.fl_zone_arts.chem_comet_idle"
+  },
+  "chem_comet_burst": {
+    "sounds": [
+      "fl_zone_arts:chem_comet_burst"
+    ],
+    "subtitle": "subtitles.fl_zone_arts.chem_comet_burst"
   },
   "amoeba_gather": {
     "subtitle": "subtitles.fl_zone_arts.amoeba_gather",
@@ -192,55 +240,45 @@
       }
     ]
   },
-  "pukh_puff": {
-    "subtitle": "subtitles.fl_zone_arts.pukh_puff",
-    "sounds": [
-      "fl_zone_arts:pukh_puff"
-    ]
-  },
   "amoeba_pop": {
-    "subtitle": "subtitles.fl_zone_arts.amoeba_pop",
     "sounds": [
       "fl_zone_arts:amoeba_pop"
-    ]
+    ],
+    "subtitle": "subtitles.fl_zone_arts.amoeba_pop"
+  },
+  "pukh_puff": {
+    "sounds": [
+      "fl_zone_arts:pukh_puff"
+    ],
+    "subtitle": "subtitles.fl_zone_arts.pukh_puff"
   },
   "kisel_idle": {
-    "subtitle": "subtitles.fl_zone_arts.kisel_idle",
     "sounds": [
-      "fl_zone_arts:kisel_idle"
-    ]
+      {
+        "name": "fl_zone_arts:kisel_idle",
+        "stream": true
+      }
+    ],
+    "subtitle": "subtitles.fl_zone_arts.kisel_idle"
   },
   "kisel_hit": {
-    "subtitle": "subtitles.fl_zone_arts.kisel_hit",
     "sounds": [
       "fl_zone_arts:kisel_hit"
-    ]
+    ],
+    "subtitle": "subtitles.fl_zone_arts.kisel_hit"
   },
   "fog_idle": {
-    "subtitle": "subtitles.fl_zone_arts.fog_idle",
     "sounds": [
       "fl_zone_arts:fog_idle"
-    ]
+    ],
+    "subtitle": "subtitles.fl_zone_arts.fog_idle"
   },
   "fog_jet": {
-    "subtitle": "subtitles.fl_zone_arts.fog_jet",
     "sounds": [
-      {
-        "name": "fl_zone_arts:kisel_hit",
-        "pitch": 1.3
-      },
-      {
-        "name": "fl_zone_arts:pukh_puff",
-        "pitch": 1.2
-      }
-    ]
-  },
-  "swamp_squelch": {
-    "sounds": [
-      "fl_zone_arts:swamp_squelch1",
-      "fl_zone_arts:swamp_squelch2"
+      "fl_zone_arts:fog_jet1",
+      "fl_zone_arts:fog_jet2"
     ],
-    "subtitle": "subtitles.fl_zone_arts.swamp_squelch"
+    "subtitle": "subtitles.fl_zone_arts.fog_jet"
   },
   "dymka_distant": {
     "sounds": [
@@ -259,9 +297,22 @@
       {
         "name": "fl_zone_arts:dymka_distant4",
         "attenuation_distance": 48
+      },
+      {
+        "name": "fl_zone_arts:dymka_distant5",
+        "attenuation_distance": 48
       }
     ],
     "subtitle": "subtitles.fl_zone_arts.dymka_distant"
+  },
+  "dymka_inside": {
+    "sounds": [
+      {
+        "name": "fl_zone_arts:dymka_inside",
+        "stream": true
+      }
+    ],
+    "subtitle": "subtitles.fl_zone_arts.dymka_inside"
   },
   "sumrak_drone": {
     "sounds": [
@@ -269,39 +320,15 @@
     ],
     "subtitle": "subtitles.fl_zone_arts.sumrak_drone"
   },
-  "psi_hum": {
-    "sounds": [
-      "fl_zone_arts:psi_hum"
-    ],
-    "subtitle": "subtitles.fl_zone_arts.psi_hum"
-  },
-  "psi_whisper": {
-    "sounds": [
-      "fl_zone_arts:psi_whisper1",
-      "fl_zone_arts:psi_whisper2",
-      "fl_zone_arts:psi_whisper3"
-    ],
-    "subtitle": "subtitles.fl_zone_arts.psi_whisper"
-  },
   "poppy_hum": {
     "sounds": [
       "fl_zone_arts:poppy_hum"
     ],
     "subtitle": "subtitles.fl_zone_arts.poppy_hum"
   },
-  "rust_dust": {
-    "sounds": [
-      "fl_zone_arts:rust_dust1",
-      "fl_zone_arts:rust_dust2"
-    ],
-    "subtitle": "subtitles.fl_zone_arts.rust_dust"
-  },
   "rust_blast": {
     "sounds": [
-      {
-        "name": "fl_zone_arts:rust_blast",
-        "attenuation_distance": 32
-      }
+      "fl_zone_arts:rust_blast"
     ],
     "subtitle": "subtitles.fl_zone_arts.rust_blast"
   },
@@ -318,57 +345,134 @@
     "subtitle": "subtitles.fl_zone_arts.rust_crackle"
   },
   "bubble_pop": {
-    "subtitle": "subtitles.fl_zone_arts.bubble_pop",
     "sounds": [
       "fl_zone_arts:bubble_pop1",
-      "fl_zone_arts:bubble_pop2"
-    ]
+      "fl_zone_arts:bubble_pop2",
+      "fl_zone_arts:bubble_pop3",
+      "fl_zone_arts:bubble_pop4",
+      "fl_zone_arts:bubble_pop5"
+    ],
+    "subtitle": "subtitles.fl_zone_arts.bubble_pop"
   },
   "khlopushka_charge": {
-    "subtitle": "subtitles.fl_zone_arts.khlopushka_charge",
     "sounds": [
-      "fl_zone_arts:khlopushka_charge"
-    ]
+      "fl_zone_arts:khlopushka_charge1",
+      "fl_zone_arts:khlopushka_charge2",
+      "fl_zone_arts:khlopushka_charge3",
+      "fl_zone_arts:khlopushka_charge4"
+    ],
+    "subtitle": "subtitles.fl_zone_arts.khlopushka_charge"
   },
   "khlopushka_bang": {
-    "subtitle": "subtitles.fl_zone_arts.khlopushka_bang",
     "sounds": [
-      {
-        "name": "fl_zone_arts:khlopushka_bang",
-        "attenuation_distance": 48
-      }
-    ]
-  },
-  "khlopushka_ring": {
-    "subtitle": "subtitles.fl_zone_arts.khlopushka_ring",
-    "sounds": [
-      "fl_zone_arts:khlopushka_ring"
-    ]
+      "fl_zone_arts:khlopushka_bang1",
+      "fl_zone_arts:khlopushka_bang2",
+      "fl_zone_arts:khlopushka_bang3",
+      "fl_zone_arts:khlopushka_bang4"
+    ],
+    "subtitle": "subtitles.fl_zone_arts.khlopushka_bang"
   },
   "kamerton_ring": {
-    "subtitle": "subtitles.fl_zone_arts.kamerton_ring",
     "sounds": [
-      "fl_zone_arts:kamerton_ring"
-    ]
+      {
+        "name": "fl_zone_arts:kamerton_ring",
+        "stream": true,
+        "attenuation_distance": 8
+      }
+    ],
+    "subtitle": "subtitles.fl_zone_arts.kamerton_ring"
   },
   "kamerton_cut": {
-    "subtitle": "subtitles.fl_zone_arts.kamerton_cut",
     "sounds": [
-      "fl_zone_arts:kamerton_cut1",
-      "fl_zone_arts:kamerton_cut2"
-    ]
+      {
+        "name": "fl_zone_arts:kamerton_cut1",
+        "attenuation_distance": 10
+      },
+      {
+        "name": "fl_zone_arts:kamerton_cut2",
+        "attenuation_distance": 10
+      },
+      {
+        "name": "fl_zone_arts:kamerton_cut3",
+        "attenuation_distance": 10
+      },
+      {
+        "name": "fl_zone_arts:kamerton_cut4",
+        "attenuation_distance": 10
+      },
+      {
+        "name": "fl_zone_arts:kamerton_cut5",
+        "attenuation_distance": 10
+      },
+      {
+        "name": "fl_zone_arts:kamerton_cut6",
+        "attenuation_distance": 10
+      }
+    ],
+    "subtitle": "subtitles.fl_zone_arts.kamerton_cut"
   },
   "kamerton_shatter": {
-    "subtitle": "subtitles.fl_zone_arts.kamerton_shatter",
     "sounds": [
-      "fl_zone_arts:kamerton_shatter"
-    ]
+      {
+        "name": "fl_zone_arts:kamerton_shatter1",
+        "attenuation_distance": 10
+      },
+      {
+        "name": "fl_zone_arts:kamerton_shatter2",
+        "attenuation_distance": 10
+      },
+      {
+        "name": "fl_zone_arts:kamerton_shatter3",
+        "attenuation_distance": 10
+      },
+      {
+        "name": "fl_zone_arts:kamerton_shatter4",
+        "attenuation_distance": 10
+      },
+      {
+        "name": "fl_zone_arts:kamerton_shatter5",
+        "attenuation_distance": 10
+      },
+      {
+        "name": "fl_zone_arts:kamerton_shatter6",
+        "attenuation_distance": 10
+      }
+    ],
+    "subtitle": "subtitles.fl_zone_arts.kamerton_shatter"
   },
   "web_snap": {
-    "subtitle": "subtitles.fl_zone_arts.web_snap",
     "sounds": [
       "fl_zone_arts:web_snap1",
-      "fl_zone_arts:web_snap2"
-    ]
+      "fl_zone_arts:web_snap2",
+      "fl_zone_arts:web_snap3"
+    ],
+    "subtitle": "subtitles.fl_zone_arts.web_snap"
+  },
+  "psi_voices_l": {
+    "sounds": [
+      {
+        "name": "fl_zone_arts:psi_voices_l",
+        "stream": true
+      }
+    ],
+    "subtitle": "subtitles.fl_zone_arts.psi_voices_l"
+  },
+  "psi_voices_r": {
+    "sounds": [
+      {
+        "name": "fl_zone_arts:psi_voices_r",
+        "stream": true
+      }
+    ],
+    "subtitle": "subtitles.fl_zone_arts.psi_voices_r"
+  },
+  "psi_polter": {
+    "sounds": [
+      {
+        "name": "fl_zone_arts:psi_polter",
+        "stream": true
+      }
+    ],
+    "subtitle": "subtitles.fl_zone_arts.psi_polter"
   }
 }

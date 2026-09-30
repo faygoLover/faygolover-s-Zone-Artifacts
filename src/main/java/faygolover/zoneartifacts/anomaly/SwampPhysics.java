@@ -29,14 +29,19 @@ import java.util.Map;
  *     <li>{@link #begin} before it moves (at the start of its tick): pass-through on, the mud's drag.</li>
  *     <li>{@link #finish} after it moved: our collision, standing on the sinking floor, deeper.</li>
  * </ol>
- * The sink depth never exceeds {@link Swamp#SHORE_SLOPE} per block of distance from the edge, so
+ * Near the edge the sink depth follows a slope out ({@link #allowed}, as wide as the zone's intensity), so
  * walking out raises one step by step. Below the liquefied blocks: solid ground holds as usual; an
  * air pocket lets it fall (it is no longer "in the swamp" then).
  */
 public final class SwampPhysics {
 
     /** One swamp as seen from either side. */
-    public record Zone(BlockPos pos, double size, double speed, float damage, double cooldownSeconds) {
+    /** {@code shore}: how many blocks from the edge the slope out runs (the intensity tuner). */
+    public record Zone(BlockPos pos, double size, double speed, float damage, double cooldownSeconds, double shore,
+                       double sx, double sy, double sz) {
+        public Swamp.Columns columns(Level level) {
+            return Swamp.columns(level, pos, sx, sy, sz);
+        }
     }
 
     public static final class State {
@@ -54,8 +59,8 @@ public final class SwampPhysics {
 
     /** Can this one sink at all? */
     public static boolean eligible(LivingEntity e) {
-        if (!e.isAlive() || e.isSpectator() || e.isPassenger()) return false;
-        if (e instanceof Player p && (p.getAbilities().flying || p.isCreative())) return false;
+        if (!e.isAlive() || AnomalyCombat.spectatorExempt(e) || e.isPassenger()) return false;
+        if ((e instanceof Player p && p.getAbilities().flying && !p.isCreative()) || AnomalyCombat.creativeExempt(e)) return false;
         return !e.isFallFlying();
     }
 
@@ -67,7 +72,7 @@ public final class SwampPhysics {
         double feet = e.getY();
         for (Zone zone : zones) {
             if (!zone.pos().closerThan(e.blockPosition(), zone.size() + 8.0)) continue;
-            Swamp.Columns cols = Swamp.columns(level, zone.pos(), zone.size());
+            Swamp.Columns cols = zone.columns(level);
             int n = cols.depthAt(x, z);
             if (n <= 0) continue;
             double surface = cols.surface();
@@ -97,12 +102,6 @@ public final class SwampPhysics {
         s.zone = zone;
         s.pre = e.position();
         e.noPhysics = true;
-        if (s.depth > 0.05) {
-            // Mud: every step is heavy.
-            double f = 1.0 - 0.6 * Math.min(1.0, s.depth / 1.4);
-            Vec3 v = e.getDeltaMovement();
-            e.setDeltaMovement(v.x * f, v.y, v.z * f);
-        }
         return s;
     }
 
@@ -113,7 +112,7 @@ public final class SwampPhysics {
     /** After it moved: our own collision, then deeper into the mud. */
     public static void finish(LivingEntity e, State s) {
         Level level = e.level();
-        Swamp.Columns cols = Swamp.columns(level, s.zone.pos(), s.zone.size());
+        Swamp.Columns cols = s.zone.columns(level);
         double surface = cols.surface();
         Vec3 pre = s.pre;
         Vec3 move = e.position().subtract(pre);
@@ -122,6 +121,9 @@ public final class SwampPhysics {
             s.pre = e.position();
             return;
         }
+        // Mud: every step is heavy, the deeper the heavier; and there is nothing to jump off.
+        double drag = drag(s.depth);
+        move = new Vec3(move.x * drag, move.y > 0.0 ? -0.01 : move.y, move.z * drag);
         AABB box0 = e.getBoundingBox().move(pre.subtract(e.position()));
         double floorY = surface - s.depth;
         boolean onFloorLevel = pre.y >= floorY - 1.0E-3;
@@ -144,20 +146,25 @@ public final class SwampPhysics {
         Vec3 end = pre.add(done);
 
         // Deep in, one can't wade towards the edge faster than the mud lets one rise: otherwise one
-        // would come out of it still under the ground next to it.
+        // would come out of it still under the ground next to it. Not stopped dead (that jerks) —
+        // just held back to as far as the mud can lift one this tick.
         double half = e.getBbWidth() / 2.0;
         double sunk = surface - end.y;
-        if (sunk > allowed(cols, end.x, end.z, half) + Swamp.RISE_PER_TICK + 1.0E-3
-                && Swamp.shoreDistance(cols.region, end.x, end.z) < Swamp.shoreDistance(cols.region, pre.x, pre.z)) {
-            end = new Vec3(pre.x, end.y, pre.z);
-            clippedX = clippedX || Math.abs(move.x) > 1.0E-7;
-            clippedZ = clippedZ || Math.abs(move.z) > 1.0E-7;
+        double allowedEnd = allowed(cols, s.zone, end.x, end.z, half);
+        if (sunk > allowedEnd + Swamp.RISE_PER_TICK) {
+            double allowedPre = allowed(cols, s.zone, pre.x, pre.z, half);
+            double t = allowedPre - allowedEnd > 1.0E-6
+                    ? Mth.clamp((allowedPre - sunk + Swamp.RISE_PER_TICK) / (allowedPre - allowedEnd), 0.0, 1.0)
+                    : 1.0;
+            end = new Vec3(pre.x + (end.x - pre.x) * t, end.y, pre.z + (end.z - pre.z) * t);
+            allowedEnd = allowed(cols, s.zone, end.x, end.z, half);
         }
 
-        // Walking towards the edge the allowed depth drops: pushed up gently.
+        // Walking towards the edge the allowed depth drops: lifted smoothly, in the same tick.
+        double liftTo = surface - Math.min(s.depth, allowedEnd);
         int column = cols.depthAt(end.x, end.z);
-        if (end.y < floorY - 1.0E-4 && column > 0 && end.y >= surface - column - 0.01) {
-            end = end.add(0.0, Math.min(floorY - end.y, Swamp.RISE_PER_TICK), 0.0);
+        if (end.y < liftTo - 1.0E-4 && column > 0 && end.y >= surface - column - 0.01) {
+            end = end.add(0.0, Math.min(liftTo - end.y, Swamp.RISE_PER_TICK), 0.0);
             down = true;
         }
         e.setPos(end.x, end.y, end.z);
@@ -171,7 +178,7 @@ public final class SwampPhysics {
         s.supported = down;
 
         // Deeper — or held up near the edge.
-        double allowed = allowed(cols, e.getX(), e.getZ(), half);
+        double allowed = allowed(cols, s.zone, e.getX(), e.getZ(), half);
         if (down && allowed > 0.0) {
             s.depth += ModCommonConfig.SWAMP_SINK_SPEED.get() * Math.max(0.0, s.zone.speed()) / 20.0;
         }
@@ -179,10 +186,20 @@ public final class SwampPhysics {
         s.pre = e.position();
     }
 
-    /** How deep one may sink here: near the edge (measured from one's own side) a slope out. */
-    public static double allowed(Swamp.Columns cols, double x, double z, double halfWidth) {
-        double shore = Swamp.shoreDistance(cols.region, x, z) - halfWidth;
-        return shore < Swamp.SHORE ? Math.max(0.0, shore) * Swamp.SHORE_SLOPE : Double.MAX_VALUE;
+    /** How deep one may sink here: a slope out over the zone's {@code shore} blocks from the edge
+     * (measured from one's own side), reaching the zone's full depth there — a wide shore on a small
+     * swamp only makes it gentler and leaves the middle shallower. Flat a little before the edge, so
+     * one comes out level with the ground and never bumps into it. */
+    public static double allowed(Swamp.Columns cols, Zone zone, double x, double z, double halfWidth) {
+        double shore = Swamp.shoreDistance(cols.region, x, z) - halfWidth - Swamp.SHORE_LIP;
+        double width = Math.max(0.5, zone.shore());
+        return shore < width ? Math.max(0.0, shore) * cols.region.getYsize() / width : Double.MAX_VALUE;
+    }
+
+    /** How much of a step one gets through the mud at this depth: barely slowed on the surface, nearly stuck deep. */
+    public static double drag(double depth) {
+        if (depth <= 0.0) return 1.0;
+        return 1.0 - (1.0 - Swamp.DEEP_DRAG) * Math.pow(Math.min(1.0, depth / Swamp.DEEP_AT), 0.7);
     }
 
     /** Is its head under the surface, in the mud? */

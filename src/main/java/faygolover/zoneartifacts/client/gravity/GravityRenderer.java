@@ -120,6 +120,7 @@ public final class GravityRenderer {
         buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
 
         for (GravityClientHandler.State state : GravityClientHandler.states()) {
+            if (!state.entry().visible()) continue;
             Vec3 c = state.center();
             double half = state.entry().size() * 0.5;
             double reach = Gravity.reach(state.entry().size());

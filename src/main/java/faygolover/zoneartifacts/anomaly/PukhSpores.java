@@ -109,7 +109,7 @@ public final class PukhSpores {
     }
 
     private static boolean hurtable(LivingEntity entity) {
-        if (!entity.isAlive() || entity.isSpectator()) return false;
-        return !(entity instanceof Player player && player.isCreative());
+        if (!entity.isAlive() || AnomalyCombat.spectatorExempt(entity)) return false;
+        return !AnomalyCombat.creativeExempt(entity);
     }
 }

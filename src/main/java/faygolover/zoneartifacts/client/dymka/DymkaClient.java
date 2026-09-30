@@ -26,9 +26,11 @@ import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
+import javax.annotation.Nullable;
+
 /**
  * The Haze: from outside a faint grey mist hanging in the zone; inside, the fog closes in to a few
- * blocks ({@code ScreenFx}), sounds come muffled and a little lower ({@code SoundFx}), and now and
+ * blocks ({@code ScreenFx}) a second after one walks in, sounds come muffled and a little lower ({@code SoundFx}), and now and
  * then something is heard far off — a knock, a groan of metal, a voice-like whine — from nowhere in
  * particular.
  */
@@ -44,6 +46,14 @@ public final class DymkaClient {
     private static float fogLight = 1.0f;
     private static boolean present;
     private static int nextDistant = 100;
+    /** Ticks the eyes have been in a Haze without a break. */
+    private static int dwell;
+    /** The haze's own low rumble, heard all round while inside. */
+    @Nullable
+    private static HumLoop rumble;
+    /** Like the Psi zone: a second after going in the sight starts clouding over, then clears again after leaving. */
+    private static final int ONSET_DELAY = 20;
+    private static final float ONSET_STEP = 1.0f / 30.0f;
 
     private DymkaClient() {
     }
@@ -52,9 +62,10 @@ public final class DymkaClient {
         return present;
     }
 
-    /** 0..1: how deep in a Haze the eyes are. */
+    /** 0..1: how clouded the sight is (grows a while after going in, not with how deep one is). */
     public static float inside(float partial) {
-        return Mth.lerp(partial, prevInside, inside);
+        float k = Mth.lerp(partial, prevInside, inside);
+        return k * k * (3.0f - 2.0f * k);
     }
 
     /** How far one sees deep inside, blocks. */
@@ -96,10 +107,10 @@ public final class DymkaClient {
         boolean any = false;
         for (SyncAnomaliesPacket.Entry entry : ClientAnomalyCache.entriesFor(level.dimension())) {
             if (!AnomalyTypeIds.DYMKA.equals(entry.typeId())) continue;
-            AABB zone = AnomalyGeometry.centeredAabb(entry.pos(), entry.size());
+            AABB zone = AnomalyGeometry.box(entry);
             if (zone.getCenter().distanceTo(eye) > NEAR + entry.size()) continue;
             any = true;
-            float k = HumLoop.depthInside(zone, eye, 2.0);
+            float k = zone.contains(eye) ? 1.0f : 0.0f;
             if (k > target) {
                 target = k;
                 vis = (float) Math.max(1.5, ModCommonConfig.DYMKA_VISIBILITY.get() * 3.0 / Math.max(1, entry.intensity()));
@@ -107,7 +118,12 @@ public final class DymkaClient {
             mist(level, entry, zone, eye, now);
         }
         present = any;
-        inside += Mth.clamp(target - inside, -0.05f, 0.05f);
+        if (target > 0.0f) {
+            if (++dwell > ONSET_DELAY) inside = Math.min(1.0f, inside + ONSET_STEP);
+        } else {
+            dwell = 0;
+            inside = Math.max(0.0f, inside - ONSET_STEP);
+        }
         if (target > 0.0f) visibility = vis;
 
         int packed = LevelRenderer.getLightColor(level, BlockPos.containing(eye));
@@ -115,6 +131,10 @@ public final class DymkaClient {
         float block = LightTexture.block(packed) / 15.0f;
         fogLight = 0.2f + 0.8f * Math.max(sky, block * 0.7f);
 
+        if (inside > 0.01f && (rumble == null || rumble.isStopped())) {
+            rumble = new HumLoop(ModSounds.DYMKA_INSIDE.get(), () -> 0.55 * inside);
+            mc.getSoundManager().play(rumble);
+        }
         if (inside > 0.5f) {
             if (--nextDistant <= 0) {
                 distant(mc, eye);
@@ -131,7 +151,7 @@ public final class DymkaClient {
     private static void mist(ClientLevel level, SyncAnomaliesPacket.Entry entry, AABB zone, Vec3 eye, long now) {
         int eff = ModClientConfig.effective(entry.intensity());
         double volume = zone.getXsize() * zone.getYsize() * zone.getZsize();
-        double rate = Math.min(3.0, volume * 0.004 * eff / 3.0);
+        double rate = Math.min(1.5, volume * 0.002 * eff / 3.0);
         int n = (int) rate + (RANDOM.nextDouble() < rate - (int) rate ? 1 : 0);
         for (int i = 0; i < n; i++) {
             Vec3 p = new Vec3(Mth.lerp(RANDOM.nextDouble(), zone.minX + 0.5, zone.maxX - 0.5),
@@ -140,7 +160,7 @@ public final class DymkaClient {
             if (p.distanceToSqr(eye) < 4.0) continue;
             Vec3 v = new Vec3(RANDOM.nextGaussian() * 0.004, 0.0, RANDOM.nextGaussian() * 0.004);
             Gas.add(new Gas.Puff(p, v, 1.0, 1.8 + RANDOM.nextDouble(), now, 140 + RANDOM.nextInt(80),
-                    0.07f + RANDOM.nextFloat() * 0.04f, 0xB9BEC2, 0xD4D8DB, RANDOM.nextFloat() * 10f).settle(p.y).drag(0.99));
+                    0.022f + RANDOM.nextFloat() * 0.018f, 0xB9BEC2, 0xD4D8DB, RANDOM.nextFloat() * 10f).settle(p.y).drag(0.99));
         }
     }
 

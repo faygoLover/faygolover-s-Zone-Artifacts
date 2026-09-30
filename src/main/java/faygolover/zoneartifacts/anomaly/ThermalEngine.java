@@ -106,9 +106,9 @@ public final class ThermalEngine {
     }
 
     private static boolean activates(LivingEntity entity) {
-        if (!entity.isAlive() || entity.isSpectator()) return false;
+        if (!entity.isAlive() || AnomalyCombat.spectatorExempt(entity)) return false;
         // A GM building next to a Zharka in creative shouldn't set the place on fire.
-        return !(entity instanceof Player player && player.isCreative());
+        return !AnomalyCombat.creativeExempt(entity);
     }
 
     private static void pulse(ServerLevel level, AnomalyInstance instance, boolean heat, List<LivingEntity> inside) {

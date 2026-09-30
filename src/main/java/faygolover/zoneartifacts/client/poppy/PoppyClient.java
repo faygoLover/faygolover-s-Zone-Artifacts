@@ -290,7 +290,7 @@ public final class PoppyClient {
 
     /** Where the poppies grow: on the top faces of the ground in the zone, open to the sky above. */
     private static void scan(ClientLevel level, Field f) {
-        AABB zone = AnomalyGeometry.centeredAabb(f.entry.pos(), f.entry.size());
+        AABB zone = AnomalyGeometry.box(f.entry);
         int per = Math.max(1, ModCommonConfig.POPPY_DENSITY.get());
         int x0 = Mth.floor(zone.minX);
         int x1 = Mth.floor(zone.maxX - 1.0E-6);
@@ -336,7 +336,7 @@ public final class PoppyClient {
 
     /** Swarms of petals wandering over the field, each trailing petals. */
     private static void petals(ClientLevel level, Field f, long now) {
-        AABB zone = AnomalyGeometry.centeredAabb(f.entry.pos(), f.entry.size());
+        AABB zone = AnomalyGeometry.box(f.entry);
         int swarms = 2 + (int) (f.entry.size() / 3.0);
         double hx = zone.getXsize() * 0.4;
         double hz = zone.getZsize() * 0.4;
@@ -348,7 +348,7 @@ public final class PoppyClient {
             Vec3 v = b.subtract(a);
             int n = 1 + RANDOM.nextInt(2);
             for (int k = 0; k < n; k++) {
-                level.addParticle(ModParticles.POPPY_PETAL.get(),
+                faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, ModParticles.POPPY_PETAL.get(),
                         a.x + RANDOM.nextGaussian() * 0.25, a.y + RANDOM.nextGaussian() * 0.2, a.z + RANDOM.nextGaussian() * 0.25,
                         -v.x * 0.3 + RANDOM.nextGaussian() * 0.01, -0.005, -v.z * 0.3 + RANDOM.nextGaussian() * 0.01);
             }
@@ -380,6 +380,7 @@ public final class PoppyClient {
         VertexConsumer vc = buffers.getBuffer(RenderType.entityCutoutNoCull(InventoryMenu.BLOCK_ATLAS));
         BlockPos.MutableBlockPos lp = new BlockPos.MutableBlockPos();
         for (Field f : FIELDS.values()) {
+            if (f.entry != null && !f.entry.visible()) continue;
             float[] a = f.plants;
             for (int i = 0; i + 5 < a.length; i += 6) {
                 float x = a[i];

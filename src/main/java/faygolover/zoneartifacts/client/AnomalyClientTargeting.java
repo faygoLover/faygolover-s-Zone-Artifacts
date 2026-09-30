@@ -25,7 +25,7 @@ public final class AnomalyClientTargeting {
     public static Optional<Double> hitDistanceSq(Player player, SyncAnomaliesPacket.Entry entry) {
         Vec3 eye = player.getEyePosition();
         Vec3 reachEnd = eye.add(player.getViewVector(1.0f).scale(REACH));
-        return AnomalyGeometry.zoneAabb(entry.typeId(), entry.pos(), entry.size()).clip(eye, reachEnd).map(eye::distanceToSqr);
+        return AnomalyGeometry.zoneAabb(entry).clip(eye, reachEnd).map(eye::distanceToSqr);
     }
 
     private AnomalyClientTargeting() {
@@ -39,10 +39,10 @@ public final class AnomalyClientTargeting {
         SyncAnomaliesPacket.Entry closest = null;
         double closestDistSq = Double.MAX_VALUE;
 
-        for (SyncAnomaliesPacket.Entry entry : ClientAnomalyCache.entriesFor(player.level().dimension())) {
+        for (SyncAnomaliesPacket.Entry entry : ClientAnomalyCache.allEntriesFor(player.level().dimension())) {
             if (typeId != null && !entry.typeId().equals(typeId)) continue;
 
-            AABB aabb = AnomalyGeometry.zoneAabb(entry.typeId(), entry.pos(), entry.size());
+            AABB aabb = AnomalyGeometry.zoneAabb(entry);
             Optional<Vec3> hit = aabb.clip(eye, reachEnd);
             if (hit.isEmpty()) continue;
 

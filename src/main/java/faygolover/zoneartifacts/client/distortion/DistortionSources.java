@@ -39,6 +39,7 @@ final class DistortionSources {
         faygolover.zoneartifacts.client.bubbles.BubbleClient.collect(out, now, partial);
         faygolover.zoneartifacts.client.khlopushka.KhlopushkaClient.collect(out, now, partial);
         faygolover.zoneartifacts.client.kamerton.KamertonClient.collect(out, now, partial);
+        faygolover.zoneartifacts.client.psi.PsiClient.collect(out, now, partial, cam);
         thermal(out, partial, time);
         razlom(mc, out, now, partial, time);
         comets(mc, out, partial, time, cam);
@@ -48,7 +49,7 @@ final class DistortionSources {
         for (Map.Entry<ThermalClientHandler.Key, ThermalClientHandler.State> e : ThermalClientHandler.states()) {
             ThermalClientHandler.State state = e.getValue();
             if (state.entry() == null) continue;
-            AABB zone = AnomalyGeometry.centeredAabb(state.entry().pos(), state.entry().size());
+            AABB zone = AnomalyGeometry.box(state.entry());
             float a = state.activity(partial);
             Vec3 base = new Vec3((zone.minX + zone.maxX) * 0.5, zone.minY, (zone.minZ + zone.maxZ) * 0.5);
             double width = Math.max(zone.getXsize(), zone.getZsize());

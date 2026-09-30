@@ -88,6 +88,9 @@ public final class ThermalClientHandler {
         private long facesVersion;
         @Nullable
         private ThermalLoopSound loop;
+        /** Zharka's roar when it flares up (silent at rest, swells with the activity). */
+        @Nullable
+        private ThermalLoopSound blow;
 
         public SyncAnomaliesPacket.Entry entry() {
             return entry;
@@ -157,7 +160,7 @@ public final class ThermalClientHandler {
                     ? Math.min(1.0f, state.activity + Thermal.ACTIVITY_UP_PER_TICK)
                     : Math.max(0.0f, state.activity - Thermal.ACTIVITY_DOWN_PER_TICK);
 
-            AABB zone = AnomalyGeometry.centeredAabb(entry.pos(), entry.size());
+            AABB zone = AnomalyGeometry.box(entry);
             if (--state.nextScan <= 0 || state.scannedSize != entry.size()) {
                 state.faces = scanFaces(level, zone);
                 state.scannedSize = entry.size();
@@ -194,6 +197,10 @@ public final class ThermalClientHandler {
             mc.getSoundManager().stop(state.loop);
             state.loop = null;
         }
+        if (state.blow != null) {
+            mc.getSoundManager().stop(state.blow);
+            state.blow = null;
+        }
     }
 
     // ---- Zharka -------------------------------------------------------------------------
@@ -207,7 +214,7 @@ public final class ThermalClientHandler {
             Vec3 p = spawnPoint(state, zone, 0.03, AIR_SHARE);
             double up = Mth.lerp(a, 0.004, 0.035) + RANDOM.nextDouble() * Mth.lerp(a, 0.004, 0.02);
             double side = Mth.lerp(a, 0.002, 0.008);
-            level.addParticle(ModParticles.EMBER.get(), p.x, p.y, p.z,
+            faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, ModParticles.EMBER.get(), p.x, p.y, p.z,
                     (RANDOM.nextDouble() - 0.5) * 2 * side, up, (RANDOM.nextDouble() - 0.5) * 2 * side);
         }
 
@@ -216,11 +223,18 @@ public final class ThermalClientHandler {
             Vec3 p = spawnPoint(state, zone, 0.06, AIR_SHARE);
             double up = Mth.lerp(a, 0.003, 0.025) + RANDOM.nextDouble() * Mth.lerp(a, 0.003, 0.012);
             double side = Mth.lerp(a, 0.0015, 0.006);
-            level.addParticle(ModParticles.HEAT_SMOKE.get(), p.x, p.y, p.z,
+            faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, ModParticles.HEAT_SMOKE.get(), p.x, p.y, p.z,
                     (RANDOM.nextDouble() - 0.5) * 2 * side, up, (RANDOM.nextDouble() - 0.5) * 2 * side);
         }
 
         ensureLoop(mc, key, state, zone, Thermal.ZHARKA_IDLE_SOUND, Thermal.ZHARKA_IDLE_VOLUME, Thermal.ZHARKA_ACTIVE_VOLUME);
+        if (state.blow == null || state.blow.isStopped()) {
+            SoundEvent blow = ForgeRegistries.SOUND_EVENTS.getValue(Thermal.ZHARKA_BLOW_SOUND);
+            if (blow != null) {
+                state.blow = new ThermalLoopSound(key, blow, zone.getCenter(), 0.0f, Thermal.ZHARKA_BLOW_VOLUME);
+                mc.getSoundManager().play(state.blow);
+            }
+        }
     }
 
     /** Starts the anomaly's looping sound if it isn't playing; its volume then follows the
@@ -246,7 +260,7 @@ public final class ThermalClientHandler {
             Vec3 p = spawnPoint(state, zone, 0.08, AIR_SHARE * a);
             if (p == null) continue;
             double side = Mth.lerp(a, 0.003, 0.012);
-            level.addParticle(ModParticles.FROST_MIST.get(), p.x, p.y, p.z,
+            faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, ModParticles.FROST_MIST.get(), p.x, p.y, p.z,
                     (RANDOM.nextDouble() - 0.5) * 2 * side, (RANDOM.nextDouble() - 0.6) * 0.004, (RANDOM.nextDouble() - 0.5) * 2 * side);
         }
 
@@ -254,7 +268,7 @@ public final class ThermalClientHandler {
         int flakes = roll(base * 0.015 * (0.08 + 4.0 * a));
         for (int i = 0; i < flakes; i++) {
             Vec3 p = randomInside(zone);
-            level.addParticle(ParticleTypes.SNOWFLAKE, p.x, p.y, p.z, 0.0, -0.01, 0.0);
+            faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, ParticleTypes.SNOWFLAKE, p.x, p.y, p.z, 0.0, -0.01, 0.0);
         }
 
         // Icy crackles (vanilla freezing sounds) from a random spot: now and then while idle,

@@ -5,7 +5,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import faygolover.zoneartifacts.ZoneArtifacts;
 import faygolover.zoneartifacts.client.GlowRenderType;
 import faygolover.zoneartifacts.config.ModCommonConfig;
-import faygolover.zoneartifacts.item.AnomalyTunerItem;
+import faygolover.zoneartifacts.item.PdaItem;
 import faygolover.zoneartifacts.item.WebPlacerItem;
 import faygolover.zoneartifacts.network.ModNetwork;
 import faygolover.zoneartifacts.network.SyncWebsPacket;
@@ -51,6 +51,8 @@ import java.util.Set;
 public final class WebClient {
 
     private static final double NEAR = 64.0;
+    /** Farther than this from the eye a web doesn't glint at all (it isn't drawn), blocks; it fades out over the last two. */
+    private static final double SEEN = 8.0;
 
     private static final class Strand {
         final Vec3 a;
@@ -100,7 +102,7 @@ public final class WebClient {
         Minecraft mc = Minecraft.getInstance();
         if (broken && mc.level != null) {
             for (int i = 0; i < 8; i++) {
-                mc.level.addParticle(ParticleTypes.CRIT, at.x, at.y, at.z,
+                faygolover.zoneartifacts.client.ClientAnomalyCache.particle(mc.level, ParticleTypes.CRIT, at.x, at.y, at.z,
                         (Math.random() - 0.5) * 0.3, (Math.random() - 0.3) * 0.3, (Math.random() - 0.5) * 0.3);
             }
         }
@@ -118,8 +120,7 @@ public final class WebClient {
     }
 
     private static boolean holdingTool(LocalPlayer player) {
-        return WebPlacerItem.holds(player) || AnomalyTunerItem.kindOf(player.getMainHandItem()) != null
-                || AnomalyTunerItem.kindOf(player.getOffhandItem()) != null;
+        return WebPlacerItem.holds(player) || PdaItem.holds(player);
     }
 
     private static Set<Item> lightItems(long now) {
@@ -242,8 +243,9 @@ public final class WebClient {
             for (Strand s : w.strands()) {
                 if (s.broken) continue;
                 Vec3 mid = s.a.add(s.b).scale(0.5);
-                if (mid.distanceToSqr(cam) > NEAR * NEAR) continue;
                 double len = s.a.distanceTo(s.b);
+                double reach = tool ? NEAR : SEEN + len * 0.5;
+                if (mid.distanceToSqr(cam) > reach * reach) continue;
                 int pieces = Mth.clamp((int) (len * 3.0), 4, 60);
                 Vec3 axis = s.b.subtract(s.a).normalize();
                 float[] alpha = new float[pieces + 1];
@@ -258,14 +260,17 @@ public final class WebClient {
                     double side = 1.0 - Math.abs(axis.dot(view));
                     double run = Math.pow(0.5 + 0.5 * Math.sin(time * 0.06 - len * t * 1.3 + w.id()), 14.0);
                     float a = (float) (0.015 + light * light * glint * (0.05 * side + 0.35 * run * side));
+                    Vec3 to = p.subtract(player.getEyePosition(partial));
+                    double d = to.length();
                     if (torch) {
-                        Vec3 to = p.subtract(player.getEyePosition(partial));
-                        double d = to.length();
                         double cos = d < 1.0E-3 ? 1.0 : to.scale(1.0 / d).dot(look);
-                        if (d < 20.0 && cos > 0.94) {
-                            a += (float) (0.8 * glint * (cos - 0.94) / 0.06 * (1.0 - d / 20.0));
+                        if (d < SEEN && cos > 0.94) {
+                            a += (float) (0.8 * glint * (cos - 0.94) / 0.06 * (1.0 - d / SEEN));
                         }
                     }
+                    // Only up close: from farther off it can't be made out at all.
+                    float near = (float) Mth.clamp((SEEN - d) / 2.0, 0.0, 1.0);
+                    a *= near * near * (3.0f - 2.0f * near);
                     if (tool) a = Math.max(a, 0.35f);
                     alpha[k] = Mth.clamp(a, 0.0f, 1.0f);
                 }

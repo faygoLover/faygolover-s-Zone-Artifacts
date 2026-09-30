@@ -42,8 +42,45 @@ public final class AnomalyCombat {
      *
      * @return whether the damage type was found and the hit was attempted
      */
+    /** The zone being ticked right now (its KPK "damage" switch decides), or null. */
+    @javax.annotation.Nullable
+    private static AnomalyInstance current;
+
+    public static void setCurrent(@javax.annotation.Nullable AnomalyInstance instance) {
+        current = instance;
+    }
+
+    /** A creative player whom this may leave alone (unless the zone at work acts on creative players too). */
+    public static boolean creativeExempt(net.minecraft.world.entity.Entity e) {
+        return e instanceof Player p && p.isCreative() && !targetsGm(e);
+    }
+
+    /** A spectator whom this may leave alone (unless the zone at work acts on spectators too). */
+    public static boolean spectatorExempt(net.minecraft.world.entity.Entity e) {
+        return e.isSpectator() && !targetsGm(e);
+    }
+
+    private static boolean targetsGm(net.minecraft.world.entity.Entity e) {
+        if (current != null) return current.targetsGm();
+        if (!(e.level() instanceof ServerLevel level)) return false;
+        for (AnomalyInstance instance : AnomalySavedData.get(level).instances()) {
+            if (instance.enabled() && instance.targetsGm() && AnomalyGeometry.zoneAabb(instance).inflate(1.0).contains(e.position())) return true;
+        }
+        return false;
+    }
+
+    /** Outside a zone's own tick (lingering clouds, the swamp's choking…): harmless if it stands in a zone set harmless. */
+    private static boolean harmlessHere(ServerLevel level, LivingEntity target) {
+        for (AnomalyInstance instance : AnomalySavedData.get(level).instances()) {
+            if (!instance.harmful() && AnomalyGeometry.zoneAabb(instance).inflate(1.0).contains(target.position())) return true;
+        }
+        return false;
+    }
+
     public static boolean hurt(ServerLevel level, LivingEntity target, ResourceLocation damageTypeId, float amount) {
         if (amount <= 0) return true;
+        // Set harmless in the KPK: everything else happens as usual (the bolts, the shock, the sounds) — only no damage.
+        if (current != null ? !current.harmful() : harmlessHere(level, target)) return true;
         ResourceKey<DamageType> key = ResourceKey.create(Registries.DAMAGE_TYPE, damageTypeId);
         Optional<Holder.Reference<DamageType>> holder = level.registryAccess()
                 .registryOrThrow(Registries.DAMAGE_TYPE)

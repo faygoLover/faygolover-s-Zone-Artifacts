@@ -27,11 +27,13 @@ import net.minecraftforge.fml.common.Mod;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.WeakHashMap;
 
 /**
  * Lingering chemical clouds (the Chemical Comet's burst). Server-side only the harm: a cloud
  * spreads from the burst over the first second and a half to its full radius, hugs the ground
- * {@link ChemComet#CLOUD_HEIGHT} high, and every half second burns whoever is inside with chemical
+ * {@link ChemComet#CLOUD_HEIGHT} high, and burns whoever is inside (each at most every half second) with chemical
  * damage (they run out of it). The look is the client's ({@code client.chem.ChemClient}).
  * Clouds aren't saved: a restart clears the air.
  */
@@ -51,6 +53,8 @@ public final class ChemClouds {
     }
 
     private static final List<Cloud> CLOUDS = new ArrayList<>();
+    /** When each one was last burnt by a cloud: checked every tick, burnt at most every {@link #PULSE_TICKS}. */
+    private static final Map<LivingEntity, Long> LAST_BURN = new WeakHashMap<>();
 
     private ChemClouds() {
     }
@@ -71,7 +75,9 @@ public final class ChemClouds {
                 it.remove();
                 continue;
             }
-            if ((now - cloud.born()) % PULSE_TICKS != 0 || cloud.damage() <= 0.0f) continue;
+            // Every tick, not in pulses from the cloud's birth: whoever walks through it (a player
+            // raising dust at a run) must not slip out between two pulses.
+            if (cloud.damage() <= 0.0f) continue;
             double r = cloud.radiusAt(now);
             Vec3 g = cloud.ground();
             AABB box = new AABB(g.x - r, g.y - 0.5, g.z - r, g.x + r, g.y + ChemComet.CLOUD_HEIGHT, g.z + r);
@@ -79,6 +85,9 @@ public final class ChemClouds {
                 double dx = living.getX() - g.x;
                 double dz = living.getZ() - g.z;
                 if (dx * dx + dz * dz > r * r) continue;
+                Long last = LAST_BURN.get(living);
+                if (last != null && now - last < PULSE_TICKS && now >= last) continue;
+                LAST_BURN.put(living, now);
                 living.invulnerableTime = 0;
                 AnomalyCombat.hurt(level, living, ChemComet.DAMAGE_TYPE, cloud.damage(), g);
             }
@@ -91,8 +100,8 @@ public final class ChemClouds {
     }
 
     private static boolean hurtable(LivingEntity entity) {
-        if (!entity.isAlive() || entity.isSpectator()) return false;
-        return !(entity instanceof Player player && player.isCreative());
+        if (!entity.isAlive() || AnomalyCombat.spectatorExempt(entity)) return false;
+        return !AnomalyCombat.creativeExempt(entity);
     }
 
     /**

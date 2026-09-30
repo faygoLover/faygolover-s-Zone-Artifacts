@@ -79,8 +79,8 @@ public final class PoppyEngine {
     }
 
     private static boolean affected(LivingEntity e) {
-        if (!e.isAlive() || e.isSpectator()) return false;
-        if (e instanceof Player p && p.isCreative()) return false;
+        if (!e.isAlive() || AnomalyCombat.spectatorExempt(e)) return false;
+        if (AnomalyCombat.creativeExempt(e)) return false;
         return e instanceof Player || e instanceof Mob;
     }
 

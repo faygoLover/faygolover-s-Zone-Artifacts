@@ -14,20 +14,37 @@ public final class AnomalyGeometry {
     }
 
     /**
-     * The zone's world-space box for a given size in blocks (fractional sizes allowed), centered on
-     * the anchor block's center rather than snapped to the block grid — an even or fractional size
-     * simply takes part of the neighbouring blocks.
+     * The zone's world-space box for a given size in blocks (fractional sizes allowed): centred on the
+     * anchor block across (an even or fractional size simply takes part of the neighbouring blocks),
+     * and standing on the anchor block's floor — it grows upwards only.
      */
     public static AABB centeredAabb(BlockPos pos, double size) {
-        double half = size / 2.0;
+        return centeredAabb(pos, size, size, size);
+    }
+
+    /** A box of its own proportions round the anchor block's center. */
+    public static AABB centeredAabb(BlockPos pos, double sx, double sy, double sz) {
         double cx = pos.getX() + 0.5;
-        double cy = pos.getY() + 0.5;
         double cz = pos.getZ() + 0.5;
-        return new AABB(cx - half, cy - half, cz - half, cx + half, cy + half, cz + half);
+        // Standing on its block's floor: a taller zone grows upwards only (0.1.35.2).
+        double y0 = pos.getY();
+        return new AABB(cx - sx / 2.0, y0, cz - sz / 2.0, cx + sx / 2.0, y0 + sy, cz + sz / 2.0);
     }
 
     public static AABB zoneAabb(AnomalyInstance instance) {
-        return zoneAabb(instance.typeId(), instance.pos(), instance.size());
+        if (AnomalyTypeIds.SWAMP.equals(instance.typeId())) return Swamp.region(instance.pos(), instance.sizeX(), instance.sizeY(), instance.sizeZ());
+        return centeredAabb(instance.pos(), instance.sizeX(), instance.sizeY(), instance.sizeZ());
+    }
+
+    /** The zone as the client knows it (its own proportions where it has them). */
+    public static AABB box(faygolover.zoneartifacts.network.SyncAnomaliesPacket.Entry entry) {
+        return centeredAabb(entry.pos(), entry.sizeX(), entry.sizeY(), entry.sizeZ());
+    }
+
+    /** Like {@link #zoneAabb(AnomalyInstance)}, from the client's entry. */
+    public static AABB zoneAabb(faygolover.zoneartifacts.network.SyncAnomaliesPacket.Entry entry) {
+        if (AnomalyTypeIds.SWAMP.equals(entry.typeId())) return Swamp.region(entry.pos(), entry.sizeX(), entry.sizeY(), entry.sizeZ());
+        return box(entry);
     }
 
     /** The zone of an anomaly of this type: a cube round its block, except the swamp, which hangs

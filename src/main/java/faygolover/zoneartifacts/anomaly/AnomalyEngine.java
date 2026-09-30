@@ -39,6 +39,19 @@ public class AnomalyEngine {
 
         AnomalySavedData data = AnomalySavedData.get(serverLevel);
         for (AnomalyInstance instance : List.copyOf(data.instances())) {
+            // Switched off in the KPK: it does nothing at all.
+            if (!instance.enabled()) continue;
+            AnomalyCombat.setCurrent(instance);
+            try {
+                tickOne(serverLevel, instance);
+            } finally {
+                AnomalyCombat.setCurrent(null);
+            }
+        }
+    }
+
+    private static void tickOne(ServerLevel serverLevel, AnomalyInstance instance) {
+        {
             if (AnomalyTypeIds.ELECTRA.equals(instance.typeId())) {
                 tickElectra(serverLevel, instance);
             } else if (AnomalyTypeIds.isThermal(instance.typeId())) {
@@ -114,7 +127,8 @@ public class AnomalyEngine {
     }
 
     private static boolean tripsElectra(Entity entity) {
-        if (entity.isSpectator()) return false;
+        // A GM walking through (creative / spectator) doesn't set it off, unless it's set to act on them.
+        if (AnomalyCombat.spectatorExempt(entity) || AnomalyCombat.creativeExempt(entity)) return false;
         return entity instanceof Player || entity instanceof LivingEntity || entity instanceof Projectile;
     }
 

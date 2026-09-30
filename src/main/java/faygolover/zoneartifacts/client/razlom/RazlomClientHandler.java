@@ -250,7 +250,7 @@ public final class RazlomClientHandler {
             if (resting != state.wasResting) {
                 Vec3 f = state.flame;
                 for (int i = 0; i < (resting ? 6 : 4); i++) {
-                    level.addParticle(resting ? ParticleTypes.SMOKE : state.cold() ? ParticleTypes.SOUL_FIRE_FLAME : ParticleTypes.FLAME,
+                    faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, resting ? ParticleTypes.SMOKE : state.cold() ? ParticleTypes.SOUL_FIRE_FLAME : ParticleTypes.FLAME,
                             f.x + (RANDOM.nextDouble() - 0.5) * 0.15, f.y, f.z + (RANDOM.nextDouble() - 0.5) * 0.15,
                             (RANDOM.nextDouble() - 0.5) * 0.02, 0.03 + RANDOM.nextDouble() * 0.03, (RANDOM.nextDouble() - 0.5) * 0.02);
                 }
@@ -325,7 +325,7 @@ public final class RazlomClientHandler {
 
         // The hovering flame: small flames licking upwards (none while it's out).
         if (state.flameLevel > 0.5f && RANDOM.nextFloat() < 0.22f) {
-            level.addParticle(state.cold() ? ParticleTypes.SOUL_FIRE_FLAME : ParticleTypes.SMALL_FLAME,
+            faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, state.cold() ? ParticleTypes.SOUL_FIRE_FLAME : ParticleTypes.SMALL_FLAME,
                     f.x + (RANDOM.nextDouble() - 0.5) * 0.12, f.y - 0.05,
                     f.z + (RANDOM.nextDouble() - 0.5) * 0.12, 0.0, 0.012 + RANDOM.nextDouble() * 0.01, 0.0);
         }
@@ -340,7 +340,7 @@ public final class RazlomClientHandler {
                 ParticleOptions particle = state.cold()
                         ? (smoke ? ModParticles.FROST_MIST.get() : ParticleTypes.SNOWFLAKE)
                         : (smoke ? ModParticles.HEAT_SMOKE.get() : ModParticles.EMBER.get());
-                level.addParticle(particle,
+                faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, particle,
                         crack.xs[i], crack.ys[i] + 0.03, crack.zs[i], 0.0, 0.008 + RANDOM.nextDouble() * 0.01, 0.0);
             }
         }
@@ -361,11 +361,11 @@ public final class RazlomClientHandler {
                 if (tangent.lengthSqr() < 1.0E-8) continue;
                 Vec3 spread = new Vec3(RANDOM.nextGaussian(), RANDOM.nextGaussian(), RANDOM.nextGaussian()).scale(0.02);
                 Vec3 v = tangent.normalize().scale(0.1 + RANDOM.nextDouble() * 0.12).add(spread);
-                level.addParticle(state.cold() ? ParticleTypes.SOUL_FIRE_FLAME : ParticleTypes.FLAME, p.x, p.y, p.z, v.x, v.y, v.z);
+                faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, state.cold() ? ParticleTypes.SOUL_FIRE_FLAME : ParticleTypes.FLAME, p.x, p.y, p.z, v.x, v.y, v.z);
             }
             if (RANDOM.nextInt(3) == 0 && points.size() > 1) {
                 Vec3 p = points.get(1 + RANDOM.nextInt(points.size() - 1));
-                level.addParticle(state.cold() ? ModParticles.FROST_MIST.get() : ModParticles.HEAT_SMOKE.get(), p.x, p.y, p.z, 0.0, 0.03, 0.0);
+                faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, state.cold() ? ModParticles.FROST_MIST.get() : ModParticles.HEAT_SMOKE.get(), p.x, p.y, p.z, 0.0, 0.03, 0.0);
             }
             if (arc.hit() != null && extend >= 1.0f) {
                 // Splash: flames bouncing off the surface, a puff of smoke now and then.
@@ -374,10 +374,10 @@ public final class RazlomClientHandler {
                 for (int i = 0; i < 2; i++) {
                     Vec3 v = normal.scale(0.03 + RANDOM.nextDouble() * 0.04)
                             .add(RANDOM.nextGaussian() * 0.04, 0.02, RANDOM.nextGaussian() * 0.04);
-                    level.addParticle(state.cold() ? ParticleTypes.SOUL_FIRE_FLAME : ParticleTypes.FLAME, hit.x, hit.y, hit.z, v.x, v.y, v.z);
+                    faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, state.cold() ? ParticleTypes.SOUL_FIRE_FLAME : ParticleTypes.FLAME, hit.x, hit.y, hit.z, v.x, v.y, v.z);
                 }
                 if (RANDOM.nextInt(4) == 0) {
-                    level.addParticle(state.cold() ? ParticleTypes.SNOWFLAKE : ParticleTypes.SMOKE, hit.x, hit.y + 0.1, hit.z, 0.0, 0.04, 0.0);
+                    faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, state.cold() ? ParticleTypes.SNOWFLAKE : ParticleTypes.SMOKE, hit.x, hit.y + 0.1, hit.z, 0.0, 0.04, 0.0);
                 }
             }
         }
@@ -450,7 +450,7 @@ public final class RazlomClientHandler {
     private static void rescan(ClientLevel level, State state) {
         SyncAnomaliesPacket.Entry entry = state.entry;
         state.flame = Razlom.flamePos(level, entry.pos(), entry.size());
-        AABB zone = AnomalyGeometry.centeredAabb(entry.pos(), entry.size());
+        AABB zone = AnomalyGeometry.box(entry);
         double fromY = Math.max(state.flame.y, zone.minY);
         double toY = zone.minY - Razlom.GROUND_SEARCH_BELOW;
         for (Crack crack : state.cracks) {

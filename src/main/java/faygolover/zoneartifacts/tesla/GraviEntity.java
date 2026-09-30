@@ -204,7 +204,7 @@ public class GraviEntity extends TeslaEntity {
     }
 
     private void burst(ServerLevel level, Vec3 pos, long now) {
-        AnomalyCombat.playSound(level, pos, Gravi.POP_SOUND, 1.0f, 0.9f + random.nextFloat() * 0.2f);
+        AnomalyCombat.playSound(level, pos, Gravi.POP_SOUND, Gravi.POP_VOLUME, 0.9f + random.nextFloat() * 0.2f);
         TeslaRoute route = TeslaRouteSavedData.get(level).get(routeId());
         float damage = route != null ? route.damage() : ModCommonConfig.GRAVI_DAMAGE.get().floatValue();
         int interval = ModCommonConfig.GRAVI_HIT_INTERVAL_TICKS.get();

@@ -18,7 +18,7 @@ import java.util.WeakHashMap;
  * Server side of the swamp ({@link Swamp}). Mobs are moved here ({@link SwampPhysics}); players move
  * themselves (their client does it), so for them the server only lets them through the blocks (or it
  * would pull them back out) and keeps track of how deep they are. For everyone: mud tires (hunger),
- * squelches now and then, and a head under the surface chokes ({@code damage} every {@code cooldown}).
+ * and a head under the surface chokes ({@code damage} every {@code cooldown}).
  */
 @Mod.EventBusSubscriber(modid = ZoneArtifacts.MODID)
 public final class SwampEngine {
@@ -42,8 +42,9 @@ public final class SwampEngine {
         if (cached != null && at != null && at == now) return cached;
         List<SwampPhysics.Zone> list = new ArrayList<>();
         for (AnomalyInstance instance : AnomalySavedData.get(level).instances()) {
-            if (!AnomalyTypeIds.SWAMP.equals(instance.typeId())) continue;
-            list.add(new SwampPhysics.Zone(instance.pos(), instance.size(), instance.speed(), instance.damage(), instance.cooldownSeconds()));
+            if (!AnomalyTypeIds.SWAMP.equals(instance.typeId()) || !instance.enabled()) continue;
+            list.add(new SwampPhysics.Zone(instance.pos(), instance.size(), instance.speed(), instance.damage(), instance.cooldownSeconds(), instance.intensity(),
+                    instance.sizeX(), instance.sizeY(), instance.sizeZ()));
         }
         ZONES.put(level, list);
         ZONES_AT.put(level, now);
@@ -75,7 +76,7 @@ public final class SwampEngine {
             }
             s.zone = zone;
             e.noPhysics = true;
-            Swamp.Columns cols = Swamp.columns(level, zone.pos(), zone.size());
+            Swamp.Columns cols = zone.columns(level);
             s.depth = Math.max(0.0, cols.surface() - e.getY());
         } else {
             s = SwampPhysics.begin(e, zones, STATES);
@@ -104,19 +105,15 @@ public final class SwampEngine {
     }
 
     private static void effects(ServerLevel level, LivingEntity e, SwampPhysics.State s) {
-        Swamp.Columns cols = Swamp.columns(level, s.zone.pos(), s.zone.size());
+        Swamp.Columns cols = s.zone.columns(level);
         double depth = Math.max(0.0, cols.surface() - e.getY());
         if (e instanceof Player player && depth > 0.2) {
             player.causeFoodExhaustion(0.01f * (float) Math.min(depth, 2.0));
         }
-        if (depth > 0.15 && --s.soundTicks <= 0) {
-            s.soundTicks = 40 + level.random.nextInt(40);
-            AnomalyCombat.playSound(level, e.position(), Swamp.SQUELCH_SOUND, 0.6f, 0.8f + level.random.nextFloat() * 0.3f);
-        }
         if (SwampPhysics.submerged(e, cols)) {
             s.submergedTicks++;
             int every = AnomalyDefaults.ticks(s.zone.cooldownSeconds());
-            if (s.submergedTicks % every == 0 && !(e instanceof Player p && p.isCreative())) {
+            if (s.submergedTicks % every == 0 && !AnomalyCombat.creativeExempt(e)) {
                 e.invulnerableTime = 0;
                 AnomalyCombat.hurt(level, e, Swamp.DAMAGE_TYPE, s.zone.damage());
             }

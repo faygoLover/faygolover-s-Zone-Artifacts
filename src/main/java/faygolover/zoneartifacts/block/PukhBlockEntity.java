@@ -62,16 +62,41 @@ public class PukhBlockEntity extends BlockEntity {
     public static final java.util.Set<PukhBlockEntity> CLIENT_LOADED =
             java.util.Collections.newSetFromMap(new java.util.WeakHashMap<>());
 
+    /** Server only: the Fluff blocks loaded, to fire together ({@link faygolover.zoneartifacts.anomaly.PukhVolley}). */
+    public static final java.util.Set<PukhBlockEntity> SERVER_LOADED =
+            java.util.Collections.newSetFromMap(new java.util.WeakHashMap<>());
+
     @Override
     public void onLoad() {
         super.onLoad();
         if (level != null && level.isClientSide) CLIENT_LOADED.add(this);
+        else if (level != null) SERVER_LOADED.add(this);
     }
 
     @Override
     public void setRemoved() {
         super.setRemoved();
         CLIENT_LOADED.remove(this);
+        SERVER_LOADED.remove(this);
+    }
+
+    /** Can it puff now (not resting after the last one, and it has a reach at all)? */
+    public boolean ready() {
+        return cooldownTicks <= 0 && range > 0.0;
+    }
+
+    /** Where its puffs come from. */
+    public Vec3 puffOrigin() {
+        return Pukh.puffOrigin(worldPosition, facing(), effectiveLength());
+    }
+
+    /** A puff of spores at {@code at}; then it rests for its cooldown. */
+    public void fire(ServerLevel server, Vec3 at) {
+        Vec3 origin = puffOrigin();
+        PukhSpores.shoot(server, origin, at, range + 1.0, damage);
+        PukhEventPacket.puff(server, origin, at, range + 1.0);
+        AnomalyCombat.playSound(server, origin, Pukh.PUFF_SOUND, 1.0f, 0.9f + server.random.nextFloat() * 0.2f);
+        cooldownTicks = AnomalyDefaults.ticks(cooldownSeconds);
     }
 
     public PukhBlockEntity(BlockPos pos, BlockState state) {
@@ -185,18 +210,15 @@ public class PukhBlockEntity extends BlockEntity {
         }
         be.lastSeen.clear();
         be.lastSeen.putAll(seen);
-        if (fastest != null && be.cooldownTicks <= 0) {
-            Vec3 at = fastest.getBoundingBox().getCenter();
-            PukhSpores.shoot(server, origin, at, be.range + 1.0, be.damage);
-            PukhEventPacket.puff(server, origin, at, be.range + 1.0);
-            AnomalyCombat.playSound(server, origin, Pukh.PUFF_SOUND, 1.0f, 0.9f + server.random.nextFloat() * 0.2f);
-            be.cooldownTicks = AnomalyDefaults.ticks(be.cooldownSeconds);
+        if (fastest != null) {
+            // The whole growth answers: the strands that can hit it, one after another (PukhVolley).
+            faygolover.zoneartifacts.anomaly.PukhVolley.start(server, fastest);
         }
     }
 
     private static boolean hurtable(LivingEntity entity) {
-        if (!entity.isAlive() || entity.isSpectator()) return false;
-        return !(entity instanceof Player player && player.isCreative());
+        if (!entity.isAlive() || AnomalyCombat.spectatorExempt(entity)) return false;
+        return !AnomalyCombat.creativeExempt(entity);
     }
 
     private static boolean watched(Entity entity) {

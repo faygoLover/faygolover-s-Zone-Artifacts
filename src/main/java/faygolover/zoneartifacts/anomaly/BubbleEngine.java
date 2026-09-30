@@ -36,16 +36,17 @@ public final class BubbleEngine {
     private BubbleEngine() {
     }
 
-    /** Burst radius for a damage value: they grow together. */
-    public static double radius(float damage) {
-        return Mth.clamp(1.2 + 0.2 * damage, 1.0, 6.0);
+    /** Burst radius: the targeting tuner (bubbles placed before it had one grew it with the damage). */
+    public static double radius(AnomalyInstance instance) {
+        if (instance.range() > 0.0) return Mth.clamp(instance.range(), 0.5, 8.0);
+        return Mth.clamp(1.2 + 0.2 * instance.damage(), 1.0, 6.0);
     }
 
     @Nullable
     public static AnomalyInstance instanceFor(ServerLevel level, @Nullable BlockPos pos) {
         if (pos == null) return null;
         for (AnomalyInstance instance : AnomalySavedData.get(level).instances()) {
-            if (instance.pos().equals(pos) && AnomalyTypeIds.BUBBLES.equals(instance.typeId())) return instance;
+            if (instance.pos().equals(pos) && AnomalyTypeIds.BUBBLES.equals(instance.typeId()) && instance.enabled()) return instance;
         }
         return null;
     }
@@ -84,14 +85,14 @@ public final class BubbleEngine {
     public static void burst(ServerLevel level, BubbleEntity bubble, AnomalyInstance instance) {
         Vec3 c = bubble.position().add(0.0, bubble.getBbHeight() / 2.0, 0.0);
         float damage = instance.damage();
-        double r = radius(damage);
+        double r = radius(instance);
         bubble.discard();
         long now = level.getGameTime();
         NEXT_SPAWN.put(instance, Math.max(NEXT_SPAWN.getOrDefault(instance, now), now + AnomalyDefaults.ticks(instance.cooldownSeconds())));
         AnomalyCombat.playSound(level, c, POP_SOUND, 1.3f, 0.9f + level.random.nextFloat() * 0.25f);
         BubblePopPacket.send(level, c, (float) r);
         AABB area = new AABB(c, c).inflate(r);
-        for (Entity e : level.getEntities((Entity) null, area, x -> x.isAlive() && !x.isSpectator())) {
+        for (Entity e : level.getEntities((Entity) null, area, x -> x.isAlive() && !AnomalyCombat.spectatorExempt(x))) {
             if (e instanceof BubbleEntity other) {
                 if (other.position().distanceTo(bubble.position()) <= r) other.trigger(CHAIN_TICKS);
                 continue;
@@ -106,7 +107,7 @@ public final class BubbleEngine {
                 e.hurtMarked = true;
                 e.hasImpulse = true;
             }
-            if (e instanceof LivingEntity living && !(living instanceof Player p && p.isCreative())) {
+            if (e instanceof LivingEntity living && !AnomalyCombat.creativeExempt(living)) {
                 living.invulnerableTime = 0;
                 AnomalyCombat.hurt(level, living, Gravity.GRAVITY_DAMAGE_TYPE, (float) (damage * (0.4 + 0.6 * k)), c);
             }

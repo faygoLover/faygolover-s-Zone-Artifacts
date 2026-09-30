@@ -121,7 +121,7 @@ public class BubbleEntity extends Entity {
 
     /** Something (other than a bubble) actually touches it. */
     private boolean touched(ServerLevel level) {
-        List<Entity> near = level.getEntities(this, getBoundingBox(), e -> !(e instanceof BubbleEntity) && !e.isSpectator() && e.isAlive());
+        List<Entity> near = level.getEntities(this, getBoundingBox(), e -> !(e instanceof BubbleEntity) && !AnomalyCombat.spectatorExempt(e) && e.isAlive());
         return !near.isEmpty();
     }
 

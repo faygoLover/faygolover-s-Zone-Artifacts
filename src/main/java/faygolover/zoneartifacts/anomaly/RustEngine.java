@@ -34,7 +34,6 @@ import java.util.WeakHashMap;
 public final class RustEngine {
 
     public static final ResourceLocation BURN_DAMAGE_TYPE = new ResourceLocation(ZoneArtifacts.MODID, "anomaly_rust");
-    public static final ResourceLocation DUST_SOUND = new ResourceLocation(ZoneArtifacts.MODID, "rust_dust");
     public static final ResourceLocation BLAST_SOUND = new ResourceLocation(ZoneArtifacts.MODID, "rust_blast");
     public static final ResourceLocation HISS_SOUND = new ResourceLocation(ZoneArtifacts.MODID, "rust_hiss");
     /** The patch needs this long to heat up before it goes off. */
@@ -51,6 +50,8 @@ public final class RustEngine {
 
     private static final Map<AnomalyInstance, Spot> SPOTS = new WeakHashMap<>();
     private static final Map<AnomalyInstance, Long> LAST_CHARGE = new WeakHashMap<>();
+    /** Puffs raised since the last patch. */
+    private static final Map<AnomalyInstance, Integer> PUFFS = new WeakHashMap<>();
     private static final Map<LivingEntity, Long> LAST_DUST = new WeakHashMap<>();
     private static final Map<LivingEntity, int[]> BURNS = new WeakHashMap<>();
 
@@ -61,21 +62,20 @@ public final class RustEngine {
         AABB zone = AnomalyGeometry.zoneAabb(instance);
         long now = level.getGameTime();
         Spot spot = SPOTS.get(instance);
-        LAST_CHARGE.putIfAbsent(instance, now);
 
         for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, zone, RustEngine::walker)) {
-            double moved = Math.hypot(e.getX() - e.xo, e.getZ() - e.zo);
+            double moved = Motion.movedAcross(e, now);
             if (!e.onGround() || e.isCrouching() || moved < 0.04) continue;
             Long last = LAST_DUST.get(e);
             if (last != null && now - last < DUST_EVERY) continue;
             LAST_DUST.put(e, now);
             Vec3 feet = e.position();
             ChemClouds.add(level, feet, DUST_RADIUS, DUST_SECONDS, instance.damage());
-            if (level.random.nextInt(3) == 0) {
-                AnomalyCombat.playSound(level, feet, DUST_SOUND, 0.35f, 0.8f + level.random.nextFloat() * 0.4f);
-            }
-            if (spot == null && now - LAST_CHARGE.get(instance) >= AnomalyDefaults.ticks(instance.cooldownSeconds())
-                    && level.random.nextDouble() < ModCommonConfig.RUST_CHARGE_CHANCE.get()) {
+            // Every chargeEveryPuffs-th puff raised while there's no patch is charged.
+            int raised = spot == null ? PUFFS.merge(instance, 1, Integer::sum) : 0;
+            int every = instance.range() > 0 ? (int) Math.round(instance.range()) : ModCommonConfig.RUST_CHARGE_EVERY.get();
+            if (spot == null && raised >= Math.max(1, every)) {
+                PUFFS.put(instance, 0);
                 spot = new Spot();
                 // It settles a little way off (it drifts before it lands).
                 spot.at = new Vec3(feet.x + level.random.nextGaussian() * 0.6, feet.y, feet.z + level.random.nextGaussian() * 0.6);
@@ -145,8 +145,8 @@ public final class RustEngine {
     }
 
     private static boolean walker(LivingEntity e) {
-        if (!e.isAlive() || e.isSpectator()) return false;
-        return !(e instanceof Player p && p.isCreative());
+        if (!e.isAlive() || AnomalyCombat.spectatorExempt(e)) return false;
+        return !AnomalyCombat.creativeExempt(e);
     }
 
     private static double horizontal(Vec3 a, Vec3 b) {

@@ -39,7 +39,10 @@ public final class Thermal {
 
     public static final ResourceLocation ZHARKA_IDLE_SOUND = id("zharka_idle");
     public static final float ZHARKA_IDLE_VOLUME = 0.7f;
-    public static final float ZHARKA_ACTIVE_VOLUME = 1.0f;
+    public static final float ZHARKA_ACTIVE_VOLUME = 0.6f;
+    /** The roar of a flare-up, laid over the hum while it's active. */
+    public static final ResourceLocation ZHARKA_BLOW_SOUND = id("zharka_blow");
+    public static final float ZHARKA_BLOW_VOLUME = 1.0f;
 
     /** Iney's crackles (vanilla freezing sounds, see sounds.json) — played now and then, per-tick
      *  chance idle ~ every 3 s, active ~ every 0.6 s — and the sound when it activates (ice_enter). */

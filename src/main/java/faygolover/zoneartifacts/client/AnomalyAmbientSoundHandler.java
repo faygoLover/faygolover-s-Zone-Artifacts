@@ -87,7 +87,7 @@ public class AnomalyAmbientSoundHandler {
         // (the SoundEvent-typed overloads with this many arguments don't exist on this version).
         if (ForgeRegistries.SOUND_EVENTS.getValue(ambient.soundId()) == null) return;
 
-        AABB aabb = AnomalyGeometry.centeredAabb(entry.pos(), entry.size());
+        AABB aabb = AnomalyGeometry.box(entry);
         Vec3 center = aabb.getCenter();
 
         SimpleSoundInstance instance = new SimpleSoundInstance(ambient.soundId(), SoundSource.AMBIENT,

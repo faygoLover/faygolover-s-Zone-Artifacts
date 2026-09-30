@@ -3,11 +3,9 @@ package faygolover.zoneartifacts.registry;
 import faygolover.zoneartifacts.ZoneArtifacts;
 import faygolover.zoneartifacts.anomaly.AnomalyTypeIds;
 import faygolover.zoneartifacts.item.AnomalyPlacerItem;
-import faygolover.zoneartifacts.item.AnomalyTunerItem;
 import faygolover.zoneartifacts.item.PukhBlockItem;
 import faygolover.zoneartifacts.item.TeslaRoutePlacerItem;
 import faygolover.zoneartifacts.tesla.RouteKind;
-import faygolover.zoneartifacts.tuner.TunerKind;
 import net.minecraft.world.item.Item;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
@@ -96,19 +94,12 @@ public class ModItems {
     public static final RegistryObject<Item> PUKH_FLESH = ITEMS.register("pukh_flesh",
             () -> new Item(new Item.Properties()));
 
-    public static final RegistryObject<Item> SIZE_TUNER = tuner("size_tuner", TunerKind.SIZE);
-    public static final RegistryObject<Item> SPEED_TUNER = tuner("speed_tuner", TunerKind.SPEED);
-    public static final RegistryObject<Item> COOLDOWN_TUNER = tuner("cooldown_tuner", TunerKind.COOLDOWN);
-    public static final RegistryObject<Item> EFFECT_TUNER = tuner("effect_tuner", TunerKind.INTENSITY);
-    public static final RegistryObject<Item> DAMAGE_TUNER = tuner("damage_tuner", TunerKind.DAMAGE);
-    public static final RegistryObject<Item> TARGETING_TUNER = tuner("targeting_tuner", TunerKind.TARGETING);
+    /** The anomaly KPK: every anomaly's settings in one window (replaced the six tuners in 0.1.35.0). */
+    public static final RegistryObject<Item> PDA = ITEMS.register("pda",
+            () -> new faygolover.zoneartifacts.item.PdaItem(new Item.Properties().stacksTo(1)));
 
     private static RegistryObject<Item> placer(String name, net.minecraft.resources.ResourceLocation typeId) {
         return ITEMS.register(name, () -> new AnomalyPlacerItem(typeId, new Item.Properties().stacksTo(1)));
-    }
-
-    private static RegistryObject<Item> tuner(String name, TunerKind kind) {
-        return ITEMS.register(name, () -> new AnomalyTunerItem(kind, new Item.Properties().stacksTo(1)));
     }
 
     private ModItems() {

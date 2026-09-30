@@ -1,6 +1,8 @@
 package faygolover.zoneartifacts.client;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import faygolover.zoneartifacts.client.sumrak.SumrakClient;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.renderer.RenderType;
 
@@ -29,8 +31,12 @@ public final class GlowRenderType extends RenderType {
                     CULL.setupRenderState();
                     WEATHER_TARGET.setupRenderState();
                     COLOR_WRITE.setupRenderState();
+                    // Glows ignore fog; from inside the Dusk they must fade like everything else.
+                    float k = SumrakClient.glowLight();
+                    if (k < 0.999f) RenderSystem.setShaderColor(k, k, k, 1.0f);
                 },
                 () -> {
+                    RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
                     COLOR_WRITE.clearRenderState();
                     WEATHER_TARGET.clearRenderState();
                     CULL.clearRenderState();

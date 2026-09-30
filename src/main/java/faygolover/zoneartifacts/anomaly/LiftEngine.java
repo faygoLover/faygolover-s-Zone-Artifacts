@@ -38,7 +38,7 @@ public final class LiftEngine {
         if (now != zonesTick) {
             List<AABB> list = new ArrayList<>();
             for (AnomalyInstance other : AnomalySavedData.get(level).instances()) {
-                if (AnomalyTypeIds.LIFT.equals(other.typeId())) list.add(AnomalyGeometry.zoneAabb(other));
+                if (AnomalyTypeIds.LIFT.equals(other.typeId()) && other.enabled()) list.add(AnomalyGeometry.zoneAabb(other));
             }
             zones = list;
             zonesTick = now;

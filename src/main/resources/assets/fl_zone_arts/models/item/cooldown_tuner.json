@@ -1,6 +1,0 @@
-{
-  "parent": "item/handheld",
-  "textures": {
-    "layer0": "fl_zone_arts:item/cooldown_tuner"
-  }
-}

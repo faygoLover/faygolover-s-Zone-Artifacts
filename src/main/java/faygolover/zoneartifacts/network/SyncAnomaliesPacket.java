@@ -39,7 +39,8 @@ public class SyncAnomaliesPacket {
         for (AnomalyInstance instance : instances) {
             entries.add(new Entry(instance.typeId(), instance.pos(), (float) instance.size(), instance.intensity(),
                     instance.cooldownTicks() > 0, instance.active(), (float) instance.speed(),
-                    (float) instance.cooldownSeconds(), instance.damage(), (float) instance.range(), instance.yaw()));
+                    (float) instance.cooldownSeconds(), instance.damage(), (float) instance.range(), instance.yaw(),
+                    (float) instance.sizeX(), (float) instance.sizeY(), (float) instance.sizeZ(), instance.switchBits()));
         }
         return new SyncAnomaliesPacket(dimension, entries);
     }
@@ -59,6 +60,10 @@ public class SyncAnomaliesPacket {
             buf.writeFloat(entry.damage());
             buf.writeFloat(entry.range());
             buf.writeFloat(entry.yaw());
+            buf.writeFloat(entry.sizeX());
+            buf.writeFloat(entry.sizeY());
+            buf.writeFloat(entry.sizeZ());
+            buf.writeByte(entry.switches());
         }
     }
 
@@ -78,7 +83,11 @@ public class SyncAnomaliesPacket {
             float damage = buf.readFloat();
             float range = buf.readFloat();
             float yaw = buf.readFloat();
-            entries.add(new Entry(typeId, pos, size, intensity, onCooldown, active, speed, cooldown, damage, range, yaw));
+            float sx = buf.readFloat();
+            float sy = buf.readFloat();
+            float sz = buf.readFloat();
+            int switches = buf.readByte();
+            entries.add(new Entry(typeId, pos, size, intensity, onCooldown, active, speed, cooldown, damage, range, yaw, sx, sy, sz, switches));
         }
         return new SyncAnomaliesPacket(dimension, entries);
     }
@@ -99,6 +108,33 @@ public class SyncAnomaliesPacket {
      *  so the visuals and sound ramp up. Always false for Electra. {@code speed}: the gravitational
      *  anomalies' force multiplier (the client computes the forces on its own player). */
     public record Entry(ResourceLocation typeId, BlockPos pos, float size, int intensity, boolean onCooldown, boolean active,
-                        float speed, float cooldown, float damage, float range, float yaw) {
+                        float speed, float cooldown, float damage, float range, float yaw,
+                        float sizeX, float sizeY, float sizeZ, int switches) {
+
+        /** The same with new cooldown / active flags. */
+        public Entry withState(boolean onCooldown, boolean active) {
+            return new Entry(typeId, pos, size, intensity, onCooldown, active, speed, cooldown, damage, range, yaw, sizeX, sizeY, sizeZ, switches);
+        }
+
+        public boolean enabled() {
+            return (switches & 1) != 0;
+        }
+
+        public boolean harmful() {
+            return (switches & 2) != 0;
+        }
+
+        public boolean audible() {
+            return (switches & 4) != 0;
+        }
+
+        public boolean visible() {
+            return (switches & 8) != 0;
+        }
+
+        /** Acts on creative / spectator players too. */
+        public boolean targetsGm() {
+            return (switches & 16) != 0;
+        }
     }
 }

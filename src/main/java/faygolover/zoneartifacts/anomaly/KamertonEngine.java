@@ -58,13 +58,13 @@ public final class KamertonEngine {
         long now = level.getGameTime();
         boolean moving = false;
 
-        for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, zone, x -> x.isAlive() && !x.isSpectator())) {
+        for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, zone, x -> x.isAlive() && !AnomalyCombat.spectatorExempt(x))) {
             if (!inside(e.getBoundingBox(), c, r)) continue;
-            double speed = e.position().distanceTo(new Vec3(e.xo, e.yo, e.zo));
+            double speed = Motion.moved(e, now);
             boolean sneaking = e.isCrouching();
             if (speed < 0.03 || (sneaking && speed < 0.12)) continue;
             moving = true;
-            if (e instanceof Player p && p.isCreative()) continue;
+            if (AnomalyCombat.creativeExempt(e)) continue;
             Long last = LAST_CUT.get(e);
             if (last != null && now - last < AnomalyDefaults.ticks(instance.cooldownSeconds())) continue;
             LAST_CUT.put(e, now);

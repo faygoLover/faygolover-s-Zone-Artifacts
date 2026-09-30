@@ -2,7 +2,7 @@ package faygolover.zoneartifacts.tuner;
 
 /**
  * What a tuner changes, and by how much per click (left-click lowers, right-click raises; the
- * larger step is used while sneaking). The ranges are enforced in {@link TunerService}.
+ * larger step is used while sneaking). The ranges are enforced in {@code PdaService}.
  */
 public enum TunerKind {
     /** Size in blocks, 1 .. maxSize. Electra: the zone; Tesla: the ball and its hitbox. */

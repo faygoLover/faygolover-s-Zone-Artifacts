@@ -49,24 +49,29 @@ public final class ModSounds {
     public static final RegistryObject<SoundEvent> KISEL_HIT = register("kisel_hit");
     public static final RegistryObject<SoundEvent> FOG_IDLE = register("fog_idle");
     public static final RegistryObject<SoundEvent> FOG_JET = register("fog_jet");
-    public static final RegistryObject<SoundEvent> SWAMP_SQUELCH = register("swamp_squelch");
     public static final RegistryObject<SoundEvent> DYMKA_DISTANT = register("dymka_distant");
     public static final RegistryObject<SoundEvent> SUMRAK_DRONE = register("sumrak_drone");
-    public static final RegistryObject<SoundEvent> PSI_HUM = register("psi_hum");
-    public static final RegistryObject<SoundEvent> PSI_WHISPER = register("psi_whisper");
     public static final RegistryObject<SoundEvent> POPPY_HUM = register("poppy_hum");
-    public static final RegistryObject<SoundEvent> RUST_DUST = register("rust_dust");
     public static final RegistryObject<SoundEvent> RUST_BLAST = register("rust_blast");
     public static final RegistryObject<SoundEvent> RUST_HISS = register("rust_hiss");
     public static final RegistryObject<SoundEvent> RUST_CRACKLE = register("rust_crackle");
     public static final RegistryObject<SoundEvent> BUBBLE_POP = register("bubble_pop");
     public static final RegistryObject<SoundEvent> KHLOPUSHKA_CHARGE = register("khlopushka_charge");
     public static final RegistryObject<SoundEvent> KHLOPUSHKA_BANG = register("khlopushka_bang");
-    public static final RegistryObject<SoundEvent> KHLOPUSHKA_RING = register("khlopushka_ring");
     public static final RegistryObject<SoundEvent> KAMERTON_RING = register("kamerton_ring");
+    public static final RegistryObject<SoundEvent> WEB_SNAP = register("web_snap");
+    public static final RegistryObject<SoundEvent> PSI_VOICES_L = register("psi_voices_l");
+    public static final RegistryObject<SoundEvent> PSI_VOICES_R = register("psi_voices_r");
+    public static final RegistryObject<SoundEvent> PSI_POLTER = register("psi_polter");
     public static final RegistryObject<SoundEvent> KAMERTON_CUT = register("kamerton_cut");
     public static final RegistryObject<SoundEvent> KAMERTON_SHATTER = register("kamerton_shatter");
-    public static final RegistryObject<SoundEvent> WEB_SNAP = register("web_snap");
+    public static final RegistryObject<SoundEvent> TESLA_BLAST = register("tesla_blast");
+    public static final RegistryObject<SoundEvent> ZHARKA_BLOW = register("zharka_blow");
+    public static final RegistryObject<SoundEvent> RAZLOM_IDLE = register("razlom_idle");
+    public static final RegistryObject<SoundEvent> GRAVI_IDLE = register("gravi_idle");
+    public static final RegistryObject<SoundEvent> DYMKA_INSIDE = register("dymka_inside");
+    public static final RegistryObject<SoundEvent> PLESH_HUM = register("plesh_hum");
+    public static final RegistryObject<SoundEvent> KARUSEL_HUM = register("karusel_hum");
 
     private static RegistryObject<SoundEvent> register(String name) {
         ResourceLocation id = new ResourceLocation(ZoneArtifacts.MODID, name);

@@ -80,9 +80,10 @@ public final class AmoebaClient {
     private AmoebaClient() {
     }
 
-    private static int inflateTicks() {
+    private static int inflateTicks(double speed) {
         try {
-            return Math.max(Amoeba.GATHER_TICKS + Amoeba.LIFT_TICKS + 10, (int) Math.round(ModCommonConfig.AMOEBA_INFLATE_SECONDS.get() * 20.0));
+            return Math.max(Amoeba.GATHER_TICKS + Amoeba.LIFT_TICKS + 10,
+                    (int) Math.round(ModCommonConfig.AMOEBA_INFLATE_SECONDS.get() / Math.max(0.1, speed) * 20.0));
         } catch (IllegalStateException notLoaded) {
             return 120;
         }
@@ -132,11 +133,11 @@ public final class AmoebaClient {
                 state.resting = false;
             }
             if (entry.active() && state.gatherTick < 0) state.gatherTick = now - Amoeba.GATHER_TICKS; // came in mid-way
-            if (!entry.active() && state.gatherTick >= 0 && now - state.gatherTick > inflateTicks() + 10) {
+            if (!entry.active() && state.gatherTick >= 0 && now - state.gatherTick > inflateTicks(entry.speed()) + 10) {
                 state.gatherTick = -1;
             }
             if (--state.nextScan <= 0) {
-                AABB zone = AnomalyGeometry.centeredAabb(entry.pos(), entry.size());
+                AABB zone = AnomalyGeometry.box(entry);
                 Vec3 c = zone.getCenter();
                 state.groundY = Razlom.groundY(level, c.x, c.z, zone.maxY, zone.minY - 3.0);
                 state.nextScan = 60 + RANDOM.nextInt(20);
@@ -145,10 +146,10 @@ public final class AmoebaClient {
                 // Acid dripping off the ball.
                 float t = now - state.gatherTick;
                 Vec3 base = base(state);
-                double r = Amoeba.radius(entry.size(), t, inflateTicks());
-                double h = Amoeba.centerHeight(entry.size(), t, inflateTicks());
+                double r = Amoeba.radius(entry.size(), t, inflateTicks(entry.speed()));
+                double h = Amoeba.centerHeight(entry.size(), t, inflateTicks(entry.speed()));
                 double a = RANDOM.nextDouble() * Math.PI * 2.0;
-                level.addParticle(ModParticles.CHEM_DROP.get(), base.x + Math.cos(a) * r * 0.5, base.y + h - r * 0.8,
+                faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, ModParticles.CHEM_DROP.get(), base.x + Math.cos(a) * r * 0.5, base.y + h - r * 0.8,
                         base.z + Math.sin(a) * r * 0.5, 0.0, -0.02, 0.0);
             }
         }
@@ -156,7 +157,7 @@ public final class AmoebaClient {
     }
 
     private static Vec3 base(State state) {
-        AABB zone = AnomalyGeometry.centeredAabb(state.entry.pos(), state.entry.size());
+        AABB zone = AnomalyGeometry.box(state.entry);
         Vec3 c = zone.getCenter();
         return new Vec3(c.x, state.groundY != null ? state.groundY : zone.minY, c.z);
     }
@@ -211,6 +212,7 @@ public final class AmoebaClient {
         BufferBuilder buffer = Tesselator.getInstance().getBuilder();
         buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
         for (State state : STATES.values()) {
+            if (!state.entry.visible()) continue;
             Vec3 base = base(state);
             jelly(buffer, m, state, base, phase(state, now, partial), regrow(state, now, partial), vivid(state, now, partial),
                     light(level, base.add(0, 0.5, 0), skyDarken), time);
@@ -233,7 +235,7 @@ public final class AmoebaClient {
     private static void jelly(BufferBuilder buffer, Matrix4f m, State state, Vec3 base, float t, float regrow,
                               float vivid, float light, float time) {
         double size = state.entry.size();
-        int inflate = inflateTicks();
+        int inflate = inflateTicks(state.entry.speed());
         boolean rising = t >= 0.0f;
         float g1 = rising ? Amoeba.gather(t) : 0.0f;
         float g2 = rising ? Amoeba.round(t) : 0.0f;

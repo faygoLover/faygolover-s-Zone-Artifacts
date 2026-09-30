@@ -184,7 +184,7 @@ public final class GravityClientHandler {
         }
 
         public AABB zone() {
-            return AnomalyGeometry.centeredAabb(entry.pos(), entry.size());
+            return AnomalyGeometry.box(entry);
         }
     }
 
@@ -261,7 +261,7 @@ public final class GravityClientHandler {
             }
             case GravityEventPacket.BOUNCE -> {
                 for (int i = 0; i < 8; i++) {
-                    level.addParticle(ModParticles.FROST_MIST.get(), at.x + (RANDOM.nextDouble() - 0.5) * 0.6, at.y + 0.1,
+                    faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, ModParticles.FROST_MIST.get(), at.x + (RANDOM.nextDouble() - 0.5) * 0.6, at.y + 0.1,
                             at.z + (RANDOM.nextDouble() - 0.5) * 0.6, (RANDOM.nextDouble() - 0.5) * 0.04, 0.02, (RANDOM.nextDouble() - 0.5) * 0.04);
                 }
             }
@@ -284,7 +284,7 @@ public final class GravityClientHandler {
             }
             case VORONKA -> {
                 for (Debris d : state.debris) {
-                    level.addParticle(ParticleTypes.POOF, d.pos.x, d.pos.y, d.pos.z, 0.0, 0.02, 0.0);
+                    faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, ParticleTypes.POOF, d.pos.x, d.pos.y, d.pos.z, 0.0, 0.02, 0.0);
                 }
                 state.debris.clear();
                 dustBurst(level, c, 55, 0.25, 0.6);
@@ -298,7 +298,7 @@ public final class GravityClientHandler {
                     double speed = 0.35 + RANDOM.nextDouble() * 0.35;
                     double r = 0.2 + RANDOM.nextDouble() * 0.6;
                     double y = ground + 0.1 + Math.pow(RANDOM.nextDouble(), 2.0) * reach * 0.8;
-                    level.addParticle(ModParticles.GRAV_DUST.get(), c.x + Math.cos(a) * r, y, c.z + Math.sin(a) * r,
+                    faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, ModParticles.GRAV_DUST.get(), c.x + Math.cos(a) * r, y, c.z + Math.sin(a) * r,
                             Math.cos(a) * speed, 0.005, Math.sin(a) * speed);
                 }
                 for (Debris d : state.debris) {
@@ -319,7 +319,7 @@ public final class GravityClientHandler {
         for (int i = 0; i < count; i++) {
             Vec3 dir = new Vec3(RANDOM.nextGaussian(), Math.abs(RANDOM.nextGaussian()) * 0.6, RANDOM.nextGaussian()).normalize();
             Vec3 v = dir.scale(minSpeed + RANDOM.nextDouble() * (maxSpeed - minSpeed));
-            level.addParticle(ModParticles.GRAV_DUST.get(), c.x, c.y, c.z, v.x, v.y, v.z);
+            faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, ModParticles.GRAV_DUST.get(), c.x, c.y, c.z, v.x, v.y, v.z);
         }
     }
 
@@ -331,11 +331,14 @@ public final class GravityClientHandler {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         if (player == null || mc.level == null || mc.isPaused()) return;
-        if (player.isCreative() || player.isSpectator() || player.isPassenger() || player.getAbilities().flying) return;
+        if (player.isPassenger()) return;
+        // A GM (creative, spectator, flying) is left alone, unless the anomaly is set to act on them too.
+        boolean gm = player.isCreative() || player.isSpectator() || player.getAbilities().flying;
         long now = mc.level.getGameTime();
 
         for (State state : STATES.values()) {
             SyncAnomaliesPacket.Entry entry = state.entry;
+            if (gm && !entry.targetsGm()) continue;
             double force = entry.speed();
             Vec3 v = player.getDeltaMovement();
             switch (state.kind) {
@@ -417,8 +420,9 @@ public final class GravityClientHandler {
     }
 
     /**
-     * Idle sounds: Voronka hums (a loop), Plesh and Karusel now and then rustle with wind and dust
-     * somewhere inside. Nothing on cooldown; after it they come back with the anomaly.
+     * Idle sounds: Voronka, Plesh and Karusel hum all the time (a loop); Plesh and Karusel now and
+     * then, quietly, rustle with wind and dust somewhere inside. Nothing on cooldown; after it they
+     * come back with the anomaly.
      */
     private static void tickIdleSound(Minecraft mc, State state, long now) {
         if (state.kind == Kind.VORONKA) {
@@ -429,10 +433,15 @@ public final class GravityClientHandler {
             return;
         }
         if (state.kind != Kind.PLESH && state.kind != Kind.KARUSEL) return;
+        if (state.idleLoop == null || state.idleLoop.isStopped()) {
+            state.idleLoop = new GravityLoopSound(state, (state.kind == Kind.KARUSEL ? ModSounds.KARUSEL_HUM : ModSounds.PLESH_HUM).get(),
+                    state.center(), 0.4f);
+            mc.getSoundManager().play(state.idleLoop);
+        }
         if (state.nextRustle < 0) state.nextRustle = now + 20 + RANDOM.nextInt(100);
         if (now < state.nextRustle) return;
         boolean karusel = state.kind == Kind.KARUSEL;
-        state.nextRustle = now + (karusel ? 60 + RANDOM.nextInt(80) : 80 + RANDOM.nextInt(100));
+        state.nextRustle = now + (karusel ? 160 + RANDOM.nextInt(200) : 200 + RANDOM.nextInt(240));
         float ready = state.readiness(now, 0.0f);
         if (state.active() || ready < 0.5f) return;
         AABB zone = state.zone();
@@ -440,7 +449,7 @@ public final class GravityClientHandler {
         double x = Mth.lerp(RANDOM.nextDouble(), zone.minX, zone.maxX);
         double z = Mth.lerp(RANDOM.nextDouble(), zone.minZ, zone.maxZ);
         mc.getSoundManager().play(new SimpleSoundInstance(karusel ? ModSounds.KARUSEL_IDLE.get() : ModSounds.PLESH_IDLE.get(),
-                SoundSource.AMBIENT, (karusel ? 0.6f : 0.5f) * ready, 0.88f + RANDOM.nextFloat() * 0.24f,
+                SoundSource.AMBIENT, (karusel ? 0.28f : 0.22f) * ready, 0.88f + RANDOM.nextFloat() * 0.24f,
                 RandomSource.create(), x, ground + 0.3, z));
     }
 
@@ -577,8 +586,8 @@ public final class GravityClientHandler {
         for (Debris d : list) anyFree |= d.free;
         int want = debrisCount(state);
         switch (state.kind) {
-            case PLESH -> {
-                // After the cooldown the dust comes back bit by bit, each one growing in.
+            case PLESH, KARUSEL -> {
+                // After the cooldown (not during it) the dust comes back bit by bit, each one growing in.
                 if (!anyFree && !resting && list.size() < want && now % 3 == 0) list.add(newDebris(state, 0.0f));
             }
             case VORONKA -> {
@@ -639,7 +648,7 @@ public final class GravityClientHandler {
                         Vec3 dir = new Vec3(RANDOM.nextGaussian(), RANDOM.nextGaussian(), RANDOM.nextGaussian()).normalize();
                         Vec3 p = c.add(dir.scale(reach * (0.7 + RANDOM.nextDouble() * 0.3)));
                         Vec3 v = c.subtract(p).scale(1.0 / 24.0);
-                        level.addParticle(ModParticles.GRAV_DUST.get(), p.x, p.y, p.z, v.x, v.y, v.z);
+                        faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, ModParticles.GRAV_DUST.get(), p.x, p.y, p.z, v.x, v.y, v.z);
                     }
                 } else if (state.kind == Kind.PLESH && RANDOM.nextDouble() < 0.04 * eff * state.readiness(now, 0.0f)) {
                     // A speck drifting round lazily (Voronka shows nothing at rest).
@@ -647,7 +656,7 @@ public final class GravityClientHandler {
                     double r = half * RANDOM.nextDouble();
                     double y = state.groundY != null ? state.groundY + 0.1 : c.y;
                     Vec3 p = new Vec3(c.x + Math.cos(a) * r, y, c.z + Math.sin(a) * r);
-                    level.addParticle(ModParticles.GRAV_DUST.get(), p.x, p.y, p.z, -Math.sin(a) * 0.02, 0.005, Math.cos(a) * 0.02);
+                    faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, ModParticles.GRAV_DUST.get(), p.x, p.y, p.z, -Math.sin(a) * 0.02, 0.005, Math.cos(a) * 0.02);
                 }
             }
             case KARUSEL -> {
@@ -660,7 +669,7 @@ public final class GravityClientHandler {
                         double a = RANDOM.nextDouble() * Math.PI * 2.0;
                         double r = 0.15 + RANDOM.nextDouble() * 0.35;
                         Vec3 p = new Vec3(c.x + Math.cos(a) * r, ground + 0.1 + RANDOM.nextDouble() * 0.4, c.z + Math.sin(a) * r);
-                        level.addParticle(ModParticles.GRAV_DUST.get(), p.x, p.y, p.z,
+                        faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, ModParticles.GRAV_DUST.get(), p.x, p.y, p.z,
                                 -Math.sin(a) * 0.18, 0.09 + RANDOM.nextDouble() * 0.06, Math.cos(a) * 0.18);
                     }
                 }
@@ -671,7 +680,7 @@ public final class GravityClientHandler {
                     double h = 0.05 + RANDOM.nextDouble() * (active ? reach * 0.6 : 0.4);
                     double tangential = active ? 0.25 : 0.05;
                     Vec3 p = new Vec3(c.x + Math.cos(a) * r, ground + h, c.z + Math.sin(a) * r);
-                    level.addParticle(ModParticles.GRAV_DUST.get(), p.x, p.y, p.z,
+                    faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, ModParticles.GRAV_DUST.get(), p.x, p.y, p.z,
                             -Math.sin(a) * tangential - Math.cos(a) * 0.02, active ? 0.02 : 0.0, Math.cos(a) * tangential - Math.sin(a) * 0.02);
                 }
                 // Twinkles: a slight shimmer, more of it while spinning.
@@ -688,7 +697,7 @@ public final class GravityClientHandler {
                     AABB zone = state.zone();
                     Vec3 p = new Vec3(Mth.lerp(RANDOM.nextDouble(), zone.minX, zone.maxX), Mth.lerp(RANDOM.nextDouble(), zone.minY, zone.maxY),
                             Mth.lerp(RANDOM.nextDouble(), zone.minZ, zone.maxZ));
-                    level.addParticle(ModParticles.FROST_MIST.get(), p.x, p.y, p.z,
+                    faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, ModParticles.FROST_MIST.get(), p.x, p.y, p.z,
                             (RANDOM.nextDouble() - 0.5) * 0.01, 0.003, (RANDOM.nextDouble() - 0.5) * 0.01);
                 }
             }

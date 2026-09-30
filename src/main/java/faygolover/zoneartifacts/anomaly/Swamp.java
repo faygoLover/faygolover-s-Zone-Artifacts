@@ -25,10 +25,11 @@ import java.util.WeakHashMap;
 public final class Swamp {
 
     public static final ResourceLocation DAMAGE_TYPE = new ResourceLocation(ZoneArtifacts.MODID, "anomaly_swamp");
-    public static final ResourceLocation SQUELCH_SOUND = new ResourceLocation(ZoneArtifacts.MODID, "swamp_squelch");
-    /** Near the edge the sink depth is held to {@link #SHORE_SLOPE} per block from it: a slope out. */
-    public static final double SHORE = 2.0;
-    public static final double SHORE_SLOPE = 0.7;
+    /** The last bit before the edge where one is already back on top (no step onto the ground). */
+    public static final double SHORE_LIP = 0.15;
+    /** How much of a step is left this deep ({@link #DEEP_AT} and deeper): the mud nearly holds one. */
+    public static final double DEEP_DRAG = 0.12;
+    public static final double DEEP_AT = 1.2;
     /** How fast one is pushed up when the allowed depth drops (walking towards the edge), blocks/tick. */
     public static final double RISE_PER_TICK = 0.08;
     private static final int COLUMN_REFRESH_TICKS = 40;
@@ -48,11 +49,17 @@ public final class Swamp {
 
     /** The zone: its top is the surface, it goes {@link #depth} down and {@code size / 2} to each side. */
     public static AABB region(BlockPos pos, double size) {
-        double half = Math.max(0.5, size / 2.0);
+        return region(pos, size, size, size);
+    }
+
+    /** Of its own proportions: {@code sx} wide, {@code sz} long, {@code sy} deep. */
+    public static AABB region(BlockPos pos, double sx, double sy, double sz) {
+        double hx = Math.max(0.5, sx / 2.0);
+        double hz = Math.max(0.5, sz / 2.0);
         double cx = pos.getX() + 0.5;
         double cz = pos.getZ() + 0.5;
         double top = surfaceY(pos);
-        return new AABB(cx - half, top - depth(size), cz - half, cx + half, top, cz + half);
+        return new AABB(cx - hx, top - depth(sy), cz - hz, cx + hx, top, cz + hz);
     }
 
     /** Horizontal distance from (x, z) to the nearest side of the zone (negative outside it). */
@@ -72,6 +79,8 @@ public final class Swamp {
         public final AABB region;
         final double size;
         final long stamp;
+        final double sx;
+        final double sz;
 
         Columns(int x0, int z0, int w, int d, int topY, AABB region, double size, long stamp) {
             this.x0 = x0;
@@ -82,6 +91,8 @@ public final class Swamp {
             this.region = region;
             this.size = size;
             this.stamp = stamp;
+            this.sx = region.getXsize();
+            this.sz = region.getZsize();
             this.depth = new int[Math.max(0, w * d)];
         }
 
@@ -118,24 +129,30 @@ public final class Swamp {
 
     /** The zone's columns, rescanned now and then (and when its size changes). */
     public static Columns columns(Level level, BlockPos pos, double size) {
+        return columns(level, pos, size, size, size);
+    }
+
+    public static Columns columns(Level level, BlockPos pos, double sx, double sy, double sz) {
         Map<BlockPos, Columns> perLevel = CACHE.computeIfAbsent(level, l -> new HashMap<>());
         Columns cached = perLevel.get(pos);
         long now = level.getGameTime();
-        if (cached != null && cached.size == size && now - cached.stamp < COLUMN_REFRESH_TICKS && now >= cached.stamp) return cached;
-        Columns fresh = scan(level, pos, size, now);
+        AABB want = region(pos, sx, sy, sz);
+        if (cached != null && cached.region.equals(want) && now - cached.stamp < COLUMN_REFRESH_TICKS && now >= cached.stamp) return cached;
+        Columns fresh = scan(level, pos, sx, sy, sz, now);
         perLevel.put(pos.immutable(), fresh);
         if (perLevel.size() > 256) perLevel.clear();
         return fresh;
     }
 
-    private static Columns scan(Level level, BlockPos pos, double size, long now) {
-        AABB region = region(pos, size);
+    private static Columns scan(Level level, BlockPos pos, double sx, double sy, double sz, long now) {
+        AABB region = region(pos, sx, sy, sz);
+        double size = Math.max(sx, Math.max(sy, sz));
         // Columns whose middles are inside the zone.
         int x0 = Mth.ceil(region.minX - 0.5);
         int x1 = Mth.floor(region.maxX - 0.5);
         int z0 = Mth.ceil(region.minZ - 0.5);
         int z1 = Mth.floor(region.maxZ - 0.5);
-        int maxDepth = Math.max(1, Mth.floor(depth(size) + 1.0E-6));
+        int maxDepth = Math.max(1, Mth.floor(depth(sy) + 1.0E-6));
         Columns c = new Columns(x0, z0, x1 - x0 + 1, z1 - z0 + 1, pos.getY(), region, size, now);
         BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
         for (int x = x0; x <= x1; x++) {

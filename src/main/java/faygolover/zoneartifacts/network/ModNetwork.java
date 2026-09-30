@@ -10,7 +10,7 @@ public final class ModNetwork {
     /** Bump whenever packets are added, removed or changed, so a client and server on different
      *  mod versions get a clear "incompatible" message at login instead of odd behaviour.
      *  2 = Tesla (0.1.2.0), 3 = tuners, no datapacks (0.1.3.0). */
-    private static final String PROTOCOL_VERSION = "14";
+    private static final String PROTOCOL_VERSION = "16";
 
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(ZoneArtifacts.MODID, "main"),
@@ -40,8 +40,8 @@ public final class ModNetwork {
         // Shared
         CHANNEL.registerMessage(id++, ElectrifyPacket.class,
                 ElectrifyPacket::encode, ElectrifyPacket::decode, ElectrifyPacket::handle);
-        CHANNEL.registerMessage(id++, TunerClickPacket.class,
-                TunerClickPacket::encode, TunerClickPacket::decode, TunerClickPacket::handle);
+        // The KPK (0.1.35.0), in the tuner click's old place
+        CHANNEL.registerMessage(id++, PdaOpenPacket.class, PdaOpenPacket::encode, PdaOpenPacket::decode, PdaOpenPacket::handle);
         // Comet, Razlom (0.1.8.0)
         CHANNEL.registerMessage(id++, CometBurstPacket.class,
                 CometBurstPacket::encode, CometBurstPacket::decode, CometBurstPacket::handle);
@@ -81,6 +81,8 @@ public final class ModNetwork {
                 WebStrandPacket::encode, WebStrandPacket::decode, WebStrandPacket::handle);
         CHANNEL.registerMessage(id++, WebEditPacket.class,
                 WebEditPacket::encode, WebEditPacket::decode, WebEditPacket::handle);
+        CHANNEL.registerMessage(id++, PdaDataPacket.class, PdaDataPacket::encode, PdaDataPacket::decode, PdaDataPacket::handle);
+        CHANNEL.registerMessage(id++, PdaApplyPacket.class, PdaApplyPacket::encode, PdaApplyPacket::decode, PdaApplyPacket::handle);
     }
 
     private ModNetwork() {

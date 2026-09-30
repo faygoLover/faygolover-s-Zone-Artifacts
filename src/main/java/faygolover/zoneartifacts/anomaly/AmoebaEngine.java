@@ -30,8 +30,10 @@ public final class AmoebaEngine {
         return new Vec3(c.x, ground != null ? ground : zone.minY, c.z);
     }
 
-    public static int inflateTicks() {
-        return Math.max(Amoeba.GATHER_TICKS + Amoeba.LIFT_TICKS + 10, AnomalyDefaults.ticks(ModCommonConfig.AMOEBA_INFLATE_SECONDS.get()));
+    /** How long from waking to the burst; the speed tuner makes it swell faster (x2 = half the time). */
+    public static int inflateTicks(double speed) {
+        return Math.max(Amoeba.GATHER_TICKS + Amoeba.LIFT_TICKS + 10,
+                AnomalyDefaults.ticks(ModCommonConfig.AMOEBA_INFLATE_SECONDS.get() / Math.max(0.1, speed)));
     }
 
     public static void tick(ServerLevel level, AnomalyInstance instance) {
@@ -57,7 +59,7 @@ public final class AmoebaEngine {
     private static void tickActive(ServerLevel level, AnomalyInstance instance) {
         int t = instance.pulseTicks() + 1;
         instance.setPulseTicks(t);
-        int inflate = inflateTicks();
+        int inflate = inflateTicks(instance.speed());
         Vec3 base = base(level, instance);
         double size = instance.size();
         Vec3 center = base.add(0.0, Amoeba.centerHeight(size, t, inflate), 0.0);
@@ -103,8 +105,8 @@ public final class AmoebaEngine {
     }
 
     private static boolean targetable(LivingEntity entity) {
-        if (!entity.isAlive() || entity.isSpectator()) return false;
-        return !(entity instanceof Player player && player.isCreative());
+        if (!entity.isAlive() || AnomalyCombat.spectatorExempt(entity)) return false;
+        return !AnomalyCombat.creativeExempt(entity);
     }
 
     public static void forget(AnomalyInstance instance) {

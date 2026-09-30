@@ -62,7 +62,9 @@ public final class ScreenFx {
             float near = event.getNearPlaneDistance();
             if (haze > 0.001f) {
                 float want = DymkaClient.visibility();
-                far = Math.min(far, Mth.lerp(haze, event.getFarPlaneDistance(), want));
+                // Eased so the grey closes in evenly rather than rushing in from the horizon at first.
+                float close = 1.0f - (1.0f - haze) * (1.0f - haze) * (1.0f - haze);
+                far = Math.min(far, Mth.lerp(close, event.getFarPlaneDistance(), want));
                 near = Math.min(near, Mth.lerp(haze, event.getNearPlaneDistance(), -want * 0.3f));
             }
             if (dusk > 0.001f) {
@@ -159,9 +161,9 @@ public final class ScreenFx {
     private static void psi(GuiGraphics graphics, float s, float wave, float time, int width, int height) {
         if (!grab()) return;
         Matrix4f m = graphics.pose().last().pose();
-        float wobble = 0.004f * s + 0.01f * s * wave;
-        float split = 0.003f * s + 0.012f * s * wave;
-        float blur = 0.004f * s * (0.3f + wave);
+        float wobble = 0.008f * s + 0.02f * s * wave;
+        float split = 0.007f * s + 0.024f * s * wave;
+        float blur = 0.008f * s * (0.4f + wave);
 
         RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
         RenderSystem.setShaderTexture(0, copy.getColorTextureId());
@@ -179,7 +181,7 @@ public final class ScreenFx {
         if (blur > 1.0E-4f) {
             RenderSystem.enableBlend();
             RenderSystem.defaultBlendFunc();
-            float a = Mth.clamp(0.22f * (s * (0.4f + wave)), 0.0f, 0.3f);
+            float a = Mth.clamp(0.3f * (s * (0.5f + wave)), 0.0f, 0.42f);
             quadGrid(m, width, height, time, wobble, 0.0f, blur, 0.0f, a);
             quadGrid(m, width, height, time, wobble, 0.0f, -blur, 0.0f, a);
             quadGrid(m, width, height, time, wobble, 0.0f, 0.0f, blur, a);

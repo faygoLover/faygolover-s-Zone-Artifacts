@@ -13,7 +13,7 @@ import faygolover.zoneartifacts.anomaly.AnomalyGeometry;
 import faygolover.zoneartifacts.anomaly.AnomalyTypeIds;
 import faygolover.zoneartifacts.anomaly.AnomalyDefaults;
 import faygolover.zoneartifacts.item.AnomalyPlacerItem;
-import faygolover.zoneartifacts.item.AnomalyTunerItem;
+import faygolover.zoneartifacts.item.PdaItem;
 import faygolover.zoneartifacts.network.SyncAnomaliesPacket;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
@@ -79,7 +79,7 @@ public class AnomalyHighlightRenderer {
         Player player = mc.player;
         if (player == null || mc.level == null) return;
 
-        boolean tuner = AnomalyTunerItem.isHeld(player);
+        boolean tuner = PdaItem.holds(player);
         ResourceLocation typeId = AnomalyPlacerItem.heldTypeId(player);
         if (typeId == null && !tuner) return;
 
@@ -117,7 +117,7 @@ public class AnomalyHighlightRenderer {
         Vec3 playerPos = player.position();
         double radiusSq = radius * radius;
 
-        List<SyncAnomaliesPacket.Entry> entries = ClientAnomalyCache.entriesFor(player.level().dimension());
+        List<SyncAnomaliesPacket.Entry> entries = ClientAnomalyCache.allEntriesFor(player.level().dimension());
         Optional<SyncAnomaliesPacket.Entry> hovered = AnomalyClientTargeting.pick(player, typeId);
 
         BlockPos previewPos = null;
@@ -131,7 +131,7 @@ public class AnomalyHighlightRenderer {
         }
 
         for (SyncAnomaliesPacket.Entry entry : entries) {
-            AABB zone = AnomalyGeometry.zoneAabb(entry.typeId(), entry.pos(), entry.size());
+            AABB zone = AnomalyGeometry.zoneAabb(entry);
             if (previewPos != null && (entry.pos().equals(previewPos) || AnomalyGeometry.containsBlockCenter(zone, previewPos))) {
                 previewPos = null;
             }

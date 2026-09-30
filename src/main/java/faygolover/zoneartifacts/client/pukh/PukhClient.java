@@ -61,7 +61,7 @@ public final class PukhClient {
         if (mc.level != null) {
             // The strands give a shudder of spores where it came from.
             for (int i = 0; i < 6; i++) {
-                mc.level.addParticle(ModParticles.PUKH_SPORE.get(), from.x + RANDOM.nextGaussian() * 0.2, from.y + RANDOM.nextGaussian() * 0.2,
+                faygolover.zoneartifacts.client.ClientAnomalyCache.particle(mc.level, ModParticles.PUKH_SPORE.get(), from.x + RANDOM.nextGaussian() * 0.2, from.y + RANDOM.nextGaussian() * 0.2,
                         from.z + RANDOM.nextGaussian() * 0.2, RANDOM.nextGaussian() * 0.02, RANDOM.nextGaussian() * 0.02, RANDOM.nextGaussian() * 0.02);
             }
         }
@@ -73,7 +73,7 @@ public final class PukhClient {
         AABB box = Pukh.hangingBox(pos, facing, length);
         int n = (int) Mth.clamp(20 * length, 15, 90);
         for (int i = 0; i < n; i++) {
-            mc.level.addParticle(ModParticles.PUKH_FLAKE.get(), Mth.lerp(RANDOM.nextDouble(), box.minX, box.maxX),
+            faygolover.zoneartifacts.client.ClientAnomalyCache.particle(mc.level, ModParticles.PUKH_FLAKE.get(), Mth.lerp(RANDOM.nextDouble(), box.minX, box.maxX),
                     Mth.lerp(RANDOM.nextDouble(), box.minY, box.maxY), Mth.lerp(RANDOM.nextDouble(), box.minZ, box.maxZ),
                     RANDOM.nextGaussian() * 0.01, -0.03, RANDOM.nextGaussian() * 0.01);
         }
@@ -105,7 +105,7 @@ public final class PukhClient {
             Gas.add(new Gas.Puff(prev.lerp(puff.pos, 0.5), puff.vel.scale(0.3), 0.25 * grow, 0.55 * grow, now,
                     18 + RANDOM.nextInt(8), 0.3f, ASH, ASH_LIGHT, RANDOM.nextFloat() * 10f).drag(0.85));
             for (int i = 0; i < 2; i++) {
-                level.addParticle(ModParticles.PUKH_SPORE.get(), puff.pos.x + RANDOM.nextGaussian() * 0.25 * grow,
+                faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, ModParticles.PUKH_SPORE.get(), puff.pos.x + RANDOM.nextGaussian() * 0.25 * grow,
                         puff.pos.y + RANDOM.nextGaussian() * 0.25 * grow, puff.pos.z + RANDOM.nextGaussian() * 0.25 * grow,
                         puff.vel.x * 0.4, puff.vel.y * 0.4, puff.vel.z * 0.4);
             }

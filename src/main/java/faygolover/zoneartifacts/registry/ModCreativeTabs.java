@@ -53,12 +53,7 @@ public class ModCreativeTabs {
                         output.accept(ModItems.PUKH.get());
                         output.accept(ModItems.EZHIK.get());
                         output.accept(ModItems.PUKH_FLESH.get());
-                        output.accept(ModItems.SIZE_TUNER.get());
-                        output.accept(ModItems.SPEED_TUNER.get());
-                        output.accept(ModItems.COOLDOWN_TUNER.get());
-                        output.accept(ModItems.EFFECT_TUNER.get());
-                        output.accept(ModItems.DAMAGE_TUNER.get());
-                        output.accept(ModItems.TARGETING_TUNER.get());
+                        output.accept(ModItems.PDA.get());
                     })
                     .build());
 

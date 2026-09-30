@@ -129,6 +129,7 @@ public class AnomalyArcRenderer {
         List<Integer> colorsToRender = new ArrayList<>();
 
         for (SyncAnomaliesPacket.Entry entry : ClientAnomalyCache.entriesFor(mc.level.dimension())) {
+            if (!entry.visible()) continue;
             if (entry.onCooldown()) continue;
 
             if (!AnomalyTypeIds.ELECTRA.equals(entry.typeId())) continue;
@@ -142,7 +143,7 @@ public class AnomalyArcRenderer {
             Key key = new Key(entry.typeId(), entry.pos());
             desired.add(key);
 
-            AABB trueAabb = AnomalyGeometry.centeredAabb(entry.pos(), entry.size());
+            AABB trueAabb = AnomalyGeometry.box(entry);
             AABB sampleAabb = trueAabb.deflate(VOLUME_INSET);
 
             List<Bundle> bundles = BUNDLES.computeIfAbsent(key, k -> new ArrayList<>());
@@ -209,7 +210,14 @@ public class AnomalyArcRenderer {
         if (mc.level == null) return;
 
         ArcInfo arc = arcFor(intensity);
+        // The zone as the client knows it (a box of its own proportions), or a cube of the sent size.
         AABB trueAabb = AnomalyGeometry.centeredAabb(pos, size);
+        for (SyncAnomaliesPacket.Entry entry : ClientAnomalyCache.allEntriesFor(mc.level.dimension())) {
+            if (entry.pos().equals(pos) && entry.typeId().equals(typeId)) {
+                trueAabb = AnomalyGeometry.box(entry);
+                break;
+            }
+        }
         List<Vec3> surface = findSurfacePoints(mc.level, trueAabb);
 
         RandomSource rand = RandomSource.create();
