@@ -1,0 +1,7 @@
+{
+  "parent": "fl_zone_arts:item/nut",
+  "textures": {
+    "metal": "fl_zone_arts:item/gear_rust",
+    "particle": "fl_zone_arts:item/gear_rust"
+  }
+}

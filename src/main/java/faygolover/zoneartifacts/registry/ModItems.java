@@ -95,11 +95,21 @@ public class ModItems {
             () -> new Item(new Item.Properties()));
 
     /** The anomaly KPK: every anomaly's settings in one window (replaced the six tuners in 0.1.35.0). */
+    /** Bolts and nuts to throw (new and rusty: only the look differs). */
+    public static final RegistryObject<Item> BOLT = bolt("bolt");
+    public static final RegistryObject<Item> BOLT_RUSTY = bolt("bolt_rusty");
+    public static final RegistryObject<Item> NUT = bolt("nut");
+    public static final RegistryObject<Item> NUT_RUSTY = bolt("nut_rusty");
+
     public static final RegistryObject<Item> PDA = ITEMS.register("pda",
             () -> new faygolover.zoneartifacts.item.PdaItem(new Item.Properties().stacksTo(1)));
 
     private static RegistryObject<Item> placer(String name, net.minecraft.resources.ResourceLocation typeId) {
         return ITEMS.register(name, () -> new AnomalyPlacerItem(typeId, new Item.Properties().stacksTo(1)));
+    }
+
+    private static RegistryObject<Item> bolt(String name) {
+        return ITEMS.register(name, () -> new faygolover.zoneartifacts.gear.BoltItem(new Item.Properties().stacksTo(64)));
     }
 
     private ModItems() {

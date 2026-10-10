@@ -49,6 +49,11 @@ public final class WebEngine {
                 }
                 if (!level.isLoaded(BlockPos.containing(s.a)) || !level.isLoaded(BlockPos.containing(s.b))) continue;
                 AABB box = new AABB(s.a, s.b).inflate(0.05);
+                for (faygolover.zoneartifacts.gear.BoltEntity bolt : level.getEntitiesOfClass(faygolover.zoneartifacts.gear.BoltEntity.class,
+                        box.inflate(0.3), faygolover.zoneartifacts.gear.BoltEntity::isAlive)) {
+                    AABB b = bolt.getBoundingBox().expandTowards(bolt.getDeltaMovement()).inflate(0.05);
+                    if (b.clip(s.a, s.b).isPresent() || b.contains(s.a) || b.contains(s.b)) bolt.discard();
+                }
                 for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, box, x -> x.isAlive() && !AnomalyCombat.spectatorExempt(x))) {
                     if (AnomalyCombat.creativeExempt(e)) continue;
                     AABB body = e.getBoundingBox();

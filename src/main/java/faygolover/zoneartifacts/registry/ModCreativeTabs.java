@@ -57,6 +57,20 @@ public class ModCreativeTabs {
                     })
                     .build());
 
+    /** Equipment: bolts and nuts for now (artifacts, belts later). */
+    public static final RegistryObject<CreativeModeTab> GEAR_TAB = TABS.register("gear",
+            () -> CreativeModeTab.builder()
+                    .title(Component.translatable("itemGroup.fl_zone_arts.gear"))
+                    .icon(() -> new ItemStack(ModItems.BOLT.get()))
+                    .withTabsBefore(ANOMALIES_TAB.getKey())
+                    .displayItems((parameters, output) -> {
+                        output.accept(ModItems.BOLT.get());
+                        output.accept(ModItems.BOLT_RUSTY.get());
+                        output.accept(ModItems.NUT.get());
+                        output.accept(ModItems.NUT_RUSTY.get());
+                    })
+                    .build());
+
     private ModCreativeTabs() {
     }
 }

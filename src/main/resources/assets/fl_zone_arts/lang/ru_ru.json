@@ -387,5 +387,21 @@
   "pda.fl_zone_arts.delete_sure": "Точно удалить?",
   "pda.fl_zone_arts.targets_gm": "На ГМ (креатив)",
   "message.fl_zone_arts.pda.deleted": "КПК: %s удалена",
-  "tuner.fl_zone_arts.charge_every": "раскаление: каждое N-е облачко"
+  "tuner.fl_zone_arts.charge_every": "раскаление: каждое N-е облачко",
+  "itemGroup.fl_zone_arts.gear": "Zone Artifacts: Снаряжение",
+  "item.fl_zone_arts.bolt": "Болт",
+  "item.fl_zone_arts.bolt_rusty": "Ржавый болт",
+  "item.fl_zone_arts.nut": "Гайка",
+  "item.fl_zone_arts.nut_rusty": "Ржавая гайка",
+  "entity.fl_zone_arts.bolt": "Болт",
+  "tooltip.fl_zone_arts.bolt.0": "ПКМ — бросить. Аномалии срабатывают",
+  "tooltip.fl_zone_arts.bolt.1": "на него, как на любой брошенный предмет.",
+  "message.fl_zone_arts.bolts.rescanned": "Звуки болтов: пересканировано блоков — %s",
+  "subtitles.fl_zone_arts.bolt_throw": "Брошен болт",
+  "subtitles.fl_zone_arts.bolt_hit_concrete": "Болт звякнул о камень",
+  "subtitles.fl_zone_arts.bolt_hit_default": "Болт упал",
+  "subtitles.fl_zone_arts.bolt_hit_dirt": "Болт упал в землю",
+  "subtitles.fl_zone_arts.bolt_hit_metal": "Болт звякнул о металл",
+  "subtitles.fl_zone_arts.bolt_hit_water": "Болт упал в воду",
+  "subtitles.fl_zone_arts.bolt_hit_wood": "Болт стукнул о дерево"
 }

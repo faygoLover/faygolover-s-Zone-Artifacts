@@ -79,6 +79,14 @@ public final class ModEntities {
                     .updateInterval(1)
                     .build(new ResourceLocation(ZoneArtifacts.MODID, "soap_bubble").toString()));
 
+    /** A thrown bolt or nut. */
+    public static final RegistryObject<EntityType<faygolover.zoneartifacts.gear.BoltEntity>> BOLT = ENTITY_TYPES.register("bolt",
+            () -> EntityType.Builder.<faygolover.zoneartifacts.gear.BoltEntity>of(faygolover.zoneartifacts.gear.BoltEntity::new, MobCategory.MISC)
+                    .sized(0.1f, 0.1f)
+                    .clientTrackingRange(4)
+                    .updateInterval(2)
+                    .build(new ResourceLocation(ZoneArtifacts.MODID, "bolt").toString()));
+
     private ModEntities() {
     }
 }

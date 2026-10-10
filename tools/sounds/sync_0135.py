@@ -14,9 +14,12 @@ RES = os.path.join(ROOT, 'src', 'main', 'resources', 'assets', 'fl_zone_arts')
 SND = os.path.join(RES, 'sounds')
 MODSOUNDS = os.path.join(ROOT, 'src', 'main', 'java', 'faygolover', 'zoneartifacts', 'registry', 'ModSounds.java')
 import os as _os
-# The sound sources: a folder next to the repository (anomaly_sfx/approved, …/processed), or ZONE_SFX.
-SFX = _os.environ.get('ZONE_SFX', _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), '..', '..', '..', 'anomaly_sfx'))
+# The sound sources: a folder next to the repository (sounds/approved, sounds/processed), or ZONE_SFX.
+_HERE = _os.path.dirname(_os.path.abspath(__file__))
+SFX = _os.environ.get('ZONE_SFX') or next((p for p in (_os.path.join(_HERE, '..', '..', '..', n) for n in ('sounds', 'anomaly_sfx'))
+                                           if _os.path.isdir(p)), _os.path.join(_HERE, '..', '..', '..', 'sounds'))
 A = SFX + '/approved/'
+B = SFX + '/bolt/'
 P = SFX + '/processed/'
 
 
@@ -81,6 +84,14 @@ EVENTS = {
     'psi_voices_l': [A + 'psi_zone/psi_zone_voices_left.ogg'],
     'psi_voices_r': [A + 'psi_zone/psi_zone_voices_right.ogg'],
     'psi_polter': [A + 'psi_zone/psi_zone_polter.ogg'],
+    # Bolts and nuts: the throw, and the first hit by surface (the bounces are in the sound).
+    'bolt_throw': [B + 'throw.ogg'],
+    'bolt_hit_concrete': [B + f'bolt_concrete-0{i}.ogg' for i in (1, 2, 3, 4)],
+    'bolt_hit_default': [B + f'bolt_default-0{i}.ogg' for i in (1, 2, 3, 4)],
+    'bolt_hit_dirt': [B + f'bolt_dirt-0{i}.ogg' for i in (1, 2, 3, 4)],
+    'bolt_hit_metal': [B + f'bolt_metal-0{i}.ogg' for i in (1, 2, 3, 4)],
+    'bolt_hit_water': [B + f'bolt_water-0{i}.ogg' for i in (1, 2, 3, 4)],
+    'bolt_hit_wood': [B + f'bolt_wood-0{i}.ogg' for i in (1, 2, 3, 4)],
 }
 # Extra per-entry fields.
 EXTRA = {
@@ -98,6 +109,13 @@ NEW_SUBTITLES = {
     'dymka_inside': ('Глухо шумит дымка', 'The haze rumbles'),
     'plesh_hum': ('Гудит Комариная плешь', 'Mosquito Bald hums'),
     'karusel_hum': ('Гудит Карусель', 'Karusel hums'),
+    'bolt_throw': ('Брошен болт', 'Bolt thrown'),
+    'bolt_hit_concrete': ('Болт звякнул о камень', 'Bolt hits stone'),
+    'bolt_hit_default': ('Болт упал', 'Bolt lands'),
+    'bolt_hit_dirt': ('Болт упал в землю', 'Bolt hits dirt'),
+    'bolt_hit_metal': ('Болт звякнул о металл', 'Bolt hits metal'),
+    'bolt_hit_water': ('Болт упал в воду', 'Bolt splashes'),
+    'bolt_hit_wood': ('Болт стукнул о дерево', 'Bolt hits wood'),
 }
 
 old = json.load(open(os.path.join(RES, 'sounds.json'), encoding='utf8'))

@@ -107,6 +107,13 @@ public final class RustEngine {
             return;
         }
         if (now - current.born >= ARM_TICKS) {
+            // A bolt or nut thrown onto it sets it off.
+            for (faygolover.zoneartifacts.gear.BoltEntity bolt : level.getEntitiesOfClass(faygolover.zoneartifacts.gear.BoltEntity.class, area,
+                    b -> b.isAlive() && horizontal(b.position(), current.at) <= r)) {
+                bolt.discard();
+                blast(level, instance, current, r);
+                return;
+            }
             for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, area, RustEngine::walker)) {
                 if (horizontal(e.position(), current.at) > r || Math.abs(e.getY() - current.at.y) > 0.8 || !e.onGround()) continue;
                 blast(level, instance, current, r);

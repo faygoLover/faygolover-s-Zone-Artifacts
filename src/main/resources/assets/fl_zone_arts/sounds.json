@@ -474,5 +474,65 @@
       }
     ],
     "subtitle": "subtitles.fl_zone_arts.psi_polter"
+  },
+  "bolt_throw": {
+    "sounds": [
+      "fl_zone_arts:bolt_throw"
+    ],
+    "subtitle": "subtitles.fl_zone_arts.bolt_throw"
+  },
+  "bolt_hit_concrete": {
+    "sounds": [
+      "fl_zone_arts:bolt_hit_concrete1",
+      "fl_zone_arts:bolt_hit_concrete2",
+      "fl_zone_arts:bolt_hit_concrete3",
+      "fl_zone_arts:bolt_hit_concrete4"
+    ],
+    "subtitle": "subtitles.fl_zone_arts.bolt_hit_concrete"
+  },
+  "bolt_hit_default": {
+    "sounds": [
+      "fl_zone_arts:bolt_hit_default1",
+      "fl_zone_arts:bolt_hit_default2",
+      "fl_zone_arts:bolt_hit_default3",
+      "fl_zone_arts:bolt_hit_default4"
+    ],
+    "subtitle": "subtitles.fl_zone_arts.bolt_hit_default"
+  },
+  "bolt_hit_dirt": {
+    "sounds": [
+      "fl_zone_arts:bolt_hit_dirt1",
+      "fl_zone_arts:bolt_hit_dirt2",
+      "fl_zone_arts:bolt_hit_dirt3",
+      "fl_zone_arts:bolt_hit_dirt4"
+    ],
+    "subtitle": "subtitles.fl_zone_arts.bolt_hit_dirt"
+  },
+  "bolt_hit_metal": {
+    "sounds": [
+      "fl_zone_arts:bolt_hit_metal1",
+      "fl_zone_arts:bolt_hit_metal2",
+      "fl_zone_arts:bolt_hit_metal3",
+      "fl_zone_arts:bolt_hit_metal4"
+    ],
+    "subtitle": "subtitles.fl_zone_arts.bolt_hit_metal"
+  },
+  "bolt_hit_water": {
+    "sounds": [
+      "fl_zone_arts:bolt_hit_water1",
+      "fl_zone_arts:bolt_hit_water2",
+      "fl_zone_arts:bolt_hit_water3",
+      "fl_zone_arts:bolt_hit_water4"
+    ],
+    "subtitle": "subtitles.fl_zone_arts.bolt_hit_water"
+  },
+  "bolt_hit_wood": {
+    "sounds": [
+      "fl_zone_arts:bolt_hit_wood1",
+      "fl_zone_arts:bolt_hit_wood2",
+      "fl_zone_arts:bolt_hit_wood3",
+      "fl_zone_arts:bolt_hit_wood4"
+    ],
+    "subtitle": "subtitles.fl_zone_arts.bolt_hit_wood"
   }
 }

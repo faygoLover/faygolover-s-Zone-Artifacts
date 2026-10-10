@@ -72,6 +72,13 @@ public final class ModSounds {
     public static final RegistryObject<SoundEvent> DYMKA_INSIDE = register("dymka_inside");
     public static final RegistryObject<SoundEvent> PLESH_HUM = register("plesh_hum");
     public static final RegistryObject<SoundEvent> KARUSEL_HUM = register("karusel_hum");
+    public static final RegistryObject<SoundEvent> BOLT_THROW = register("bolt_throw");
+    public static final RegistryObject<SoundEvent> BOLT_HIT_CONCRETE = register("bolt_hit_concrete");
+    public static final RegistryObject<SoundEvent> BOLT_HIT_DEFAULT = register("bolt_hit_default");
+    public static final RegistryObject<SoundEvent> BOLT_HIT_DIRT = register("bolt_hit_dirt");
+    public static final RegistryObject<SoundEvent> BOLT_HIT_METAL = register("bolt_hit_metal");
+    public static final RegistryObject<SoundEvent> BOLT_HIT_WATER = register("bolt_hit_water");
+    public static final RegistryObject<SoundEvent> BOLT_HIT_WOOD = register("bolt_hit_wood");
 
     private static RegistryObject<SoundEvent> register(String name) {
         ResourceLocation id = new ResourceLocation(ZoneArtifacts.MODID, name);

@@ -387,5 +387,21 @@
   "pda.fl_zone_arts.delete_sure": "Really delete?",
   "pda.fl_zone_arts.targets_gm": "Hits creative",
   "message.fl_zone_arts.pda.deleted": "KPK: %s deleted",
-  "tuner.fl_zone_arts.charge_every": "charged: every Nth puff"
+  "tuner.fl_zone_arts.charge_every": "charged: every Nth puff",
+  "itemGroup.fl_zone_arts.gear": "Zone Artifacts: Gear",
+  "item.fl_zone_arts.bolt": "Bolt",
+  "item.fl_zone_arts.bolt_rusty": "Rusty Bolt",
+  "item.fl_zone_arts.nut": "Nut",
+  "item.fl_zone_arts.nut_rusty": "Rusty Nut",
+  "entity.fl_zone_arts.bolt": "Bolt",
+  "tooltip.fl_zone_arts.bolt.0": "Right-click to throw. Anomalies react",
+  "tooltip.fl_zone_arts.bolt.1": "to it as to anything thrown.",
+  "message.fl_zone_arts.bolts.rescanned": "Bolt sounds: %s blocks rescanned",
+  "subtitles.fl_zone_arts.bolt_throw": "Bolt thrown",
+  "subtitles.fl_zone_arts.bolt_hit_concrete": "Bolt hits stone",
+  "subtitles.fl_zone_arts.bolt_hit_default": "Bolt lands",
+  "subtitles.fl_zone_arts.bolt_hit_dirt": "Bolt hits dirt",
+  "subtitles.fl_zone_arts.bolt_hit_metal": "Bolt hits metal",
+  "subtitles.fl_zone_arts.bolt_hit_water": "Bolt splashes",
+  "subtitles.fl_zone_arts.bolt_hit_wood": "Bolt hits wood"
 }

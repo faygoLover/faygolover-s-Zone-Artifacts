@@ -9,8 +9,10 @@ import soundfile as sf
 
 SR = 44100
 import os as _os
-# The sound sources: a folder next to the repository (anomaly_sfx/approved, …/processed), or ZONE_SFX.
-SFX = _os.environ.get('ZONE_SFX', _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), '..', '..', '..', 'anomaly_sfx'))
+# The sound sources: a folder next to the repository (sounds/approved, sounds/processed), or ZONE_SFX.
+_HERE = _os.path.dirname(_os.path.abspath(__file__))
+SFX = _os.environ.get('ZONE_SFX') or next((p for p in (_os.path.join(_HERE, '..', '..', '..', n) for n in ('sounds', 'anomaly_sfx'))
+                                           if _os.path.isdir(p)), _os.path.join(_HERE, '..', '..', '..', 'sounds'))
 APP = SFX + "/approved"
 OUT = SFX + "/processed"
 
