@@ -18,7 +18,7 @@ import net.minecraft.world.phys.Vec3;
  */
 public final class Pukh {
 
-    public static final ResourceLocation DAMAGE_TYPE = new ResourceLocation(ZoneArtifacts.MODID, "anomaly_chemical");
+    public static final ResourceLocation DAMAGE_TYPE = new ResourceLocation(ZoneArtifacts.MODID, "anomaly_pukh");
     public static final ResourceLocation PUFF_SOUND = id("pukh_puff");
 
     public static final int CONTACT_INTERVAL = 20;

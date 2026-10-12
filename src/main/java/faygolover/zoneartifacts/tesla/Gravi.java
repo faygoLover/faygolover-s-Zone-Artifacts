@@ -19,7 +19,7 @@ public final class Gravi {
     /** A low hum while it floats. */
     public static final ResourceLocation IDLE_SOUND = id("gravi_idle");
     public static final float IDLE_VOLUME = 0.35f;
-    public static final ResourceLocation DAMAGE_TYPE = id("anomaly_gravity");
+    public static final ResourceLocation DAMAGE_TYPE = id("anomaly_gravi");
     /** A pop sucks in for this long, then bursts. */
     public static final int WINDUP_TICKS = 8;
     /** Whoever is this close to a pop gets hurt and shoved. */

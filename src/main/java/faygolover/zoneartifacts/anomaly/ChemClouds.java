@@ -6,6 +6,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.util.Mth;
@@ -45,7 +46,8 @@ public final class ChemClouds {
     /** Blocks changed by one burst at most. */
     private static final int MAX_WITHERED = 400;
 
-    private record Cloud(ResourceKey<Level> dimension, Vec3 ground, double radius, long born, long dies, float damage) {
+    private record Cloud(ResourceKey<Level> dimension, Vec3 ground, double radius, long born, long dies, float damage,
+                         ResourceLocation damageType) {
         double radiusAt(long now) {
             double t = Mth.clamp((now - born) / (double) SPREAD_TICKS, 0.0, 1.0);
             return radius * (0.35 + 0.65 * (1.0 - (1.0 - t) * (1.0 - t)));
@@ -59,9 +61,10 @@ public final class ChemClouds {
     private ChemClouds() {
     }
 
-    public static void add(ServerLevel level, Vec3 ground, double radius, double seconds, float damage) {
+    /** A cloud burning with {@code damageType} (the Chemical Comet's, the Amoeba's, the Rust's dust). */
+    public static void add(ServerLevel level, Vec3 ground, double radius, double seconds, float damage, ResourceLocation damageType) {
         long now = level.getGameTime();
-        CLOUDS.add(new Cloud(level.dimension(), ground, radius, now, now + AnomalyDefaults.ticks(seconds), damage));
+        CLOUDS.add(new Cloud(level.dimension(), ground, radius, now, now + AnomalyDefaults.ticks(seconds), damage, damageType));
     }
 
     @SubscribeEvent
@@ -89,7 +92,7 @@ public final class ChemClouds {
                 if (last != null && now - last < PULSE_TICKS && now >= last) continue;
                 LAST_BURN.put(living, now);
                 living.invulnerableTime = 0;
-                AnomalyCombat.hurt(level, living, ChemComet.DAMAGE_TYPE, cloud.damage(), g);
+                AnomalyCombat.hurt(level, living, cloud.damageType(), cloud.damage(), g);
             }
         }
     }

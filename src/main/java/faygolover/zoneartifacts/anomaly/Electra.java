@@ -15,7 +15,7 @@ public final class Electra {
     /** Size of a freshly placed Electra, in blocks. */
     public static final double DEFAULT_SIZE = 1.0;
 
-    public static final ResourceLocation DAMAGE_TYPE = new ResourceLocation(ZoneArtifacts.MODID, "anomaly_shock");
+    public static final ResourceLocation DAMAGE_TYPE = new ResourceLocation(ZoneArtifacts.MODID, "anomaly_electra");
 
     public static final ResourceLocation IDLE_SOUND = id("electra_idle");
     public static final float IDLE_VOLUME = 0.4f;

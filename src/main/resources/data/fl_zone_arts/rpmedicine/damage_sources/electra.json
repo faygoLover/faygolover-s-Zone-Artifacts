@@ -1,0 +1,23 @@
+{
+  "priority": 30,
+  "damage_types": [
+    "fl_zone_arts:anomaly_electra"
+  ],
+  "wound": "burn",
+  "location": "focus",
+  "severity_multiplier": 0.8,
+  "focus_parts": [
+    1,
+    2
+  ],
+  "focus_share": 0.6,
+  "rest_pain_per_damage": 6,
+  "rest_pain_seconds": 15,
+  "complications": {
+    "fibrillation": {
+      "min_severity": 5,
+      "per_severity": 0.002,
+      "max": 0.05
+    }
+  }
+}

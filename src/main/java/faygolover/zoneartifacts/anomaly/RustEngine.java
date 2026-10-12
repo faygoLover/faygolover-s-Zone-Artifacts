@@ -33,7 +33,12 @@ import java.util.WeakHashMap;
 @Mod.EventBusSubscriber(modid = ZoneArtifacts.MODID)
 public final class RustEngine {
 
-    public static final ResourceLocation BURN_DAMAGE_TYPE = new ResourceLocation(ZoneArtifacts.MODID, "anomaly_rust");
+    /** The hot patch blowing up under someone. */
+    public static final ResourceLocation BLAST_DAMAGE_TYPE = new ResourceLocation(ZoneArtifacts.MODID, "anomaly_rust_blast");
+    /** The molten rust stuck on them, burning on. */
+    public static final ResourceLocation BURN_DAMAGE_TYPE = new ResourceLocation(ZoneArtifacts.MODID, "anomaly_rust_burn");
+    /** The dust raised underfoot. */
+    public static final ResourceLocation DUST_DAMAGE_TYPE = new ResourceLocation(ZoneArtifacts.MODID, "anomaly_rust_dust");
     public static final ResourceLocation BLAST_SOUND = new ResourceLocation(ZoneArtifacts.MODID, "rust_blast");
     public static final ResourceLocation HISS_SOUND = new ResourceLocation(ZoneArtifacts.MODID, "rust_hiss");
     /** The patch needs this long to heat up before it goes off. */
@@ -70,7 +75,7 @@ public final class RustEngine {
             if (last != null && now - last < DUST_EVERY) continue;
             LAST_DUST.put(e, now);
             Vec3 feet = e.position();
-            ChemClouds.add(level, feet, DUST_RADIUS, DUST_SECONDS, instance.damage());
+            ChemClouds.add(level, feet, DUST_RADIUS, DUST_SECONDS, instance.damage(), DUST_DAMAGE_TYPE);
             // Every chargeEveryPuffs-th puff raised while there's no patch is charged.
             int raised = spot == null ? PUFFS.merge(instance, 1, Integer::sum) : 0;
             int every = instance.range() > 0 ? (int) Math.round(instance.range()) : ModCommonConfig.RUST_CHARGE_EVERY.get();
@@ -138,7 +143,7 @@ public final class RustEngine {
         for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, area, RustEngine::walker)) {
             if (horizontal(e.position(), spot.at) > r + 0.6) continue;
             e.invulnerableTime = 0;
-            AnomalyCombat.hurt(level, e, BURN_DAMAGE_TYPE, blastDamage, spot.at);
+            AnomalyCombat.hurt(level, e, BLAST_DAMAGE_TYPE, blastDamage, spot.at);
             e.setSecondsOnFire(2);
             if (burnTicks > 0) BURNS.put(e, new int[]{burnTicks});
             for (EquipmentSlot slot : EquipmentSlot.values()) {

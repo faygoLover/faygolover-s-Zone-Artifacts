@@ -109,7 +109,7 @@ public final class KhlopushkaEngine {
             double d = e.getBoundingBox().getCenter().distanceTo(at);
             if (d > r) continue;
             e.invulnerableTime = 0;
-            AnomalyCombat.hurt(level, e, Thermal.HEAT_DAMAGE_TYPE, (float) (damage * (1.0 - (2.0 / 3.0) * d / r)), at);
+            AnomalyCombat.hurt(level, e, Thermal.KHLOPUSHKA_DAMAGE_TYPE, (float) (damage * (1.0 - (2.0 / 3.0) * d / r)), at);
         }
         // The flash: only for those looking at it, close enough, with nothing in between.
         double range = instance.range() > 0 ? instance.range() : ModCommonConfig.KHLOP_RANGE.get();

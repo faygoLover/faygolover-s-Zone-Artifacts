@@ -1,0 +1,11 @@
+{
+  "priority": 30,
+  "damage_types": [
+    "fl_zone_arts:anomaly_acid_fog_jet"
+  ],
+  "wound": "burn",
+  "location": "bottom_up",
+  "spread": {
+    "from_source": true
+  }
+}

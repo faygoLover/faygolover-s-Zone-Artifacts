@@ -78,6 +78,16 @@ public final class AnomalyCombat {
     }
 
     public static boolean hurt(ServerLevel level, LivingEntity target, ResourceLocation damageTypeId, float amount) {
+        return hurtAt(level, target, damageTypeId, amount, null);
+    }
+
+    /**
+     * The hit with the point it came from ({@code at}: the zone's centre, the end of a jet, a ball's position),
+     * carried in the damage source: RP Medicine picks the body part by it (a jet in the leg, a ball from the left).
+     * Nobody flees (see {@link #hurt(ServerLevel, LivingEntity, ResourceLocation, float, Vec3)} for that).
+     */
+    public static boolean hurtAt(ServerLevel level, LivingEntity target, ResourceLocation damageTypeId, float amount,
+                                  @javax.annotation.Nullable Vec3 at) {
         if (amount <= 0) return true;
         // Set harmless in the KPK: everything else happens as usual (the bolts, the shock, the sounds) — only no damage.
         if (current != null ? !current.harmful() : harmlessHere(level, target)) return true;
@@ -86,14 +96,14 @@ public final class AnomalyCombat {
                 .registryOrThrow(Registries.DAMAGE_TYPE)
                 .getHolder(key);
         if (holder.isEmpty()) return false;
-        target.hurt(new DamageSource(holder.get()), amount);
+        target.hurt(at != null ? new DamageSource(holder.get(), at) : new DamageSource(holder.get()), amount);
         return true;
     }
 
-    /** Like {@link #hurt(ServerLevel, LivingEntity, ResourceLocation, float)}, and a mob that
-     *  survives runs away from {@code from} ({@link #flee}). */
+    /** Like {@link #hurt(ServerLevel, LivingEntity, ResourceLocation, float)} from the point {@code from}
+     *  (the damage source carries it), and a mob that survives runs away from it ({@link #flee}). */
     public static boolean hurt(ServerLevel level, LivingEntity target, ResourceLocation damageTypeId, float amount, Vec3 from) {
-        boolean done = hurt(level, target, damageTypeId, amount);
+        boolean done = hurtAt(level, target, damageTypeId, amount, from);
         if (done && amount > 0) flee(target, from);
         return done;
     }

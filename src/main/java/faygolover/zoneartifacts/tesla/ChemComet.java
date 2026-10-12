@@ -12,7 +12,9 @@ import net.minecraft.resources.ResourceLocation;
  */
 public final class ChemComet {
 
-    public static final ResourceLocation DAMAGE_TYPE = id("anomaly_chemical");
+    public static final ResourceLocation DAMAGE_TYPE = id("anomaly_chem_comet");
+    /** The poisonous cloud it leaves. */
+    public static final ResourceLocation CLOUD_DAMAGE_TYPE = id("anomaly_chem_cloud");
     public static final ResourceLocation IDLE_SOUND = id("chem_comet_idle");
     public static final float IDLE_VOLUME = 0.7f;
     public static final ResourceLocation BURST_SOUND = id("chem_comet_burst");

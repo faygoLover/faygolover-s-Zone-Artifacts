@@ -1,0 +1,10 @@
+{
+  "priority": 30,
+  "damage_types": [
+    "fl_zone_arts:anomaly_swamp"
+  ],
+  "wound": "none",
+  "physiology": {
+    "spo2_per_damage": 4
+  }
+}

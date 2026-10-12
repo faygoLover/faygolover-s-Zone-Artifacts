@@ -1,0 +1,8 @@
+{
+  "priority": 30,
+  "damage_types": [
+    "fl_zone_arts:anomaly_kisel"
+  ],
+  "wound": "burn",
+  "location": "lower_legs"
+}

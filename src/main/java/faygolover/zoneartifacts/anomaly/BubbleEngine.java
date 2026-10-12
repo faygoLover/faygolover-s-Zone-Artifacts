@@ -109,7 +109,7 @@ public final class BubbleEngine {
             }
             if (e instanceof LivingEntity living && !AnomalyCombat.creativeExempt(living)) {
                 living.invulnerableTime = 0;
-                AnomalyCombat.hurt(level, living, Gravity.GRAVITY_DAMAGE_TYPE, (float) (damage * (0.4 + 0.6 * k)), c);
+                AnomalyCombat.hurt(level, living, Gravity.BUBBLES_DAMAGE_TYPE, (float) (damage * (0.4 + 0.6 * k)), c);
             }
         }
     }

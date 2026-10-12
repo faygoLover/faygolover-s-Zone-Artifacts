@@ -16,6 +16,7 @@ import net.minecraft.resources.ResourceLocation;
 public final class Comet {
 
     public static final ResourceLocation DAMAGE_TYPE = id("anomaly_comet");
+    public static final ResourceLocation COLD_DAMAGE_TYPE = id("anomaly_cold_comet");
 
     public static final ResourceLocation IDLE_SOUND = id("comet_idle");
     public static final float IDLE_VOLUME = 0.8f;

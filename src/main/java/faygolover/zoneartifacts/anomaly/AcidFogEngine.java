@@ -34,7 +34,7 @@ public final class AcidFogEngine {
             if (damage > 0.0f) {
                 for (LivingEntity living : level.getEntitiesOfClass(LivingEntity.class, zone, AcidFogEngine::hurtable)) {
                     living.invulnerableTime = 0;
-                    AnomalyCombat.hurt(level, living, AcidFog.DAMAGE_TYPE, damage, zone.getCenter());
+                    AnomalyCombat.hurt(level, living, AcidFog.GAS_DAMAGE_TYPE, damage, zone.getCenter());
                 }
             }
         }
@@ -62,7 +62,8 @@ public final class AcidFogEngine {
             e.hasImpulse = true;
             if (e instanceof LivingEntity living && hurtable(living)) {
                 living.invulnerableTime = 0;
-                AnomalyCombat.hurt(level, living, AcidFog.DAMAGE_TYPE, instance.damage(), at);
+                // From the jet's top: RP Medicine burns the body from the feet up to it.
+                AnomalyCombat.hurt(level, living, AcidFog.JET_DAMAGE_TYPE, instance.damage(), at.add(0.0, AcidFog.JET_HEIGHT, 0.0));
             }
         }
         FogJetPacket.send(level, at, instance.intensity());

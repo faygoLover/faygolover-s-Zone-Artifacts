@@ -223,7 +223,9 @@ public final class GravityEngine {
                     double d = victim.getBoundingBox().getCenter().distanceTo(c);
                     if (d > r) continue;
                     victim.invulnerableTime = 0;
-                    AnomalyCombat.hurt(level, victim, Gravity.GRAVITY_DAMAGE_TYPE, (float) (instance.damage() * Gravity.falloff(d, r, 0.3)), c);
+                    // In the core it's the tear itself: its own damage type (RP Medicine may make it a true death).
+                    AnomalyCombat.hurt(level, victim, d <= core ? Gravity.VORONKA_RUPTURE_DAMAGE_TYPE : Gravity.VORONKA_DAMAGE_TYPE,
+                            (float) (instance.damage() * Gravity.falloff(d, r, 0.3)), c);
                 }
             } finally {
                 goreActive = false;
@@ -239,7 +241,7 @@ public final class GravityEngine {
                     if (!Gravity.inCylinder(victim, instance.pos(), instance.size())) continue;
                     double d = Gravity.horizontalDistance(victim, c);
                     victim.invulnerableTime = 0;
-                    AnomalyCombat.hurt(level, victim, Gravity.GRAVITY_DAMAGE_TYPE, (float) (instance.damage() * Gravity.falloff(d, r, 0.25)), c);
+                    AnomalyCombat.hurt(level, victim, Gravity.KARUSEL_DAMAGE_TYPE, (float) (instance.damage() * Gravity.falloff(d, r, 0.25)), c);
                 }
             } finally {
                 goreActive = false;
@@ -438,7 +440,7 @@ public final class GravityEngine {
                     || (e instanceof Player && now - t.started > 1 && speed < t.previousSpeed * 0.35);
             if (hitWall && t.previousSpeed > 0.35) {
                 float damage = (float) (t.damage * Mth.clamp(t.previousSpeed / t.throwSpeed, 0.2, 1.0));
-                AnomalyCombat.hurt(level, e, Gravity.IMPACT_DAMAGE_TYPE, damage);
+                AnomalyCombat.hurtAt(level, e, Gravity.IMPACT_DAMAGE_TYPE, damage, wallPoint(e, t.previous, level.random));
                 it.remove();
                 continue;
             }
@@ -450,6 +452,17 @@ public final class GravityEngine {
             t.previous = at;
         }
         SOFT_FALL.values().removeIf(soft -> soft.until() < now - 1200);
+    }
+
+    /**
+     * Where a flung body met the wall: on its side facing the way it flew, at a random height (whatever part
+     * hit first). RP Medicine bruises that part.
+     */
+    private static Vec3 wallPoint(LivingEntity e, Vec3 previous, RandomSource random) {
+        Vec3 at = e.position();
+        Vec3 dir = new Vec3(at.x - previous.x, 0.0, at.z - previous.z);
+        dir = dir.lengthSqr() < 1.0E-6 ? Vec3.ZERO : dir.normalize().scale(e.getBbWidth() * 0.5);
+        return at.add(dir.x, e.getBbHeight() * (0.1 + 0.85 * random.nextDouble()), dir.z);
     }
 
     /** Fall damage of {@code entity} is multiplied by {@code multiplier} until {@code until} (its

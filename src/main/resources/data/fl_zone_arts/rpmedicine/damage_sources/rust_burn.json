@@ -1,0 +1,12 @@
+{
+  "priority": 30,
+  "damage_types": [
+    "fl_zone_arts:anomaly_rust_burn"
+  ],
+  "wound": "burn",
+  "location": "bottom_up",
+  "infection_risk": 2.0,
+  "spread": {
+    "start": 0.6
+  }
+}

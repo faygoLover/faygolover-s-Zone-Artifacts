@@ -165,16 +165,17 @@ public final class RazlomEngine {
         boolean hitSomeone = false;
         for (LivingEntity victim : near) {
             AABB box = victim.getBoundingBox().inflate(JET_THICKNESS);
-            if (!touches(box, points)) continue;
+            Vec3 hitAt = touchPoint(box, points);
+            if (hitAt == null) continue;
             hitSomeone = true;
             // Hits land every few ticks on purpose: don't let vanilla's half-second of
             // invulnerability swallow them.
             victim.invulnerableTime = 0;
             if (cold) {
-                AnomalyCombat.hurt(level, victim, Thermal.COLD_DAMAGE_TYPE, instance.damage(), flame);
+                AnomalyCombat.hurt(level, victim, Thermal.COLD_RAZLOM_DAMAGE_TYPE, instance.damage(), hitAt);
                 ColdEffects.freeze(victim, ModCommonConfig.COLD_RAZLOM_FREEZE_SECONDS.get());
             } else {
-                AnomalyCombat.hurt(level, victim, Thermal.HEAT_DAMAGE_TYPE, instance.damage(), flame);
+                AnomalyCombat.hurt(level, victim, Thermal.RAZLOM_DAMAGE_TYPE, instance.damage(), hitAt);
                 int ignite = ModCommonConfig.RAZLOM_IGNITE_SECONDS.get();
                 if (ignite > 0 && !victim.fireImmune()) victim.setSecondsOnFire(ignite);
             }
@@ -187,12 +188,17 @@ public final class RazlomEngine {
         }
     }
 
-    private static boolean touches(AABB box, List<Vec3> points) {
+    /** Where the arc first enters {@code box} (RP Medicine burns the body part there), or null if it misses. */
+    @javax.annotation.Nullable
+    private static Vec3 touchPoint(AABB box, List<Vec3> points) {
         for (int i = 0; i < points.size() - 1; i++) {
             Vec3 a = points.get(i);
-            if (box.contains(a) || box.clip(a, points.get(i + 1)).isPresent()) return true;
+            if (box.contains(a)) return a;
+            java.util.Optional<Vec3> in = box.clip(a, points.get(i + 1));
+            if (in.isPresent()) return in.get();
         }
-        return box.contains(points.get(points.size() - 1));
+        Vec3 last = points.get(points.size() - 1);
+        return box.contains(last) ? last : null;
     }
 
     private static void endJet(ServerLevel level, AnomalyInstance instance) {

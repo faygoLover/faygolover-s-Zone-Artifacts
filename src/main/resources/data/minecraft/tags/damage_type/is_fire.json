@@ -1,7 +1,9 @@
 {
   "replace": false,
   "values": [
-    "fl_zone_arts:anomaly_heat",
+    "fl_zone_arts:anomaly_zharka",
+    "fl_zone_arts:anomaly_razlom",
+    "fl_zone_arts:anomaly_khlopushka",
     "fl_zone_arts:anomaly_comet"
   ]
 }

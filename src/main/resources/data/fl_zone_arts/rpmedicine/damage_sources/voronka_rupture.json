@@ -1,0 +1,27 @@
+{
+  "priority": 31,
+  "damage_types": [
+    "fl_zone_arts:anomaly_voronka_rupture"
+  ],
+  "wound": "bruise",
+  "location": "explosion",
+  "severity_multiplier": 1.3,
+  "complications": {
+    "fracture": {
+      "min_severity": 5,
+      "per_severity": 0.02,
+      "max": 0.8
+    },
+    "open_fracture_fraction": 0.4,
+    "internal": {
+      "min_severity": 5,
+      "per_severity": 0.02,
+      "max": 0.7
+    },
+    "arterial": {
+      "min_severity": 10,
+      "per_severity": 0.015,
+      "max": 0.4
+    }
+  }
+}

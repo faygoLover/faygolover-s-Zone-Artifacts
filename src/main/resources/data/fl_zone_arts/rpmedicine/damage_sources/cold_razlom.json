@@ -1,0 +1,8 @@
+{
+  "priority": 30,
+  "damage_types": [
+    "fl_zone_arts:anomaly_cold_razlom"
+  ],
+  "wound": "frostbite",
+  "location": "hit_point"
+}

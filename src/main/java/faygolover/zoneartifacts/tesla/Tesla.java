@@ -22,7 +22,7 @@ public final class Tesla {
     /** How long the "growing out of a point" spawn takes, standing still. */
     public static final int SPAWN_GROW_TICKS = 20;
 
-    public static final ResourceLocation DAMAGE_TYPE = id("anomaly_shock");
+    public static final ResourceLocation DAMAGE_TYPE = id("anomaly_tesla");
 
     public static final ResourceLocation IDLE_SOUND = id("tesla_idle");
     public static final float IDLE_VOLUME = 0.6f;

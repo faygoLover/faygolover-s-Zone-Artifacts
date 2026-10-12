@@ -1,0 +1,16 @@
+{
+  "priority": 30,
+  "damage_types": [
+    "fl_zone_arts:anomaly_iney"
+  ],
+  "wound": "frostbite",
+  "location": "extremities",
+  "spread": {
+    "start": 0.3,
+    "per_second": 0.04,
+    "reset_seconds": 3
+  },
+  "physiology": {
+    "body_temp_per_damage": -0.08
+  }
+}

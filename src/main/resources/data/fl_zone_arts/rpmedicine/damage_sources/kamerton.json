@@ -1,0 +1,8 @@
+{
+  "priority": 30,
+  "damage_types": [
+    "fl_zone_arts:anomaly_kamerton"
+  ],
+  "wound": "cut",
+  "location": "explosion"
+}

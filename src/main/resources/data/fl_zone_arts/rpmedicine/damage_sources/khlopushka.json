@@ -1,0 +1,16 @@
+{
+  "priority": 30,
+  "damage_types": [
+    "fl_zone_arts:anomaly_khlopushka"
+  ],
+  "wound": "burn",
+  "location": "head",
+  "complications": {
+    "concussion": {
+      "min_severity": 0,
+      "per_severity": 0.02,
+      "max": 0.4,
+      "amount_per_severity": 0.5
+    }
+  }
+}

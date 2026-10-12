@@ -14,7 +14,10 @@ import net.minecraft.util.Mth;
  */
 public final class Amoeba {
 
-    public static final ResourceLocation DAMAGE_TYPE = new ResourceLocation(ZoneArtifacts.MODID, "anomaly_chemical");
+    /** Touching the jelly. */
+    public static final ResourceLocation DAMAGE_TYPE = new ResourceLocation(ZoneArtifacts.MODID, "anomaly_amoeba");
+    /** Its burst and the acid cloud after it. */
+    public static final ResourceLocation CLOUD_DAMAGE_TYPE = new ResourceLocation(ZoneArtifacts.MODID, "anomaly_amoeba_cloud");
     public static final ResourceLocation GATHER_SOUND = id("amoeba_gather");
     public static final ResourceLocation POP_SOUND = id("amoeba_pop");
     /** The burst in amoeba_pop comes this far into the sound. */

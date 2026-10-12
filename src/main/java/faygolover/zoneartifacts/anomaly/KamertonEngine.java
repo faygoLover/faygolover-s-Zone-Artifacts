@@ -26,7 +26,7 @@ import java.util.WeakHashMap;
  */
 public final class KamertonEngine {
 
-    public static final ResourceLocation DAMAGE_TYPE = new ResourceLocation(ZoneArtifacts.MODID, "anomaly_cut");
+    public static final ResourceLocation DAMAGE_TYPE = new ResourceLocation(ZoneArtifacts.MODID, "anomaly_kamerton");
     public static final ResourceLocation CUT_SOUND = new ResourceLocation(ZoneArtifacts.MODID, "kamerton_cut");
     public static final ResourceLocation SHATTER_SOUND = new ResourceLocation(ZoneArtifacts.MODID, "kamerton_shatter");
 

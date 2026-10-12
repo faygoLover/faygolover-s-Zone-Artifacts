@@ -12,7 +12,7 @@ import net.minecraft.world.phys.AABB;
  */
 public final class Kisel {
 
-    public static final ResourceLocation DAMAGE_TYPE = new ResourceLocation(ZoneArtifacts.MODID, "anomaly_chemical");
+    public static final ResourceLocation DAMAGE_TYPE = new ResourceLocation(ZoneArtifacts.MODID, "anomaly_kisel");
     public static final ResourceLocation IDLE_SOUND = new ResourceLocation(ZoneArtifacts.MODID, "kisel_idle");
     public static final ResourceLocation HIT_SOUND = new ResourceLocation(ZoneArtifacts.MODID, "kisel_hit");
     /** Seconds without contact before it calms down. */

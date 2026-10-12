@@ -1,0 +1,12 @@
+{
+  "priority": 30,
+  "damage_types": [
+    "fl_zone_arts:anomaly_acid_fog_gas"
+  ],
+  "wound": "none",
+  "physiology": {
+    "lungs_per_damage": 1.0,
+    "spo2_per_damage": 2.0,
+    "inhaled": true
+  }
+}

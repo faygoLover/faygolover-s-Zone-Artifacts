@@ -62,7 +62,8 @@ public class ChemCometEntity extends TeslaEntity {
         Double ground = Razlom.groundY(level, c.x, c.z, c.y + 0.5, c.y - 8.0);
         double groundY = ground != null ? ground : c.y - 0.5;
         double seconds = ModCommonConfig.CHEM_COMET_CLOUD_SECONDS.get();
-        ChemClouds.add(level, new Vec3(c.x, groundY, c.z), radius, seconds, ModCommonConfig.CHEM_COMET_CLOUD_DAMAGE.get().floatValue());
+        ChemClouds.add(level, new Vec3(c.x, groundY, c.z), radius, seconds, ModCommonConfig.CHEM_COMET_CLOUD_DAMAGE.get().floatValue(),
+                ChemComet.CLOUD_DAMAGE_TYPE);
         if (ModCommonConfig.CHEM_COMET_KILLS_PLANTS.get()) {
             ChemClouds.wither(level, c, Math.min(radius, ChemComet.MAX_WITHER_RADIUS), level.random);
         }

@@ -1,0 +1,15 @@
+{
+  "priority": 30,
+  "damage_types": [
+    "fl_zone_arts:anomaly_gravi"
+  ],
+  "wound": "bruise",
+  "location": "hit_point",
+  "complications": {
+    "fracture": {
+      "min_severity": 10,
+      "per_severity": 0.02,
+      "max": 0.5
+    }
+  }
+}

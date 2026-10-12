@@ -1,0 +1,11 @@
+{
+  "priority": 30,
+  "damage_types": [
+    "fl_zone_arts:anomaly_poppy"
+  ],
+  "wound": "none",
+  "physiology": {
+    "spo2_per_damage": 0.1,
+    "brain_per_damage": 0.08
+  }
+}

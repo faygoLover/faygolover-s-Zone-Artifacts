@@ -14,8 +14,11 @@ import net.minecraft.resources.ResourceLocation;
  */
 public final class Thermal {
 
-    public static final ResourceLocation HEAT_DAMAGE_TYPE = id("anomaly_heat");
-    public static final ResourceLocation COLD_DAMAGE_TYPE = id("anomaly_cold");
+    public static final ResourceLocation ZHARKA_DAMAGE_TYPE = id("anomaly_zharka");
+    public static final ResourceLocation INEY_DAMAGE_TYPE = id("anomaly_iney");
+    public static final ResourceLocation RAZLOM_DAMAGE_TYPE = id("anomaly_razlom");
+    public static final ResourceLocation COLD_RAZLOM_DAMAGE_TYPE = id("anomaly_cold_razlom");
+    public static final ResourceLocation KHLOPUSHKA_DAMAGE_TYPE = id("anomaly_khlopushka");
 
     /** Delay from "someone stepped in" to the first damage pulse = the visual ramp-up (0.2 s). */
     public static final int FIRST_PULSE_DELAY_TICKS = 4;

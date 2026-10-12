@@ -1,0 +1,26 @@
+{
+  "priority": 30,
+  "damage_types": [
+    "fl_zone_arts:anomaly_karusel"
+  ],
+  "wound": "bruise",
+  "location": "explosion",
+  "complications": {
+    "concussion": {
+      "min_severity": 5,
+      "per_severity": 0.03,
+      "max": 0.8
+    },
+    "internal": {
+      "min_severity": 10,
+      "per_severity": 0.015,
+      "max": 0.5
+    },
+    "pneumothorax": {
+      "min_severity": 20,
+      "per_severity": 0.01,
+      "max": 0.3,
+      "blunt": true
+    }
+  }
+}

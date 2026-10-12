@@ -37,7 +37,7 @@ import java.util.WeakHashMap;
 @Mod.EventBusSubscriber(modid = ZoneArtifacts.MODID)
 public final class PoppyEngine {
 
-    public static final ResourceLocation DAMAGE_TYPE = new ResourceLocation(ZoneArtifacts.MODID, "anomaly_sleep");
+    public static final ResourceLocation DAMAGE_TYPE = new ResourceLocation(ZoneArtifacts.MODID, "anomaly_poppy");
     /** Eyelids closing before a micro-sleep's walk, and opening after it, ticks. */
     public static final int CLOSE_TICKS = 24;
     public static final int OPEN_TICKS = 14;

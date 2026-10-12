@@ -1,0 +1,10 @@
+{
+  "priority": 30,
+  "damage_types": [
+    "fl_zone_arts:anomaly_comet"
+  ],
+  "wound": "burn",
+  "location": "explosion",
+  "secondary_wound": "bruise",
+  "secondary_share": 0.4
+}

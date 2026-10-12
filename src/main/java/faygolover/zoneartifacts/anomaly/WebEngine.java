@@ -61,7 +61,7 @@ public final class WebEngine {
                     Vec3 at = cut.orElse(body.contains(s.a) ? s.a : body.contains(s.b) ? s.b : null);
                     if (at == null) continue;
                     e.invulnerableTime = 0;
-                    AnomalyCombat.hurt(level, e, DAMAGE_TYPE, web.damage);
+                    AnomalyCombat.hurtAt(level, e, DAMAGE_TYPE, web.damage, at);
                     s.brokenUntil = now + AnomalyDefaults.ticks(web.regrowSeconds);
                     AnomalyCombat.playSound(level, at, SNAP_SOUND, 0.9f, 0.9f + level.random.nextFloat() * 0.3f);
                     WebStrandPacket.send(level, web.id, i, true, at);

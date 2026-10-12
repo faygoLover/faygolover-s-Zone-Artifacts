@@ -1,0 +1,9 @@
+{
+  "priority": 30,
+  "damage_types": [
+    "fl_zone_arts:anomaly_pukh"
+  ],
+  "wound": "burn",
+  "location": "hit_point",
+  "severity_multiplier": 0.5
+}

@@ -51,8 +51,13 @@ public final class Gravity {
     public static final ResourceLocation PODUSHKA_BOUNCE_SOUND = id("podushka_bounce");
     public static final ResourceLocation GORE_SOUND = id("anomaly_body_tear");
 
-    public static final ResourceLocation GRAVITY_DAMAGE_TYPE = id("anomaly_gravity");
-    public static final ResourceLocation IMPACT_DAMAGE_TYPE = id("anomaly_impact");
+    public static final ResourceLocation VORONKA_DAMAGE_TYPE = id("anomaly_voronka");
+    /** The Voronka's core: in RP Medicine it may kill for good (its tag rpmedicine:true_death). */
+    public static final ResourceLocation VORONKA_RUPTURE_DAMAGE_TYPE = id("anomaly_voronka_rupture");
+    public static final ResourceLocation KARUSEL_DAMAGE_TYPE = id("anomaly_karusel");
+    public static final ResourceLocation BUBBLES_DAMAGE_TYPE = id("anomaly_bubbles");
+    /** Flung by a Plesh into a wall. */
+    public static final ResourceLocation IMPACT_DAMAGE_TYPE = id("anomaly_plesh_impact");
 
     private Gravity() {
     }

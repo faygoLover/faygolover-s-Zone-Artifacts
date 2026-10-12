@@ -11,7 +11,10 @@ import net.minecraft.resources.ResourceLocation;
  */
 public final class AcidFog {
 
-    public static final ResourceLocation DAMAGE_TYPE = new ResourceLocation(ZoneArtifacts.MODID, "anomaly_chemical");
+    /** Standing in the fog (breathed in). */
+    public static final ResourceLocation GAS_DAMAGE_TYPE = new ResourceLocation(ZoneArtifacts.MODID, "anomaly_acid_fog_gas");
+    /** A jet from the ground (burns from the feet up, as high as it reaches). */
+    public static final ResourceLocation JET_DAMAGE_TYPE = new ResourceLocation(ZoneArtifacts.MODID, "anomaly_acid_fog_jet");
     public static final ResourceLocation IDLE_SOUND = new ResourceLocation(ZoneArtifacts.MODID, "fog_idle");
     public static final ResourceLocation JET_SOUND = new ResourceLocation(ZoneArtifacts.MODID, "fog_jet");
     /** A jet's width and height, blocks. */

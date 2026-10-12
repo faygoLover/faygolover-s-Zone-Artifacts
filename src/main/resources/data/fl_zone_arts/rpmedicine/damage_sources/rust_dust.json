@@ -1,0 +1,14 @@
+{
+  "priority": 30,
+  "damage_types": [
+    "fl_zone_arts:anomaly_rust_dust"
+  ],
+  "wound": "burn",
+  "location": "lower_legs",
+  "severity_multiplier": 0.4,
+  "physiology": {
+    "lungs_per_damage": 0,
+    "spo2_per_damage": 1.0,
+    "inhaled": true
+  }
+}

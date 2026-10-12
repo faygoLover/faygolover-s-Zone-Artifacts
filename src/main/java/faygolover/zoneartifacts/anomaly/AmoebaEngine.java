@@ -88,12 +88,13 @@ public final class AmoebaEngine {
             double d = victim.getBoundingBox().getCenter().distanceTo(center);
             if (d > reach) continue;
             victim.invulnerableTime = 0;
-            AnomalyCombat.hurt(level, victim, Amoeba.DAMAGE_TYPE, (float) (instance.damage() * Gravity.falloff(d, reach, 0.3)), center);
+            AnomalyCombat.hurt(level, victim, Amoeba.CLOUD_DAMAGE_TYPE, (float) (instance.damage() * Gravity.falloff(d, reach, 0.3)), center);
         }
         Double ground = Razlom.groundY(level, center.x, center.z, center.y + 0.5, center.y - 8.0);
         double groundY = ground != null ? ground : center.y - 1.0;
         double seconds = ModCommonConfig.AMOEBA_CLOUD_SECONDS.get();
-        ChemClouds.add(level, new Vec3(center.x, groundY, center.z), cloud, seconds, ModCommonConfig.AMOEBA_CLOUD_DAMAGE.get().floatValue());
+        ChemClouds.add(level, new Vec3(center.x, groundY, center.z), cloud, seconds, ModCommonConfig.AMOEBA_CLOUD_DAMAGE.get().floatValue(),
+                Amoeba.CLOUD_DAMAGE_TYPE);
         ModNetwork.CHANNEL.send(PacketDistributor.NEAR.with(() -> new PacketDistributor.TargetPoint(center.x, center.y, center.z, 96.0, level.dimension())),
                 new ChemBurstPacket(center, groundY, (float) cloud, (float) seconds, instance.intensity()));
         AmoebaEventPacket.send(level, instance.pos(), AmoebaEventPacket.POP);
