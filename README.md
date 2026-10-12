@@ -94,16 +94,6 @@ master. Interface in Russian and English.*
   числе из других модов) по названию и тегам, сохраняет таблицу «блок → звук» и отключает сканирование. Таблицу
   можно править руками; `"useScan": false` — только правила по тегам; `/fl_zone_arts bolts rescan` — пересканировать.
 
-## Сборка из исходников
-
-```bash
-./gradlew build        # мод: build/libs/fl_zone_arts-<версия>.jar
-./gradlew runClient    # запустить Minecraft с модом для проверки
-```
-
-На Windows — `gradlew.bat`. Нужен JDK 17. Первая сборка скачает Minecraft и Forge (10–20 минут).
-В `tools/` — скрипты, которыми сделаны иконки (Python + Pillow) и часть звуков (numpy, scipy, soundfile).
-
 ## История версий
 
 [CHANGELOG.md](CHANGELOG.md)
