@@ -184,7 +184,7 @@ public final class Gas {
         PoseStack poseStack = lateStagePose(event);
         poseStack.translate(-cam.x, -cam.y, -cam.z);
         Matrix4f m = poseStack.last().pose();
-        RenderSystem.setShader(ZaShaders::soft);
+        RenderSystem.setShader(ZaShaders::puff);
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
         RenderSystem.disableCull();

@@ -203,7 +203,12 @@ public final class LatePass {
         // (a vanilla stage: Embeddium draws the terrain itself); without a pack also the frame's depth.
         if (stage == RenderLevelStageEvent.Stage.AFTER_ENTITIES) {
             ZaShaders.syncFog();
-            if (!shaderPack()) SceneDepth.capture(new Matrix4f(RenderSystem.getProjectionMatrix()));
+            AnomalyLight.capture(event.getPoseStack().last().pose(), RenderSystem.getProjectionMatrix());
+            if (!shaderPack()) {
+                SceneDepth.capture(new Matrix4f(RenderSystem.getProjectionMatrix()));
+                // The anomalies' light before any anomaly is drawn (lit after, they turned white).
+                AnomalyLight.draw(event.getPartialTick(), false);
+            }
         }
         if (stage == RenderLevelStageEvent.Stage.AFTER_SKY) {
             SNAPSHOTS.clear();

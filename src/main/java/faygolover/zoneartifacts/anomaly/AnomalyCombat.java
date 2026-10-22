@@ -42,12 +42,13 @@ public final class AnomalyCombat {
      *
      * @return whether the damage type was found and the hit was attempted
      */
-    /** The zone being ticked right now (its KPK "damage" switch decides), or null. */
-    @javax.annotation.Nullable
-    private static AnomalyInstance current;
+    /** The zone being ticked right now on this thread (its KPK "damage" switch decides), or null. Per thread:
+     *  in single player the client's thread asks too, and a shared field could turn null between the check
+     *  and the use (it crashed the player's tick). */
+    private static final ThreadLocal<AnomalyInstance> CURRENT = new ThreadLocal<>();
 
     public static void setCurrent(@javax.annotation.Nullable AnomalyInstance instance) {
-        current = instance;
+        CURRENT.set(instance);
     }
 
     /** A creative player whom this may leave alone (unless the zone at work acts on creative players too). */
@@ -61,6 +62,7 @@ public final class AnomalyCombat {
     }
 
     private static boolean targetsGm(net.minecraft.world.entity.Entity e) {
+        AnomalyInstance current = CURRENT.get();
         if (current != null) return current.targetsGm();
         if (!(e.level() instanceof ServerLevel level)) return false;
         for (AnomalyInstance instance : AnomalySavedData.get(level).instances()) {
@@ -90,6 +92,7 @@ public final class AnomalyCombat {
                                   @javax.annotation.Nullable Vec3 at) {
         if (amount <= 0) return true;
         // Set harmless in the KPK: everything else happens as usual (the bolts, the shock, the sounds) — only no damage.
+        AnomalyInstance current = CURRENT.get();
         if (current != null ? !current.harmful() : harmlessHere(level, target)) return true;
         ResourceKey<DamageType> key = ResourceKey.create(Registries.DAMAGE_TYPE, damageTypeId);
         Optional<Holder.Reference<DamageType>> holder = level.registryAccess()

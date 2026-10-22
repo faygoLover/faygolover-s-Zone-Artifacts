@@ -80,12 +80,12 @@ public final class Halo {
                 } else {
                     r = 1.0f; g = 0.5f; b = 0.15f;
                 }
-                strength = 0.32f * breath;
-                radius = 1.9 * size;
+                strength = 0.13f * breath;
+                radius = 1.5 * size;
             } else {
                 r = 0.55f; g = 0.72f; b = 1.0f;
-                strength = 0.26f * breath;
-                radius = 1.6 * size;
+                strength = 0.11f * breath;
+                radius = 1.3 * size;
             }
             radius *= 0.96 + 0.04 * breath;
             quad(buffer, m, c.subtract(cam), left, up, radius, r, g, b, strength);

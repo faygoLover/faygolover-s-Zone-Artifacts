@@ -66,8 +66,10 @@ public final class Smoke {
         List<AABB> dusks = SumrakClient.zones();
         List<Integer> density = SumrakClient.densities();
         for (int i = 0; i < dusks.size(); i++) {
+            // From inside one sees only black (the Dusk's own darkness on screen): nothing to march through.
+            if (dusks.get(i).contains(cam)) continue;
             int eff = i < density.size() ? density.get(i) : 3;
-            volumes.add(new Volume(dusks.get(i), 0.012f, 0.012f, 0.016f, 2.4f + 0.25f * eff, 0.35f));
+            volumes.add(new Volume(dusks.get(i), 0.012f, 0.012f, 0.016f, 2.4f + 0.25f * eff, 0.5f));
         }
         float skyDarken = level.getSkyDarken(partial);
         for (SyncAnomaliesPacket.Entry entry : ClientAnomalyCache.entriesFor(level.dimension())) {
@@ -76,7 +78,7 @@ public final class Smoke {
             int packedLight = LevelRenderer.getLightColor(level, BlockPos.containing(box.getCenter()));
             float light = 0.2f + 0.8f * Math.max(LightTexture.block(packedLight) / 15.0f * 0.7f, LightTexture.sky(packedLight) / 15.0f * skyDarken);
             int eff = ModClientConfig.effective(entry.intensity());
-            volumes.add(new Volume(box, 0.73f * light, 0.75f * light, 0.77f * light, 0.12f + 0.03f * eff, 0.55f));
+            volumes.add(new Volume(box, 0.73f * light, 0.75f * light, 0.77f * light, 0.32f + 0.07f * eff, 0.7f));
         }
         volumes.removeIf(v -> v.box.getCenter().distanceToSqr(cam) > MAX_DISTANCE * MAX_DISTANCE);
         if (volumes.isEmpty()) return;
@@ -98,7 +100,7 @@ public final class Smoke {
         GL11.glCullFace(GL11.GL_FRONT);
         for (Volume v : volumes) {
             // A little bigger than the zone: the torn edges curl out past it.
-            AABB box = v.box.inflate(v.edge * 1.5).move(-cam.x, -cam.y, -cam.z);
+            AABB box = v.box.inflate(v.edge * 2.5).move(-cam.x, -cam.y, -cam.z);
             shader.safeGetUniform("ZaBoxMin").set((float) box.minX, (float) box.minY, (float) box.minZ);
             shader.safeGetUniform("ZaBoxMax").set((float) box.maxX, (float) box.maxY, (float) box.maxZ);
             shader.safeGetUniform("ZaSmoke").set(v.r, v.g, v.b, v.density);

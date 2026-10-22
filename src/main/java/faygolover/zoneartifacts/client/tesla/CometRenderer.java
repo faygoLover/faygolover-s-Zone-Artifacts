@@ -137,7 +137,8 @@ public class CometRenderer extends EntityRenderer<CometEntity> {
             if (grow < 0.02f) continue;
             Vec3 c = entity.getPosition(partialTick).add(0.0, entity.getBbHeight() / 2.0, 0.0);
             boolean cold = entity.isCold();
-            int color = FireDraw.mix(cold ? SOUL_CYAN : YELLOW, cold ? SOUL_WHITE : HOT_WHITE, 0.5f);
+            // The core in its own colour (it read as plain white): bright, but yellow-orange / icy blue.
+            int color = cold ? FireDraw.mix(SOUL_CYAN, SOUL_WHITE, 0.25f) : FireDraw.mix(YELLOW, ORANGE, 0.3f);
             coreDisc(core, world, c, 0.15 * grow * entity.getSize(), cam, color);
         }
         BufferUploader.drawWithShader(core.end());
@@ -265,23 +266,6 @@ public class CometRenderer extends EntityRenderer<CometEntity> {
             FireDraw.ribbon(matrix, buffer, points, inner, innerColor, cam);
         }
 
-        // ---- a faint ring of fire circling the ball ----
-        int ringPoints = 28;
-        Vec3[] ring = new Vec3[ringPoints + 1];
-        float[] ringWidth = new float[ringPoints + 1];
-        int[] ringColor = new int[ringPoints + 1];
-        Vec3 u = ball.ringU;
-        Vec3 v = ball.ringV;
-        for (int k = 0; k <= ringPoints; k++) {
-            double angle = Math.PI * 2.0 * k / ringPoints + time * 0.04;
-            double r = radius * (1.25 + 0.05 * Math.sin(angle * 3.0 + time * 0.2));
-            ring[k] = center.add(rotate(u.scale(Math.cos(angle) * r).add(v.scale(Math.sin(angle) * r)), ball.axis, spin * 0.5f));
-            float flicker = 0.55f + 0.45f * Mth.sin((float) (angle * 2.0) + time * 0.08f + ball.phase);
-            ringWidth[k] = 0.02f * widthScale;
-            ringColor[k] = FireDraw.fade(FireDraw.mix(cDeep, body, flicker), 0.45f * flicker);
-        }
-        FireDraw.ribbon(matrix, buffer, ring, ringWidth, ringColor, cam);
-
         // ---- flares: short tongues of flame thrown out to the side ----
         if (state != TeslaEntity.State.SPAWNING) {
             for (Flare f : ball.flares) {
@@ -315,8 +299,8 @@ public class CometRenderer extends EntityRenderer<CometEntity> {
         // white-hot heart (the old bright middle glow and wide opaque disc made the core look huge).
         FireDraw.glow(matrix, buffer, center, 0.36 * scale * pulse, cam, FireDraw.fade(body, 0.16f), 18);
         Vec3 toCam = cam.subtract(center).normalize();
-        FireDraw.glow(matrix, buffer, center.add(toCam.scale(0.02 * size)), 0.17 * scale * pulse, cam,
-                FireDraw.mix(cHot, cBright, 0.3f * shift), 14);
+        FireDraw.glow(matrix, buffer, center.add(toCam.scale(0.02 * size)), 0.12 * scale * pulse, cam,
+                FireDraw.fade(FireDraw.mix(cHot, cBright, 0.55f + 0.3f * shift), 0.8f), 14);
     }
 
     /** Rotates {@code v} around the unit {@code axis} by {@code angle} radians (Rodrigues). */
@@ -341,19 +325,12 @@ public class CometRenderer extends EntityRenderer<CometEntity> {
         final float phase;
         final float spinSpeed;
         final Vec3 axis;
-        final Vec3 ringU;
-        final Vec3 ringV;
         long lastUpdate = -1_000_000L;
 
         Ball(int id) {
             this.phase = (id * 0.618f) % 1.0f * (float) (Math.PI * 2.0);
             this.spinSpeed = 0.015f + random.nextFloat() * 0.015f;
             this.axis = randomUnit(random);
-            Vec3 helper = Math.abs(axis.y) < 0.9 ? new Vec3(0, 1, 0) : new Vec3(1, 0, 0);
-            Vec3 tilt = randomUnit(random).scale(0.5).add(axis).normalize();
-            Vec3 u = tilt.cross(helper).normalize();
-            this.ringU = u;
-            this.ringV = tilt.cross(u).normalize();
         }
 
         void update(long now, int intensity) {

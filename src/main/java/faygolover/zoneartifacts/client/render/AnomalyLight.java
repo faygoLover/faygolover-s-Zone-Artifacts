@@ -38,12 +38,12 @@ import java.util.Map;
 /**
  * The light burning and glowing anomalies cast on the world round them — the Comets, the Tesla,
  * the Kisel's puddles, the Zharka at work — for the picture only (the world's light levels don't
- * change). Once a frame after the world (with a shader pack: on its finished frame, in the
- * {@link LatePass}), per pixel from the depth: up to 8 nearest lights, each brightening the surfaces
+ * change). Once a frame, right after the entities and before any anomaly is drawn (lit afterwards,
+ * the fireballs themselves were brightened up to white); with a shader pack on its finished frame,
+ * before the anomalies of the {@link LatePass}. Per pixel from the depth: up to 8 nearest lights, each brightening the surfaces
  * in its reach in its own colour, the more the more they face it. The hand isn't lit (without a pack
  * it's drawn after this; with one, its depth gives it away).
  */
-@Mod.EventBusSubscriber(modid = ZoneArtifacts.MODID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public final class AnomalyLight {
 
     private static final int MAX_LIGHTS = 8;
@@ -66,15 +66,10 @@ public final class AnomalyLight {
     private AnomalyLight() {
     }
 
-    /** The world's view and projection this frame (the AFTER_LEVEL event carries the wrong ones). */
-    @SubscribeEvent(priority = EventPriority.HIGHEST)
-    public static void onRenderLevelStage(RenderLevelStageEvent event) {
-        if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_ENTITIES) {
-            view = new Matrix4f(event.getPoseStack().last().pose());
-            projection = new Matrix4f(RenderSystem.getProjectionMatrix());
-        } else if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_LEVEL && !LatePass.active()) {
-            draw(event.getPartialTick(), false);
-        }
+    /** The world's view and projection this frame (from {@link LatePass}, after the entities). */
+    static void capture(Matrix4f pose, Matrix4f proj) {
+        view = new Matrix4f(pose);
+        projection = new Matrix4f(proj);
     }
 
     /** Lights up the main target ({@code pack}: a shader pack's finished frame). */

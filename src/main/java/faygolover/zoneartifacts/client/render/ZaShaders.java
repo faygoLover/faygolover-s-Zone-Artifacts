@@ -53,6 +53,8 @@ public final class ZaShaders {
     private static ShaderInstance smoke;
     @Nullable
     private static ShaderInstance film;
+    @Nullable
+    private static ShaderInstance puff;
     /** The terrain's fog this frame (see {@link #syncFog()}). */
     private static float fogStart;
     private static float fogEnd = 1.0f;
@@ -96,6 +98,17 @@ public final class ZaShaders {
                 DefaultVertexFormat.POSITION), s -> smoke = s);
         event.registerShader(new ShaderInstance(event.getResourceProvider(), new ResourceLocation(ZoneArtifacts.MODID, "film"),
                 DefaultVertexFormat.POSITION_COLOR_NORMAL), s -> film = s);
+        event.registerShader(new ShaderInstance(event.getResourceProvider(), new ResourceLocation(ZoneArtifacts.MODID, "puff"),
+                DefaultVertexFormat.POSITION_COLOR), s -> puff = s);
+    }
+
+    /**
+     * The soft shader with soft edges: for what hangs in the air (gas puffs) and should melt where it
+     * meets the ground. Things lying on a surface (puddles, cracks, the outline of a zone) use plain
+     * {@link #soft()} — with soft edges they melted into the very ground they lie on.
+     */
+    public static ShaderInstance puff() {
+        return puff != null ? puff : soft();
     }
 
     /** A soap bubble's film per pixel. Falls back to the soft shader until loaded. */
@@ -129,7 +142,7 @@ public final class ZaShaders {
 
     /** Our shaders that read the frame (za_scene.glsl): the soft and glow ones, and those added later. */
     private static ShaderInstance[] sceneReaders() {
-        return new ShaderInstance[]{soft, glow, halo, smoke, film};
+        return new ShaderInstance[]{soft, glow, halo, smoke, film, puff};
     }
 
     /**
@@ -143,7 +156,9 @@ public final class ZaShaders {
             if (depthTexture != 0) shader.setSampler("ZaDepth", depthTexture);
             shader.safeGetUniform("ZaInvProj").set(invProjection);
             shader.safeGetUniform("ZaScreen").set((float) width, (float) height);
-            shader.safeGetUniform("ZaSoft").set(depthTexture != 0 ? soft : 0.0f);
+            // Soft edges only for what hangs in the air; puddles, cracks and glows on surfaces stay as they are.
+            boolean airborne = shader == puff || shader == halo || shader == film;
+            shader.safeGetUniform("ZaSoft").set(depthTexture != 0 && airborne ? soft : 0.0f);
             shader.safeGetUniform("ZaDither").set(dither);
         }
     }
@@ -214,7 +229,7 @@ public final class ZaShaders {
         fogStart = start;
         fogEnd = end;
         System.arraycopy(color, 0, FOG_COLOR, 0, 4);
-        for (ShaderInstance shader : new ShaderInstance[]{soft, glow, halo, film}) {
+        for (ShaderInstance shader : new ShaderInstance[]{soft, glow, halo, film, puff}) {
             if (shader == null) continue;
             shader.safeGetUniform("ZaFogStart").set(start);
             shader.safeGetUniform("ZaFogEnd").set(end);

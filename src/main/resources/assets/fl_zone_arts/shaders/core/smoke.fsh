@@ -45,9 +45,12 @@ float density(vec3 p) {
     vec3 c = (ZaBoxMin + ZaBoxMax) * 0.5;
     vec3 h = (ZaBoxMax - ZaBoxMin) * 0.5;
     vec3 q = abs(p - c) - h;
+    // The box was grown by 2.5 x edge round the zone: here the zone's own face is 2.5 x edge in. The torn
+    // edge swings at most 1.2 x edge either way round 1.3 x edge in, so the density always reaches 0
+    // before the box's faces (no straight cut along them).
     float inside = -max(max(q.x, q.y), q.z);
-    inside += (fbm3(w * 0.45 + drift) - 0.5) * 2.2 * ZaEdge * 4.0;
-    float shape = clamp(inside / max(ZaEdge * 4.0, 0.01), 0.0, 1.0);
+    float torn = inside - 1.3 * ZaEdge + (fbm3(w * 0.45 + drift) - 0.5) * 2.4 * ZaEdge;
+    float shape = clamp(torn / max(2.0 * ZaEdge, 0.01), 0.0, 1.0);
     float churn = 0.55 + 0.7 * fbm3(w * 0.8 - drift * 1.3);
     return shape * churn;
 }
