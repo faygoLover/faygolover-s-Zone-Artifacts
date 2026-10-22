@@ -1,6 +1,6 @@
 #version 150
 
-// Zone Artifacts: what our shaders know of the frame — the packed depth (see depth_pack.fsh), turned
+// Zone Artifacts: what our shaders know of the frame - the packed depth (see depth_pack.fsh), turned
 // back into the distance of whatever is behind this pixel; and a little noise against banding.
 
 uniform sampler2D ZaDepth;
@@ -16,7 +16,7 @@ float za_scene_distance() {
     return length(v.xyz / v.w);
 }
 
-/** 0..1: how much shows of something this far away — fading out where it runs into the world behind. */
+/** 0..1: how much shows of something this far away - fading out where it runs into the world behind. */
 float za_soft(float distance) {
     if (ZaSoft <= 0.0) return 1.0;
     return clamp((za_scene_distance() - distance) / ZaSoft, 0.0, 1.0);

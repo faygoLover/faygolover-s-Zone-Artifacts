@@ -663,10 +663,14 @@ public final class ModCommonConfig {
         WEB_REGROW_SECONDS = b.comment("A snapped thread grows back after this long, seconds (the cooldown tuner).")
                 .defineInRange("regrowSeconds", 30.0, 1.0, 36000.0);
         WEB_INTENSITY = b.comment("How brightly the threads glint (the effects tuner).").defineInRange("intensity", 3, 1, 50);
-        WEB_LIGHT_ITEMS = b.comment("Items that, held in hand and pointed at a thread, make it glint (flashlights of any mod).")
+        WEB_LIGHT_ITEMS = b.comment("Items that, held in hand and pointed at a thread, make it glint (flashlights of any mod).",
+                        "An item id, or id{keys}: a light only while its NBT says so - each key must be there and true / not 0;",
+                        "?key is checked only if it's there (e.g. a battery that counts as full when missing).",
+                        "Example: sa_combat:flashlight{FlashlightOn,?FlashlightBattery}")
                 .defineListAllowEmpty(java.util.List.of("lightItems"), () -> java.util.List.of("minecraft:torch", "minecraft:soul_torch",
                         "minecraft:lantern", "minecraft:soul_lantern", "minecraft:glowstone", "minecraft:shroomlight",
-                        "minecraft:sea_lantern", "minecraft:redstone_torch"), o -> o instanceof String);
+                        "minecraft:sea_lantern", "minecraft:redstone_torch", "sa_combat:flashlight{FlashlightOn,?FlashlightBattery}"),
+                        o -> o instanceof String);
         b.pop();
 
         b.comment("Phantom light: flickering blue lights tightly set in 5 evenly spaced upright lines (the outer two shorter),",

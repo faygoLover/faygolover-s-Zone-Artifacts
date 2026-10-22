@@ -232,8 +232,7 @@ public final class Gas {
     private static float light(ClientLevel level, Vec3 p, float skyDarken) {
         int packed = LevelRenderer.getLightColor(level, BlockPos.containing(p));
         float block = LightTexture.block(packed) / 15.0f;
-        float sky = LightTexture.sky(packed) / 15.0f * skyDarken;
-        return 0.15f + 0.85f * Math.max(block, sky);
+        return faygolover.zoneartifacts.client.ZoneLight.at(level, p, Minecraft.getInstance().getFrameTime());
     }
 
     /** A camera-facing ragged disc: dense middle, a ring at 55 %, a soft torn rim. */

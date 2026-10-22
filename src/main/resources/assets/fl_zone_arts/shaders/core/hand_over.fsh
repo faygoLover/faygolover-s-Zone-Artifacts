@@ -1,7 +1,7 @@
 #version 150
 
 // Zone Artifacts: the hand drawn back over the psi zone's swimming picture, or its fading after-image
-// (the last frame's hand, shifted by Offset) — only where the mask says the hand was.
+// (the last frame's hand, shifted by Offset) - only where the mask says the hand was.
 
 uniform sampler2D DiffuseSampler;
 uniform sampler2D MaskSampler;

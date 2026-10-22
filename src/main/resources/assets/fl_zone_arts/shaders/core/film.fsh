@@ -3,7 +3,7 @@
 #moj_import <fog.glsl>
 #moj_import <fl_zone_arts:za_scene.glsl>
 
-// Zone Artifacts: a soap bubble's film worked out per pixel — nearly clear where one looks straight
+// Zone Artifacts: a soap bubble's film worked out per pixel - nearly clear where one looks straight
 // through it, dense towards the outline (the Fresnel effect); thin-film rainbow swirls drifting over it
 // (the film's thickness from noise); a sharp highlight. Vertex colour: rgb = how lit it is where it
 // floats, a = how bright (charging bubbles swell and brighten). Normal: the sphere's, in the world.

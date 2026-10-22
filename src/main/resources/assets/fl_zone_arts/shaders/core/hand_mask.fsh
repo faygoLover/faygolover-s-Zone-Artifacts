@@ -1,6 +1,6 @@
 #version 150
 
-// Zone Artifacts: where the hand (and what it holds) is on screen — from the depth: it's nearer than Threshold.
+// Zone Artifacts: where the hand (and what it holds) is on screen - from the depth: it's nearer than Threshold.
 
 uniform sampler2D DepthSampler;
 uniform float Threshold;

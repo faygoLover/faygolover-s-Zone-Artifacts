@@ -3,7 +3,7 @@
 #moj_import <fog.glsl>
 #moj_import <fl_zone_arts:za_scene.glsl>
 
-// Zone Artifacts: the glow of the air round a fireball — a soft, wide halo falling off smoothly (a
+// Zone Artifacts: the glow of the air round a fireball - a soft, wide halo falling off smoothly (a
 // gaussian, worked out per pixel), additive. UV runs -1..1 over the quad; the colour's alpha is its strength.
 
 uniform vec4 ColorModulator;

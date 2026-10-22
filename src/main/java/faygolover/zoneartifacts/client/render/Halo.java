@@ -39,13 +39,28 @@ public final class Halo {
 
     private static final double MAX_DISTANCE = 64.0;
 
+    private record Extra(Vec3 pos, double radius, float r, float g, float b, float strength) {
+    }
+
+    /** Halos asked for this frame by other anomalies (fireflies, phantom lights): drawn with the fireballs'. */
+    private static final java.util.List<Extra> EXTRA = new java.util.ArrayList<>();
+
+    /** Asks for a halo round {@code pos} this frame (world position; strength 0..1). */
+    public static void add(Vec3 pos, double radius, float r, float g, float b, float strength) {
+        if (strength > 0.005f && ModClientConfig.glowHalo()) EXTRA.add(new Extra(pos, radius, r, g, b, strength));
+    }
+
     private Halo() {
     }
 
     @SubscribeEvent(priority = EventPriority.LOW)
     public static void onRenderLevelStage(RenderLevelStageEvent event) {
         if (LatePass.deferred(event)) return;
-        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_WEATHER || !ModClientConfig.glowHalo()) return;
+        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_WEATHER) return;
+        if (!ModClientConfig.glowHalo()) {
+            EXTRA.clear();
+            return;
+        }
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) return;
         ShaderInstance shader = ZaShaders.halo();
@@ -91,6 +106,12 @@ public final class Halo {
             quad(buffer, m, c.subtract(cam), left, up, radius, r, g, b, strength);
             any = true;
         }
+        for (Extra x : EXTRA) {
+            if (x.pos.distanceToSqr(cam) > MAX_DISTANCE * MAX_DISTANCE) continue;
+            quad(buffer, m, x.pos.subtract(cam), left, up, x.radius, x.r, x.g, x.b, x.strength);
+            any = true;
+        }
+        EXTRA.clear();
         if (!any) {
             buffer.end();
             return;

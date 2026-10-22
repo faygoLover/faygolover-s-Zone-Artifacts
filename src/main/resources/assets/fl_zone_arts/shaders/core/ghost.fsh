@@ -1,6 +1,6 @@
 #version 150
 
-// Zone Artifacts: the psi sight's after-image of the hand — the fading trail (premultiplied), shifted by Offset.
+// Zone Artifacts: the psi sight's after-image of the hand - the fading trail (premultiplied), shifted by Offset.
 
 uniform sampler2D DiffuseSampler;
 uniform vec2 Offset;

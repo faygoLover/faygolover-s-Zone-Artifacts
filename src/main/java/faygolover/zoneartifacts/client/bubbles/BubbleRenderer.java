@@ -142,8 +142,7 @@ public class BubbleRenderer extends EntityRenderer<BubbleEntity> {
     /** How lit it is where it floats (the film isn't a light source; at night it's dim). */
     private static float lit(BubbleEntity entity, int packed, float partial) {
         float block = LightTexture.block(packed) / 15.0f;
-        float sky = LightTexture.sky(packed) / 15.0f * ((ClientLevel) entity.level()).getSkyDarken(partial);
-        return 0.25f + 0.75f * Math.max(block, sky);
+        return faygolover.zoneartifacts.client.ZoneLight.at((ClientLevel) entity.level(), entity.position(), partial);
     }
 
     private static float shadeOf(int channel, float lit) {

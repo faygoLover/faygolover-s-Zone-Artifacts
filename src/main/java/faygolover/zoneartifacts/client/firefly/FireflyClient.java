@@ -51,6 +51,15 @@ public final class FireflyClient {
 
     private static final Map<BlockPos, Swarm> SWARMS = new HashMap<>();
 
+    /** For the light it casts ({@code AnomalyLight}): each swarm's middle, a little above the ground, and its size. */
+    public static void lights(java.util.function.BiConsumer<Vec3, Double> out) {
+        for (Swarm s : SWARMS.values()) {
+            if (s.entry == null || !s.entry.visible()) continue;
+            AABB zone = AnomalyGeometry.box(s.entry);
+            out.accept(new Vec3((zone.minX + zone.maxX) * 0.5, zone.minY + 1.0, (zone.minZ + zone.maxZ) * 0.5), (double) s.entry.size());
+        }
+    }
+
     private FireflyClient() {
     }
 
@@ -139,11 +148,13 @@ public final class FireflyClient {
                 float seed = s.seeds[i];
                 float blink = (float) (0.75 + 0.25 * Math.sin(t * 0.21 + seed));
                 if (Math.sin(t * 0.013 + seed * 3.0) > 0.93) blink *= 0.15f;
-                LightningDraw.glow(m, vc, at, 0.45, cam, 170, 255, 90, (int) (70 * blink), 14);
-                LightningDraw.glow(m, vc, at, 0.09, cam, 245, 255, 190, (int) (255 * blink), 10);
+                LightningDraw.glow(m, vc, at, 0.6, cam, 170, 255, 90, (int) (95 * blink), 14);
+                LightningDraw.glow(m, vc, at, 0.1, cam, 245, 255, 190, (int) (255 * blink), 10);
+                // The air glowing round it (per pixel, with the glow halo on).
+                faygolover.zoneartifacts.client.render.Halo.add(at, 1.5, 0.65f, 1.0f, 0.3f, 0.3f * blink);
                 // Its glow on the ground below.
                 float onGround = (float) Math.max(0.0, 1.0 - above / (h + 1.0));
-                disc(vc, m, new Vec3(at.x, ground + 0.02, at.z), 0.9, (int) (40 * blink * onGround));
+                disc(vc, m, new Vec3(at.x, ground + 0.02, at.z), 1.6, (int) (60 * blink * onGround));
             }
         }
         buffers.endBatch(GlowRenderType.GLOW);

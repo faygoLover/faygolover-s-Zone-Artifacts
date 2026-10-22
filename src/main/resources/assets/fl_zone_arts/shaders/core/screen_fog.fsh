@@ -1,7 +1,7 @@
 #version 150
 
 // Zone Artifacts: the Haze's / the Dusk's fog over a shader pack's finished frame (the packs ignore
-// vanilla's fog distances) — vanilla's linear fog, from the depth. The hand (nearer than HandDepth) stays clear.
+// vanilla's fog distances) - vanilla's linear fog, from the depth. The hand (nearer than HandDepth) stays clear.
 
 uniform sampler2D DepthSampler;
 uniform mat4 InvProjMat;

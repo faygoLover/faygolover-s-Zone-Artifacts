@@ -103,8 +103,10 @@ public class ThermalParticle extends TextureSheetParticle {
         float fade = Math.min(1.0f, age / fadeIn) * Math.min(1.0f, (1.0f - t) * 4.0f);
         switch (kind) {
             case EMBER -> {
-                float flicker = 0.75f + 0.25f * Mth.sin(age * 0.45f + phase);
-                alpha = baseAlpha * fade * flicker;
+                // An ember dies by shrinking, not by fading: with a shader pack a fading (half see-through)
+                // spark went dark, then black, at night.
+                float flicker = 0.85f + 0.15f * Mth.sin(age * 0.45f + phase);
+                alpha = baseAlpha * Math.min(1.0f, age / 3.0f) * flicker;
             }
             case HEAT_SMOKE, DUST -> {
                 setSpriteFromAge(sprites);
@@ -118,7 +120,7 @@ public class ThermalParticle extends TextureSheetParticle {
     public float getQuadSize(float partialTicks) {
         float t = (age + partialTicks) / lifetime;
         return switch (kind) {
-            case EMBER -> baseSize * (1.0f - t * 0.4f);
+            case EMBER -> baseSize * (1.0f - t * 0.4f) * Math.min(1.0f, (1.0f - t) * 4.0f);
             case HEAT_SMOKE -> baseSize * (1.0f + t * 1.5f);
             case DUST -> baseSize * (1.0f + t * 0.3f);
             default -> baseSize * (1.0f + t * 0.8f);

@@ -66,8 +66,9 @@ public final class Smoke {
         List<AABB> dusks = SumrakClient.zones();
         List<Integer> density = SumrakClient.densities();
         for (int i = 0; i < dusks.size(); i++) {
-            // From inside one sees only black (the Dusk's own darkness on screen): nothing to march through.
-            if (dusks.get(i).contains(cam)) continue;
+            // Deep inside one sees only black (the Dusk's own darkness on screen): nothing to march through.
+            // Only once the sight is fully gone — at the edge one still sees, and the smoke must be there.
+            if (dusks.get(i).contains(cam) && SumrakClient.inside(partial) >= 0.97f) continue;
             int eff = i < density.size() ? density.get(i) : 3;
             volumes.add(new Volume(dusks.get(i), 0.012f, 0.012f, 0.016f, 2.4f + 0.25f * eff, 0.5f));
         }
@@ -76,7 +77,7 @@ public final class Smoke {
             if (!AnomalyTypeIds.DYMKA.equals(entry.typeId()) || !entry.visible() || !entry.enabled()) continue;
             AABB box = AnomalyGeometry.box(entry);
             int packedLight = LevelRenderer.getLightColor(level, BlockPos.containing(box.getCenter()));
-            float light = 0.2f + 0.8f * Math.max(LightTexture.block(packedLight) / 15.0f * 0.7f, LightTexture.sky(packedLight) / 15.0f * skyDarken);
+            float light = faygolover.zoneartifacts.client.ZoneLight.at(level, box.getCenter(), partial);
             int eff = ModClientConfig.effective(entry.intensity());
             volumes.add(new Volume(box, 0.73f * light, 0.75f * light, 0.77f * light, 0.32f + 0.07f * eff, 0.7f));
         }

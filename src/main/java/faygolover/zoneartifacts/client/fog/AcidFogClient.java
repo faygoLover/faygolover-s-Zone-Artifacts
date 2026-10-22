@@ -87,7 +87,7 @@ public final class AcidFogClient {
             Vec3 v = new Vec3(RANDOM.nextGaussian() * 0.04, 0.05 + RANDOM.nextDouble() * 0.05, RANDOM.nextGaussian() * 0.04);
             Gas.add(new Gas.Puff(at.add(RANDOM.nextGaussian() * 0.2, 0.2, RANDOM.nextGaussian() * 0.2), v, 0.4,
                     1.0 + RANDOM.nextDouble() * 0.5, now, 25 + RANDOM.nextInt(15), 0.45f, JET_DARK, JET_LIGHT,
-                    RANDOM.nextFloat() * 10f).drag(0.9).glow(0.6f));
+                    RANDOM.nextFloat() * 10f).drag(0.9));
         }
         JETS.add(new Jet(at, intensity));
     }
@@ -157,7 +157,7 @@ public final class AcidFogClient {
             Gas.add(new Gas.Puff(new Vec3(x, y, z), drift, 0.8, 1.6 + RANDOM.nextDouble() * 0.8, now,
                     HAZE_LIFE_MIN + RANDOM.nextInt(HAZE_LIFE_SPREAD), 0.14f + RANDOM.nextFloat() * 0.06f,
                     dark ? HAZE_DARK : HAZE_MID, HAZE_LIGHT, RANDOM.nextFloat() * 10f)
-                    .settle(y).drag(0.98).glow(0.45f).dayFade());
+                    .settle(y).drag(0.98).dayFade());
         }
     }
 
@@ -171,7 +171,7 @@ public final class AcidFogClient {
             Vec3 p = jet.at.add(RANDOM.nextGaussian() * AcidFog.JET_RADIUS * 0.25, 0.1, RANDOM.nextGaussian() * AcidFog.JET_RADIUS * 0.25);
             Vec3 v = new Vec3(RANDOM.nextGaussian() * 0.015, up, RANDOM.nextGaussian() * 0.015);
             Gas.add(new Gas.Puff(p, v, 0.3, 0.9 + RANDOM.nextDouble() * 0.6, now, 30 + RANDOM.nextInt(20),
-                    (0.3f + 0.15f * fade), JET_DARK, JET_LIGHT, RANDOM.nextFloat() * 10f).drag(0.93).glow(0.6f));
+                    (0.3f + 0.15f * fade), JET_DARK, JET_LIGHT, RANDOM.nextFloat() * 10f).drag(0.93));
         }
         int drops = (int) ((3 + eff) * fade);
         for (int i = 0; i < drops; i++) {

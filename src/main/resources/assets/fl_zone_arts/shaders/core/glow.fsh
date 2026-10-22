@@ -3,7 +3,7 @@
 #moj_import <fog.glsl>
 #moj_import <fl_zone_arts:za_scene.glsl>
 
-// Zone Artifacts: glows and arcs (additive) — like vanilla lightning, fading out in the world's fog.
+// Zone Artifacts: glows and arcs (additive) - like vanilla lightning, fading out in the world's fog.
 
 uniform vec4 ColorModulator;
 uniform float ZaFogStart;

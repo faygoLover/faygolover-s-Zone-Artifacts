@@ -1,9 +1,9 @@
 #version 150
 
-// Zone Artifacts: the light the anomalies cast on the world around them â€” for the picture only (the
+// Zone Artifacts: the light the anomalies cast on the world around them - for the picture only (the
 // world's light levels don't change). Per pixel, from the depth: where the surface is (relative to the
 // camera) and which way it faces; up to 8 lights, each a position, a reach, a colour and a strength.
-// Out: the lit pixel (the frame's colour, brightened in the light's colour — mostly by its own colour, a
+// Out: the lit pixel (the frame's colour, brightened in the light's colour - mostly by its own colour, a
 // little on its own so dark surfaces at night still catch it); untouched pixels are discarded.
 
 uniform sampler2D DepthSampler;
@@ -47,5 +47,5 @@ void main() {
         discard;
     }
     vec3 scene = texture(SceneSampler, texCoord).rgb;
-    fragColor = vec4(scene + light * (scene * 0.9 + 0.06), 1.0);
+    fragColor = vec4(scene + light * (scene * 0.9 + 0.12), 1.0);
 }

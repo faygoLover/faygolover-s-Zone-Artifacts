@@ -146,8 +146,9 @@ public final class AnomalyLight {
             if (e instanceof ChemCometEntity) {
                 out.add(new Light(c, 3.5f * size + 1.0f, 0.55f, 0.85f, 0.2f, 0.35f));
             } else if (e instanceof CometEntity comet) {
-                if (comet.isCold()) out.add(new Light(c, 6.0f * size + 1.5f, 0.35f, 0.75f, 1.0f, 1.0f * flicker));
-                else out.add(new Light(c, 6.0f * size + 1.5f, 1.0f, 0.55f, 0.18f, 1.1f * flicker));
+                // Deep, saturated fire colours (paler ones washed the walls almost white).
+                if (comet.isCold()) out.add(new Light(c, 6.5f * size + 1.5f, 0.2f, 0.6f, 1.0f, 1.35f * flicker));
+                else out.add(new Light(c, 6.5f * size + 1.5f, 1.0f, 0.42f, 0.07f, 1.5f * flicker));
             } else {
                 // The Tesla: a steady blue-white light (it strobed).
                 out.add(new Light(c, 5.0f * size + 1.5f, 0.6f, 0.75f, 1.0f, 0.9f * flicker));
@@ -164,6 +165,10 @@ public final class AnomalyLight {
             Vec3 c = new Vec3((zone.minX + zone.maxX) * 0.5, zone.minY + 0.6, (zone.minZ + zone.maxZ) * 0.5);
             out.add(new Light(c, (float) (2.5 + st.entry().size()), 1.0f, 0.5f, 0.15f, 0.9f * a));
         }
+        faygolover.zoneartifacts.client.firefly.FireflyClient.lights((pos, size) ->
+                out.add(new Light(pos, (float) (size * 0.6 + 2.5), 0.55f, 1.0f, 0.25f, 0.35f)));
+        faygolover.zoneartifacts.client.fantom.FantomClient.lights(cam, (pos, size, fade) ->
+                out.add(new Light(pos, (float) (size + 3.0), 0.35f, 0.55f, 1.0f, 0.45f * fade)));
         out.removeIf(l -> l.pos.distanceToSqr(cam) > MAX_DISTANCE * MAX_DISTANCE);
         out.sort(Comparator.comparingDouble(l -> l.pos.distanceToSqr(cam)));
         return out;

@@ -78,7 +78,7 @@ public final class WebClient {
     private static List<Web> webs = List.of();
     @Nullable
     private static Vec3 lastPoint;
-    private static Set<Item> lights = Set.of();
+    private static java.util.Map<Item, java.util.List<String>> lights = java.util.Map.of();
     private static long lightsAt = -1000;
 
     private WebClient() {
@@ -124,19 +124,50 @@ public final class WebClient {
         return WebPlacerItem.holds(player) || PdaItem.holds(player);
     }
 
-    private static Set<Item> lightItems(long now) {
+    /** The light items from the config (re-read every 10 s): each with the NBT keys that must say "on". */
+    private static java.util.Map<Item, java.util.List<String>> lightItems(long now) {
         if (now - lightsAt > 200) {
             lightsAt = now;
-            Set<Item> out = new HashSet<>();
-            for (String id : ModCommonConfig.WEB_LIGHT_ITEMS.get()) {
+            java.util.Map<Item, java.util.List<String>> out = new java.util.HashMap<>();
+            for (String line : ModCommonConfig.WEB_LIGHT_ITEMS.get()) {
+                String id = line.trim();
+                java.util.List<String> keys = java.util.List.of();
+                int brace = id.indexOf('{');
+                if (brace >= 0 && id.endsWith("}")) {
+                    keys = java.util.Arrays.stream(id.substring(brace + 1, id.length() - 1).split(","))
+                            .map(String::trim).filter(k -> !k.isEmpty()).toList();
+                    id = id.substring(0, brace).trim();
+                }
                 ResourceLocation rl = ResourceLocation.tryParse(id);
                 if (rl == null) continue;
                 Item item = ForgeRegistries.ITEMS.getValue(rl);
-                if (item != null) out.add(item);
+                if (item != null && item != net.minecraft.world.item.Items.AIR) out.put(item, keys);
             }
             lights = out;
         }
         return lights;
+    }
+
+    /** Whether {@code stack} gives light now: on the list, and its NBT keys (if any) say it's on. */
+    private static boolean isLight(java.util.Map<Item, java.util.List<String>> lightMap, net.minecraft.world.item.ItemStack stack) {
+        java.util.List<String> keys = lightMap.get(stack.getItem());
+        if (keys == null) return false;
+        net.minecraft.nbt.CompoundTag tag = stack.getTag();
+        for (String key : keys) {
+            boolean optional = key.startsWith("?");
+            String k = optional ? key.substring(1) : key;
+            if (tag == null || !tag.contains(k)) {
+                if (optional) continue;
+                return false;
+            }
+            net.minecraft.nbt.Tag value = tag.get(k);
+            if (value instanceof net.minecraft.nbt.NumericTag n) {
+                if (n.getAsDouble() == 0.0) return false;
+            } else if (value instanceof net.minecraft.nbt.StringTag st) {
+                if (st.getAsString().isEmpty() || st.getAsString().equalsIgnoreCase("false")) return false;
+            }
+        }
+        return true;
     }
 
     // ---- aiming -------------------------------------------------------------------------------------
@@ -228,8 +259,8 @@ public final class WebClient {
         long now = level.getGameTime();
         float time = (now % 72000L) + partial;
         Vec3 cam = event.getCamera().getPosition();
-        Set<Item> lightSet = lightItems(now);
-        boolean torch = lightSet.contains(player.getMainHandItem().getItem()) || lightSet.contains(player.getOffhandItem().getItem());
+        java.util.Map<Item, java.util.List<String>> lightMap = lightItems(now);
+        boolean torch = isLight(lightMap, player.getMainHandItem()) || isLight(lightMap, player.getOffhandItem());
         Vec3 look = player.getViewVector(partial);
         float skyDarken = level.getSkyDarken(partial);
 

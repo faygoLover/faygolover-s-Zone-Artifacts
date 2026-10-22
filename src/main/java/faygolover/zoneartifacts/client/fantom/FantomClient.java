@@ -34,6 +34,24 @@ public final class FantomClient {
     private FantomClient() {
     }
 
+    /** For the light it casts ({@code AnomalyLight}): each phantom row's middle, its size and how much of it shows from here. */
+    public static void lights(Vec3 cam, LightSink out) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null) return;
+        double gone = ModCommonConfig.FANTOM_GONE_AT.get();
+        double full = Math.max(gone + 1.0, ModCommonConfig.FANTOM_FULL_AT.get());
+        for (SyncAnomaliesPacket.Entry entry : ClientAnomalyCache.entriesFor(mc.level.dimension())) {
+            if (!entry.visible() || !AnomalyTypeIds.FANTOM.equals(entry.typeId())) continue;
+            Vec3 mid = new Vec3(entry.pos().getX() + 0.5, entry.pos().getY() + entry.size() * 0.5, entry.pos().getZ() + 0.5);
+            float fade = (float) Mth.clamp((mid.distanceTo(cam) - gone) / (full - gone), 0.0, 1.0);
+            if (fade > 0.01f) out.add(mid, entry.size(), fade);
+        }
+    }
+
+    public interface LightSink {
+        void add(Vec3 pos, double size, float fade);
+    }
+
     @SubscribeEvent
     public static void onRenderLevelStage(RenderLevelStageEvent event) {
         if (LatePass.deferred(event)) return;
@@ -93,7 +111,8 @@ public final class FantomClient {
                     Vec3 p = foot.add(across.scale(jx)).add(0.0, y + jy, 0.0);
                     int halo = (int) (60 * fade * flick);
                     int core = (int) Math.min(255, 220 * fade * flick);
-                    LightningDraw.glow(m, vc, p, 0.2 * glowScale, cam, 110, 165, 255, halo, 12);
+                    LightningDraw.glow(m, vc, p, 0.3 * glowScale, cam, 110, 165, 255, halo, 12);
+                    faygolover.zoneartifacts.client.render.Halo.add(p, 0.75 * glowScale, 0.45f, 0.62f, 1.0f, 0.22f * fade * Math.min(flick, 1.0f));
                     // Each light drawn out upright a little (a short streak rather than a dot).
                     double stretch = 0.035 * glowScale;
                     LightningDraw.glow(m, vc, p.add(0.0, stretch, 0.0), 0.05 * glowScale, cam, 215, 238, 255, core, 10);

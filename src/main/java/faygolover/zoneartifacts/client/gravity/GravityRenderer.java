@@ -185,6 +185,8 @@ public final class GravityRenderer {
             float t = state.progress(now, partial);
             float level = ModClientConfig.effective(state.entry().intensity()) / 3.0f;
             float release = (now - state.releaseTick() + partial) / RELEASE_TICKS;
+            // The pale rings are air and dust catching the light — by the light there is.
+            float lit = faygolover.zoneartifacts.client.ZoneLight.at(mc.level, c, partial);
 
             switch (state.kind()) {
                 case PLESH -> {
@@ -193,12 +195,12 @@ public final class GravityRenderer {
                         for (int k = 0; k < 3; k++) {
                             float s = frac(time * 0.025f + k / 3.0f);
                             double r = reach * (1.0 - s) + 0.2;
-                            int a = (int) (Math.min(1.0f, level) * 90 * 4 * s * (1 - s) * (0.5f + t));
+                            int a = (int) (lit * Math.min(1.0f, level) * 90 * 4 * s * (1 - s) * (0.5f + t));
                             ring(matrix, buffer, c, r, cam, 0.025f, FireDraw.argb(a, 215, 215, 205));
                         }
                     }
                     if (release >= 0 && release < 1) {
-                        shockRing(matrix, buffer, c, reach, release, cam, 225, 220, 205);
+                        shockRing(matrix, buffer, c, reach, release, cam, (int) (225 * lit), (int) (220 * lit), (int) (205 * lit));
                     }
                 }
                 case VORONKA -> {

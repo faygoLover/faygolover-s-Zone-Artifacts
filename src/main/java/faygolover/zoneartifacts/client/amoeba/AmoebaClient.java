@@ -231,8 +231,7 @@ public final class AmoebaClient {
     private static float light(ClientLevel level, Vec3 p, float skyDarken) {
         int packed = LevelRenderer.getLightColor(level, BlockPos.containing(p));
         float block = LightTexture.block(packed) / 15.0f;
-        float sky = LightTexture.sky(packed) / 15.0f * skyDarken;
-        return 0.22f + 0.78f * Math.max(block, sky);
+        return faygolover.zoneartifacts.client.ZoneLight.at(level, p, Minecraft.getInstance().getFrameTime());
     }
 
     private static void jelly(BufferBuilder buffer, Matrix4f m, State state, Vec3 base, float t, float regrow,

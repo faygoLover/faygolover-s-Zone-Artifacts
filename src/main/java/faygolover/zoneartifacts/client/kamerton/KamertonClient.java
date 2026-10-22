@@ -187,6 +187,8 @@ public final class KamertonClient {
             if (b.entry != null && !b.entry.visible()) continue;
             if (b.entry == null) continue;
             Vec3 c = AnomalyGeometry.box(b.entry).getCenter();
+            // Glass shows by the light that falls on it (at night only a torch makes it out).
+            float lit = faygolover.zoneartifacts.client.ZoneLight.at(mc.level, c, partial);
             float[] a = b.needles;
             for (int i = 0; i + NEEDLE - 1 < a.length; i += NEEDLE) {
                 Vec3 mid0 = c.add(a[i], a[i + 1], a[i + 2]);
@@ -207,8 +209,8 @@ public final class KamertonClient {
                         tip = tip.add(push);
                     }
                 }
-                drawn.add(new Vec3[]{base, tip, new Vec3(a[i + 7], 0, 0)});
-                shard(glass, m, base, tip, cam, 205, 232, 245, 70);
+                drawn.add(new Vec3[]{base, tip, new Vec3(a[i + 7], lit, 0)});
+                shard(glass, m, base, tip, cam, (int) (205 * lit), (int) (232 * lit), (int) (245 * lit), 70);
             }
         }
         BufferUploader.drawWithShader(glass.end());
@@ -227,7 +229,7 @@ public final class KamertonClient {
             Vec3 view = base.subtract(cam).normalize();
             double side = 1.0 - Math.abs(axis.dot(view));
             float twinkle = (float) Math.pow(Math.max(0.0, Math.sin(time * 0.05 + seed)), 12.0);
-            int alpha = (int) (255 * Mth.clamp(0.06 + 0.3 * Math.pow(side, 6.0) + 0.6 * twinkle, 0.0, 1.0));
+            int alpha = (int) (255 * n[2].y * Mth.clamp(0.06 + 0.3 * Math.pow(side, 6.0) + 0.6 * twinkle, 0.0, 1.0));
             if (alpha > 4) shard(glow, m, base, tip, cam, 230, 245, 255, alpha);
         }
         buffers.endBatch(GlowRenderType.GLOW);
