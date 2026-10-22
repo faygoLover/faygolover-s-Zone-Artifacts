@@ -98,7 +98,7 @@ public final class VoronkaLens {
             alpha = ready;
         }
         out.add(new Distortion.Lens(c, radius, pinch, twist, ripple, ripplePhase, bump, bumpAt, bumpWidth, blur, alpha, 28, 48)
-                .churn(churn, rimWave, time * 0.06));
+                .churn(churn, rimWave, time * 0.06).boil(0.3 + 2.5 * churn));
     }
 
     private static void plesh(List<Distortion.Patch> out, GravityClientHandler.State state, long now, float partial, float time) {

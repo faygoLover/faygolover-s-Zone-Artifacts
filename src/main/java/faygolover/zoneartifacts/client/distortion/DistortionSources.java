@@ -56,7 +56,7 @@ final class DistortionSources {
             double seed = state.entry().pos().hashCode() * 0.01;
             if (state.isZharka()) {
                 out.add(new Distortion.Haze(base, width, zone.getYsize() * 1.2 + 0.5, 0.025 + 0.05 * a,
-                        time * (0.035 + 0.03 * a), 2.5, false, 1.0f, seed));
+                        time * (0.035 + 0.03 * a), 2.5, false, 1.0f, seed).boil(0.3 + 0.4 * a));
             } else {
                 out.add(new Distortion.Haze(base, width, zone.getYsize() * 0.8 + 0.3, 0.01 + 0.02 * a,
                         time * 0.015, 1.5, false, 1.0f, seed));

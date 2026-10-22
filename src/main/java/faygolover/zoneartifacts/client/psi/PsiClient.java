@@ -163,7 +163,7 @@ public final class PsiClient {
             float seed = entry.pos().hashCode() * 0.01f;
             float g = 0.5f + 0.3f * Mth.sin(time * 0.04f + seed) + 0.2f * Mth.sin(time * 0.023f + seed * 1.7f);
             out.add(new Distortion.Haze(base, width, zone.getYsize(), (0.04 + 0.03 * k) * (0.85 + 0.3 * g), time * 0.012, 1.3, true,
-                    0.95f, seed).chroma((0.002 + 0.003 * g) * k));
+                    0.95f, seed).chroma((0.002 + 0.003 * g) * k).boil(0.25 + 0.15 * g));
         }
     }
 

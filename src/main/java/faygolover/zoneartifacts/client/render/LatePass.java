@@ -237,7 +237,11 @@ public final class LatePass {
         RenderSystem.depthMask(true);
         RenderSystem.colorMask(true, true, true, true);
         try {
-            // Inside a Haze or a Dusk: their fog over the pack's frame first (the pack ignores vanilla's).
+            // The anomalies' light on the pack's frame, then — inside a Haze or a Dusk — their fog over it
+            // (the pack ignores vanilla's), then the anomalies themselves.
+            AnomalyLight.draw(SNAPSHOTS.get(0).partialTick(), true);
+            RenderSystem.enableDepthTest();
+            RenderSystem.depthFunc(GL11.GL_LEQUAL);
             if (ScreenFog.needed(SNAPSHOTS.get(0).partialTick())) {
                 Snapshot world = SNAPSHOTS.get(SNAPSHOTS.size() - 1);
                 ScreenFog.draw(world.projection());

@@ -92,6 +92,21 @@ public final class KiselClient {
 
     private static final Map<BlockPos, State> STATES = new HashMap<>();
 
+    /** For the light it casts ({@code AnomalyLight}): each puddle's middle at its surface, its size and how bright it glows now. */
+    public static void lights(LightSink out, float partial) {
+        for (State st : STATES.values()) {
+            if (st.entry == null || !st.entry.visible()) continue;
+            AABB zone = AnomalyGeometry.box(st.entry);
+            float act = Mth.lerp(partial, st.prevActivity, st.activity);
+            out.add((zone.minX + zone.maxX) * 0.5, st.surfaceY + 0.3, (zone.minZ + zone.maxZ) * 0.5, st.entry.size(), act);
+        }
+    }
+
+    /** Where a light goes. */
+    public interface LightSink {
+        void add(double x, double y, double z, double size, float activity);
+    }
+
     private KiselClient() {
     }
 

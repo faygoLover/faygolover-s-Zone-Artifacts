@@ -41,6 +41,10 @@ public final class ZaShaders {
     private static ShaderInstance ghost;
     @Nullable
     private static ShaderInstance screenFog;
+    @Nullable
+    private static ShaderInstance distort;
+    @Nullable
+    private static ShaderInstance anomalyLight;
     /** The terrain's fog this frame (see {@link #syncFog()}). */
     private static float fogStart;
     private static float fogEnd = 1.0f;
@@ -70,6 +74,22 @@ public final class ZaShaders {
                 DefaultVertexFormat.POSITION_TEX), s -> ghost = s);
         event.registerShader(new ShaderInstance(event.getResourceProvider(), new ResourceLocation(ZoneArtifacts.MODID, "screen_fog"),
                 DefaultVertexFormat.POSITION_TEX), s -> screenFog = s);
+        event.registerShader(new ShaderInstance(event.getResourceProvider(), new ResourceLocation(ZoneArtifacts.MODID, "distort"),
+                DefaultVertexFormat.POSITION_TEX_COLOR), s -> distort = s);
+        event.registerShader(new ShaderInstance(event.getResourceProvider(), new ResourceLocation(ZoneArtifacts.MODID, "anomaly_light"),
+                DefaultVertexFormat.POSITION_TEX), s -> anomalyLight = s);
+    }
+
+    /** The anomalies' light on the world (screen pass). Null until loaded. */
+    @Nullable
+    public static ShaderInstance anomalyLight() {
+        return anomalyLight;
+    }
+
+    /** Refraction per pixel (the air distortion at MEDIUM quality and up). Null until loaded. */
+    @Nullable
+    public static ShaderInstance distort() {
+        return distort;
     }
 
     /** Over a shader pack's frame: the Haze's / the Dusk's fog from the depth. Null until loaded. */

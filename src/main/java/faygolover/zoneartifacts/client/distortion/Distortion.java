@@ -12,6 +12,8 @@ import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import faygolover.zoneartifacts.ZoneArtifacts;
 import faygolover.zoneartifacts.config.ModClientConfig;
+import faygolover.zoneartifacts.client.render.ZaShaders;
+import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.util.Mth;
@@ -68,6 +70,8 @@ public final class Distortion {
         final double blur;
         /** Colours coming apart through it (red one way, blue the other), in screen fractions. */
         double chroma;
+        /** Per-pixel refraction only: how hard the air boils in it (0 calm, ~1 hard). */
+        double boil = 0.15;
 
         Patch(Vec3 anchor, double size, double blur) {
             this.anchor = anchor;
@@ -87,6 +91,12 @@ public final class Distortion {
 
         public Patch chroma(double amount) {
             this.chroma = amount;
+            return this;
+        }
+
+        /** Per-pixel refraction only: the air boils in it (0 calm, ~1 hard). */
+        public Patch boil(double amount) {
+            this.boil = amount;
             return this;
         }
     }
@@ -192,7 +202,8 @@ public final class Distortion {
             }
             Vec3 p = anchor.add(right.scale(Math.cos(a) * r)).add(up.scale(Math.sin(a) * r));
             Vec3 q = anchor.add(right.scale(Math.cos(as) * s)).add(up.scale(Math.sin(as) * s));
-            float edge = (float) Mth.clamp((x - 0.9) / 0.1, 0.0, 1.0);
+            // A soft rim: the refraction fades out over the outer quarter.
+            float edge = (float) Mth.clamp((x - 0.75) / 0.25, 0.0, 1.0);
             set(out, p, q, alpha * (1.0f - edge * edge * (3.0f - 2.0f * edge)));
         }
     }
@@ -318,7 +329,6 @@ public final class Distortion {
         Matrix4f toScreen = new Matrix4f(RenderSystem.getProjectionMatrix()).mul(RenderSystem.getModelViewMatrix()).mul(pose);
         if (!grab(mc)) return;
 
-        RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
         RenderSystem.setShaderTexture(0, copy.getColorTextureId());
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
@@ -326,6 +336,24 @@ public final class Distortion {
         RenderSystem.enableDepthTest();
         RenderSystem.depthFunc(515); // GL_LEQUAL
         RenderSystem.depthMask(false);
+        ShaderInstance pixel = ModClientConfig.pixelDistortion() ? ZaShaders.distort() : null;
+        if (pixel != null) {
+            // Per pixel: one pass, the boiling, the colours apart and the blur worked out in the shader.
+            pixel.safeGetUniform("ZaTime").set((now % 72000L + partial) / 20.0f);
+            pixel.safeGetUniform("ZaAspect").set(copy.width / (float) Math.max(1, copy.height));
+            RenderSystem.setShader(() -> pixel);
+            BufferBuilder buffer = Tesselator.getInstance().getBuilder();
+            buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
+            for (Patch p : ready) {
+                drawPixel(buffer, pose, toScreen, cam, p);
+            }
+            BufferUploader.drawWithShader(buffer.end());
+            RenderSystem.depthMask(true);
+            RenderSystem.enableCull();
+            RenderSystem.disableBlend();
+            return;
+        }
+        RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
         BufferBuilder buffer = Tesselator.getInstance().getBuilder();
         buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
         for (Patch p : ready) {
@@ -358,8 +386,21 @@ public final class Distortion {
         RenderSystem.disableBlend();
     }
 
+    /** Per-pixel mode: the patch once, its boiling / colours apart / blur in the vertex colour (see distort.fsh). */
+    private static void drawPixel(BufferBuilder buffer, Matrix4f pose, Matrix4f toScreen, Vec3 cam, Patch patch) {
+        float r = (float) Mth.clamp(patch.boil, 0.0, 1.0);
+        float g = (float) Mth.clamp(patch.chroma / 0.03, 0.0, 1.0);
+        float b = (float) Mth.clamp(patch.blur / 0.02, 0.0, 1.0);
+        draw(buffer, pose, toScreen, cam, patch, 0.0f, 0.0f, 1.0f, r, g, b);
+    }
+
     private static void draw(BufferBuilder buffer, Matrix4f pose, Matrix4f toScreen, Vec3 cam, Patch patch,
                              float du, float dv, float alphaScale) {
+        draw(buffer, pose, toScreen, cam, patch, du, dv, alphaScale, 1.0f, 1.0f, 1.0f);
+    }
+
+    private static void draw(BufferBuilder buffer, Matrix4f pose, Matrix4f toScreen, Vec3 cam, Patch patch,
+                             float du, float dv, float alphaScale, float cr, float cg, float cb) {
         int rows = patch.rows();
         int cols = patch.cols();
         float[][] px = new float[rows + 1][cols + 1];
@@ -387,18 +428,18 @@ public final class Distortion {
         for (int i = 0; i < rows; i++) {
             for (int j = 0; j < cols; j++) {
                 if (as[i][j] <= 0.004f && as[i + 1][j] <= 0.004f && as[i + 1][j + 1] <= 0.004f && as[i][j + 1] <= 0.004f) continue;
-                vertex(buffer, pose, px, py, pz, us, vs, as, i, j);
-                vertex(buffer, pose, px, py, pz, us, vs, as, i + 1, j);
-                vertex(buffer, pose, px, py, pz, us, vs, as, i + 1, j + 1);
-                vertex(buffer, pose, px, py, pz, us, vs, as, i, j + 1);
+                vertex(buffer, pose, px, py, pz, us, vs, as, i, j, cr, cg, cb);
+                vertex(buffer, pose, px, py, pz, us, vs, as, i + 1, j, cr, cg, cb);
+                vertex(buffer, pose, px, py, pz, us, vs, as, i + 1, j + 1, cr, cg, cb);
+                vertex(buffer, pose, px, py, pz, us, vs, as, i, j + 1, cr, cg, cb);
             }
         }
     }
 
     private static void vertex(BufferBuilder buffer, Matrix4f pose, float[][] px, float[][] py, float[][] pz,
-                               float[][] us, float[][] vs, float[][] as, int i, int j) {
+                               float[][] us, float[][] vs, float[][] as, int i, int j, float cr, float cg, float cb) {
         buffer.vertex(pose, px[i][j], py[i][j], pz[i][j]).uv(us[i][j], vs[i][j])
-                .color(1.0f, 1.0f, 1.0f, as[i][j]).endVertex();
+                .color(cr, cg, cb, as[i][j]).endVertex();
     }
 
     /** Copies the main frame into {@link #copy} (alpha forced to 1), leaving the GL bindings as they were. */
