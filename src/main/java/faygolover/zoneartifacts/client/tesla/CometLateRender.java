@@ -1,5 +1,6 @@
 package faygolover.zoneartifacts.client.tesla;
 
+import faygolover.zoneartifacts.client.render.LatePass;
 import faygolover.zoneartifacts.ZoneArtifacts;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
@@ -15,6 +16,7 @@ public final class CometLateRender {
 
     @SubscribeEvent
     public static void onRenderLevelStage(RenderLevelStageEvent event) {
+        if (LatePass.deferred(event)) return;
         if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_WEATHER) CometRenderer.renderPending(event);
     }
 }

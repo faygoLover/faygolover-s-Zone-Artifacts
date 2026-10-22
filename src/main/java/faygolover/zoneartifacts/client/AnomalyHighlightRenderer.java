@@ -1,5 +1,7 @@
 package faygolover.zoneartifacts.client;
 
+import faygolover.zoneartifacts.client.render.ZaShaders;
+import faygolover.zoneartifacts.client.render.LatePass;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.BufferUploader;
@@ -73,6 +75,7 @@ public class AnomalyHighlightRenderer {
 
     @SubscribeEvent
     public static void onRenderLevelStage(RenderLevelStageEvent event) {
+        if (LatePass.deferred(event)) return;
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) return;
 
         Minecraft mc = Minecraft.getInstance();
@@ -170,7 +173,7 @@ public class AnomalyHighlightRenderer {
         float g = argbToFloat(argb, 8);
         float b = argbToFloat(argb, 0);
 
-        RenderSystem.setShader(GameRenderer::getPositionColorShader);
+        RenderSystem.setShader(ZaShaders::soft);
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
         RenderSystem.disableCull();

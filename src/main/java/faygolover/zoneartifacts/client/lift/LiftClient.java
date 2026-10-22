@@ -15,6 +15,9 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
@@ -24,6 +27,8 @@ import net.minecraftforge.fml.common.Mod;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 
 /**
  * Client side of the Lift: your own player floating in it ({@link Lift}; jump to rise, sneak to
@@ -75,6 +80,7 @@ public final class LiftClient {
             zones.add(AnomalyGeometry.box(entry));
             entries.add(entry);
         }
+        floatThings(level, zones, entries);
         AABB box = player.getBoundingBox();
         // A GM (creative, spectator, flying) only if a Lift they're in is set to act on them too.
         boolean free = !player.isPassenger();
@@ -119,6 +125,43 @@ public final class LiftClient {
         player.resetFallDistance();
         double target = Lift.targetFeetY(level, player, column, height, offset);
         player.setDeltaMovement(Lift.apply(player, zones.get(primary), target, ticksInside, pushOutTicks(), entries.get(primary).speed()));
+    }
+
+    /** Items and thrown things in a Lift, time inside (by entity id) — for the push out. */
+    private static final Map<Integer, Integer> THINGS = new HashMap<>();
+
+    /**
+     * Items and thrown things (bolts) float on this side too, the way the server floats them. The
+     * client moves them by itself between the server's rare position updates; left to fall, they
+     * dropped and were snapped back up again and again.
+     */
+    private static void floatThings(ClientLevel level, List<AABB> zones, List<SyncAnomaliesPacket.Entry> entries) {
+        if (zones.isEmpty()) {
+            THINGS.clear();
+            return;
+        }
+        double height = hoverHeight();
+        int pushOut = pushOutTicks();
+        Map<Integer, Integer> seen = new HashMap<>();
+        for (int i = 0; i < zones.size(); i++) {
+            AABB zone = zones.get(i);
+            if (!entries.get(i).enabled()) continue;
+            for (Entity e : level.getEntities((Entity) null, zone, LiftClient::floats)) {
+                if (seen.containsKey(e.getId())) continue;
+                int t = THINGS.getOrDefault(e.getId(), 0) + 1;
+                seen.put(e.getId(), t);
+                AABB column = Lift.column(zones, e.getBoundingBox());
+                if (column == null) column = zone;
+                double target = Lift.targetFeetY(level, e, column, height, 0.0);
+                e.setDeltaMovement(Lift.apply(e, zone, target, t, pushOut, entries.get(i).speed()));
+            }
+        }
+        THINGS.clear();
+        THINGS.putAll(seen);
+    }
+
+    private static boolean floats(Entity e) {
+        return (e instanceof ItemEntity || e instanceof Projectile) && !e.isPassenger() && !e.isNoGravity();
     }
 
     @SubscribeEvent

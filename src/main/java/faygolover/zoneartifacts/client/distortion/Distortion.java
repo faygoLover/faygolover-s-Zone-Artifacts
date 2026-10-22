@@ -1,5 +1,6 @@
 package faygolover.zoneartifacts.client.distortion;
 
+import faygolover.zoneartifacts.client.render.LatePass;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.pipeline.TextureTarget;
 import com.mojang.blaze3d.platform.GlStateManager;
@@ -106,6 +107,13 @@ public final class Distortion {
         private final float alpha;
         private final int rings;
         private final int segments;
+        /** Churning inside (0 none): the picture boils, pushed in and out and round, strongest
+         *  half way out — the edge and the middle stay calm. */
+        private double churn;
+        /** Phase of the churning and of the rim's waves (grows with time). */
+        private double churnPhase;
+        /** The band of stronger refraction runs round in waves this deep (fraction of the radius). */
+        private double rimWave;
         private double radius;
         private Vec3 right;
         private Vec3 up;
@@ -124,6 +132,15 @@ public final class Distortion {
             this.alpha = alpha;
             this.rings = rings;
             this.segments = segments;
+        }
+
+        /** Boiling inside ({@code amount}, about 0.05..0.3) and a wavy rim ({@code rimWave}, fraction of
+         *  the radius); {@code phase} grows with time. */
+        public Lens churn(double amount, double rimWave, double phase) {
+            this.churn = amount;
+            this.rimWave = rimWave;
+            this.churnPhase = phase;
+            return this;
         }
 
         /** A plain shimmer: ripples only. */
@@ -160,11 +177,19 @@ public final class Distortion {
             double x = i / (double) rings;
             double r = x * radius;
             double inner = (1.0 - x) * (1.0 - x);
+            double a = Math.PI * 2.0 * j / segments;
+            double at = bumpAt;
+            if (rimWave > 0.0) at += rimWave * (Math.sin(4.0 * a + churnPhase * 0.9) + 0.5 * Math.sin(7.0 * a - churnPhase * 1.3));
             double s = r * (1.0 + pinch * inner)
                     + radius * ripple * Math.sin(Math.PI * 2.0 * (3.0 * x + ripplePhase)) * 4.0 * x * (1.0 - x)
-                    + radius * bump * Math.exp(-Math.pow((x - bumpAt) / bumpWidth, 2.0)) * (1.0 - Math.pow(x, 8.0));
-            double a = Math.PI * 2.0 * j / segments;
+                    + radius * bump * Math.exp(-Math.pow((x - at) / bumpWidth, 2.0)) * (1.0 - Math.pow(x, 8.0));
             double as = a + twist * inner;
+            if (churn > 0.0) {
+                double env = 4.0 * x * (1.0 - x);
+                s += radius * churn * env * (0.6 * Math.sin(3.0 * a + churnPhase * 1.3 + 6.0 * x)
+                        + 0.4 * Math.sin(5.0 * a - churnPhase * 2.1 + 11.0 * x));
+                as += churn * 1.6 * env * Math.sin(2.0 * a - churnPhase * 1.7 + 8.0 * x);
+            }
             Vec3 p = anchor.add(right.scale(Math.cos(a) * r)).add(up.scale(Math.sin(a) * r));
             Vec3 q = anchor.add(right.scale(Math.cos(as) * s)).add(up.scale(Math.sin(as) * s));
             float edge = (float) Mth.clamp((x - 0.9) / 0.1, 0.0, 1.0);
@@ -260,6 +285,7 @@ public final class Distortion {
      *  debris (normal priority) and before their dark shapes (lowest). */
     @SubscribeEvent(priority = EventPriority.LOW)
     public static void onRenderLevelStage(RenderLevelStageEvent event) {
+        if (LatePass.deferred(event)) return;
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) return;
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || !ModClientConfig.airDistortion()) return;

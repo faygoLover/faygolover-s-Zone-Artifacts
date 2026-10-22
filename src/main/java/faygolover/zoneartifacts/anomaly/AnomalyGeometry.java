@@ -33,12 +33,17 @@ public final class AnomalyGeometry {
 
     public static AABB zoneAabb(AnomalyInstance instance) {
         if (AnomalyTypeIds.SWAMP.equals(instance.typeId())) return Swamp.region(instance.pos(), instance.sizeX(), instance.sizeY(), instance.sizeZ());
-        return centeredAabb(instance.pos(), instance.sizeX(), instance.sizeY(), instance.sizeZ());
+        return sunk(instance.typeId(), centeredAabb(instance.pos(), instance.sizeX(), instance.sizeY(), instance.sizeZ()));
     }
 
     /** The zone as the client knows it (its own proportions where it has them). */
     public static AABB box(faygolover.zoneartifacts.network.SyncAnomaliesPacket.Entry entry) {
-        return centeredAabb(entry.pos(), entry.sizeX(), entry.sizeY(), entry.sizeZ());
+        return sunk(entry.typeId(), centeredAabb(entry.pos(), entry.sizeX(), entry.sizeY(), entry.sizeZ()));
+    }
+
+    /** Rust sits half a block lower: its zone takes in the blocks it stands on, so they rust too. */
+    private static AABB sunk(net.minecraft.resources.ResourceLocation typeId, AABB box) {
+        return AnomalyTypeIds.RUST.equals(typeId) ? box.move(0.0, -0.5, 0.0) : box;
     }
 
     /** Like {@link #zoneAabb(AnomalyInstance)}, from the client's entry. */

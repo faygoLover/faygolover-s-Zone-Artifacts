@@ -1,5 +1,7 @@
 package faygolover.zoneartifacts.client.chem;
 
+import faygolover.zoneartifacts.client.render.ZaShaders;
+import faygolover.zoneartifacts.client.render.LatePass;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.BufferUploader;
@@ -153,6 +155,7 @@ public final class Gas {
 
     @SubscribeEvent
     public static void onRenderLevelStage(RenderLevelStageEvent event) {
+        if (LatePass.deferred(event)) return;
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_WEATHER) return;
         Minecraft mc = Minecraft.getInstance();
         ClientLevel level = mc.level;
@@ -181,7 +184,7 @@ public final class Gas {
         PoseStack poseStack = lateStagePose(event);
         poseStack.translate(-cam.x, -cam.y, -cam.z);
         Matrix4f m = poseStack.last().pose();
-        RenderSystem.setShader(GameRenderer::getPositionColorShader);
+        RenderSystem.setShader(ZaShaders::soft);
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
         RenderSystem.disableCull();
@@ -271,8 +274,9 @@ public final class Gas {
     }
 
     /**
-     * A drop of liquid facing the camera: smooth, gently quivering rim, bright in the middle and
-     * darker to the edge (a rounded, glossy look), a pale highlight up and to one side.
+     * A drop of liquid facing the camera: a soft, quivering edge that melts into the gas round it,
+     * a little clearer in the middle and denser towards the rim, a faint highlight up and to one
+     * side. (Was an opaque disc with a dark outline — read as a cartoon.)
      */
     private static void drop(BufferBuilder buffer, Matrix4f m, FramePuff f, Vec3 cam, float light, float time) {
         Vec3 c = f.pos();
@@ -282,51 +286,61 @@ public final class Gas {
         Vec3 up = Math.abs(toCam.y) < 0.95 ? new Vec3(0, 1, 0) : new Vec3(1, 0, 0);
         Vec3 right = toCam.cross(up).normalize();
         Vec3 upOnPlane = right.cross(toCam).normalize();
-        int a = (int) (255 * Mth.clamp(f.alpha(), 0.0f, 1.0f));
+        float a = 255 * Mth.clamp(f.alpha(), 0.0f, 1.0f);
         int core = shade(f.inner(), light);
-        int rim = shade(f.outer(), light * 0.8f);
+        // The rim only a little darker than the middle — a dark outline made it a cartoon.
+        int rim = shade(mix(f.inner(), f.outer(), 0.45f), light * 0.92f);
         double r = f.radius();
         Vec3 front = c.add(toCam.scale(r * 0.02));
         for (int i = 0; i < SEGMENTS; i++) {
             double t0 = Math.PI * 2.0 * i / SEGMENTS;
             double t1 = Math.PI * 2.0 * (i + 1) / SEGMENTS;
-            double w0 = 1.0 + 0.05 * Math.sin(t0 * 3.0 + time * 0.2 + f.seed()) + 0.03 * Math.sin(t0 * 5.0 - time * 0.27);
-            double w1 = 1.0 + 0.05 * Math.sin(t1 * 3.0 + time * 0.2 + f.seed()) + 0.03 * Math.sin(t1 * 5.0 - time * 0.27);
+            double w0 = wobble(t0, f.seed(), time);
+            double w1 = wobble(t1, f.seed(), time);
             Vec3 d0 = right.scale(Math.cos(t0)).add(upOnPlane.scale(Math.sin(t0)));
             Vec3 d1 = right.scale(Math.cos(t1)).add(upOnPlane.scale(Math.sin(t1)));
-            Vec3 m0 = front.add(d0.scale(r * 0.6 * w0));
-            Vec3 m1 = front.add(d1.scale(r * 0.6 * w1));
-            Vec3 o0 = front.add(d0.scale(r * w0));
-            Vec3 o1 = front.add(d1.scale(r * w1));
-            Vec3 e0 = front.add(d0.scale(r * w0 * 1.1));
-            Vec3 e1 = front.add(d1.scale(r * w1 * 1.1));
-            put(buffer, m, front, core, a);
-            put(buffer, m, m0, core, a);
-            put(buffer, m, m1, core, a);
-            put(buffer, m, m1, core, a);
-            put(buffer, m, m0, core, a);
-            put(buffer, m, o0, rim, a);
-            put(buffer, m, o1, rim, a);
-            put(buffer, m, m1, core, a);
-            put(buffer, m, o0, rim, a);
+            Vec3 m0 = front.add(d0.scale(r * 0.55 * w0));
+            Vec3 m1 = front.add(d1.scale(r * 0.55 * w1));
+            Vec3 o0 = front.add(d0.scale(r * 0.92 * w0));
+            Vec3 o1 = front.add(d1.scale(r * 0.92 * w1));
+            Vec3 e0 = front.add(d0.scale(r * w0 * 1.3));
+            Vec3 e1 = front.add(d1.scale(r * w1 * 1.3));
+            int aMid = (int) (a * 0.78f);
+            int aIn = (int) (a * 0.85f);
+            int aRim = (int) (a * 0.93f);
+            put(buffer, m, front, core, aMid);
+            put(buffer, m, m0, core, aIn);
+            put(buffer, m, m1, core, aIn);
+            put(buffer, m, m1, core, aIn);
+            put(buffer, m, m0, core, aIn);
+            put(buffer, m, o0, rim, aRim);
+            put(buffer, m, o1, rim, aRim);
+            put(buffer, m, m1, core, aIn);
+            put(buffer, m, o0, rim, aRim);
             put(buffer, m, e0, rim, 0);
             put(buffer, m, e1, rim, 0);
-            put(buffer, m, o1, rim, a);
+            put(buffer, m, o1, rim, aRim);
         }
-        // Gloss.
-        Vec3 hc = front.add(toCam.scale(r * 0.01)).add(right.scale(-r * 0.32)).add(upOnPlane.scale(r * 0.34));
-        double hr = r * 0.2;
+        // A faint, soft gloss.
+        Vec3 hc = front.add(toCam.scale(r * 0.01)).add(right.scale(-r * 0.3)).add(upOnPlane.scale(r * 0.32));
+        double hr = r * 0.17;
         int hi = shade(0xF2FFD8, Math.min(1.0f, light + 0.2f));
         for (int i = 0; i < 10; i++) {
             double t0 = Math.PI * 2.0 * i / 10;
             double t1 = Math.PI * 2.0 * (i + 1) / 10;
             Vec3 p0 = hc.add(right.scale(Math.cos(t0) * hr * 1.3)).add(upOnPlane.scale(Math.sin(t0) * hr));
             Vec3 p1 = hc.add(right.scale(Math.cos(t1) * hr * 1.3)).add(upOnPlane.scale(Math.sin(t1) * hr));
-            put(buffer, m, hc, hi, (int) (a * 0.7f));
+            put(buffer, m, hc, hi, (int) (a * 0.3f));
             put(buffer, m, p0, hi, 0);
             put(buffer, m, p1, hi, 0);
             put(buffer, m, p1, hi, 0);
         }
+    }
+
+    /** The drop's quivering edge: several slow waves, so it never settles into a clean circle. */
+    private static double wobble(double angle, float seed, float time) {
+        return 1.0 + 0.06 * Math.sin(angle * 3.0 + time * 0.2 + seed) + 0.04 * Math.sin(angle * 5.0 - time * 0.27)
+                + 0.025 * Math.sin(angle * 8.0 + time * 0.41 + seed * 2.3);
     }
 
     /** Torn, slowly changing edge. */

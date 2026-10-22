@@ -1,12 +1,13 @@
 package faygolover.zoneartifacts.client.tesla;
 
+import faygolover.zoneartifacts.client.GlowRenderType;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 
 /**
- * Fire geometry for the Comet and the Razlom, drawn into a {@code RenderType.lightning()} buffer
+ * Fire geometry for the Comet and the Razlom, drawn into a {@code GlowRenderType.ARC} buffer
  * (additive, unlit, back faces culled) like {@link LightningDraw}, but with a width and a colour
  * per point, so tongues of flame can taper and shade from a hot base to a dark red tip.
  */

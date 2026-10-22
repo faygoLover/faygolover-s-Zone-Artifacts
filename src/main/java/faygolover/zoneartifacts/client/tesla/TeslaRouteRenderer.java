@@ -1,5 +1,7 @@
 package faygolover.zoneartifacts.client.tesla;
 
+import faygolover.zoneartifacts.client.render.ZaShaders;
+import faygolover.zoneartifacts.client.render.LatePass;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.BufferUploader;
@@ -69,6 +71,7 @@ public final class TeslaRouteRenderer {
 
     @SubscribeEvent
     public static void onRenderLevelStage(RenderLevelStageEvent event) {
+        if (LatePass.deferred(event)) return;
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) return;
         Minecraft mc = Minecraft.getInstance();
         Player player = mc.player;
@@ -207,7 +210,7 @@ public final class TeslaRouteRenderer {
     private static void fillBox(PoseStack poseStack, AABB box, int rgb, int alpha) {
         float r = r(rgb), g = g(rgb), b = b(rgb), a = alpha / 255f;
 
-        RenderSystem.setShader(GameRenderer::getPositionColorShader);
+        RenderSystem.setShader(ZaShaders::soft);
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
         RenderSystem.disableCull();

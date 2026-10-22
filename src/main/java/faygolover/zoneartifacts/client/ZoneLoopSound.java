@@ -16,6 +16,10 @@ public class ZoneLoopSound extends AbstractTickableSoundInstance {
 
     private final BooleanSupplier alive;
     private final DoubleSupplier target;
+    /** Was heard at least once (the engine ticked it). */
+    private boolean heard;
+    /** When it was made: one the engine never took up (master volume at 0 plays nothing) counts as stopped after a second. */
+    private final long born = net.minecraft.Util.getMillis();
 
     public ZoneLoopSound(SoundEvent sound, Vec3 pos, BooleanSupplier alive, DoubleSupplier volume) {
         super(sound, SoundSource.AMBIENT, RandomSource.create());
@@ -39,6 +43,7 @@ public class ZoneLoopSound extends AbstractTickableSoundInstance {
 
     @Override
     public void tick() {
+        heard = true;
         if (!alive.getAsBoolean()) {
             stop();
             return;
@@ -50,5 +55,18 @@ public class ZoneLoopSound extends AbstractTickableSoundInstance {
     @Override
     public boolean canStartSilent() {
         return true;
+    }
+
+    /**
+     * Also "stopped" once the sound engine dropped it without us: it stops every channel whose
+     * volume goes to 0 (a volume slider at 0, the game minimised — flperf mutes it), and then the
+     * loop was gone for good, its owner thinking it still played. Now the owner starts a new one. The
+     * same if the engine never took it up at all (with the master volume at 0 nothing new plays).
+     */
+    @Override
+    public boolean isStopped() {
+        if (super.isStopped()) return true;
+        if (net.minecraft.client.Minecraft.getInstance().getSoundManager().isActive(this)) return false;
+        return heard || net.minecraft.Util.getMillis() - born > 1000L;
     }
 }

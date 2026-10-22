@@ -1,5 +1,6 @@
 package faygolover.zoneartifacts.client.rust;
 
+import faygolover.zoneartifacts.client.render.LatePass;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
@@ -312,6 +313,10 @@ public final class RustClient {
     @SubscribeEvent
     public static void onRenderLevelStage(RenderLevelStageEvent event) {
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_CUTOUT_BLOCKS || ZONES.isEmpty()) return;
+        // With a shader pack the moss stays in the world pass (lit by the pack); the red-hot spot and
+        // its glow go to the late pass.
+        boolean mossNow = !LatePass.replayed(event);
+        boolean heatNow = !LatePass.deferred(event);
         Minecraft mc = Minecraft.getInstance();
         ClientLevel level = mc.level;
         if (level == null) return;
@@ -329,7 +334,7 @@ public final class RustClient {
         double r = ModCommonConfig.RUST_SPOT_RADIUS.get();
 
         // The moss: ready-made layers, one draw each.
-        for (int layer = 0; layer < LAYERS.length; layer++) {
+        for (int layer = 0; mossNow && layer < LAYERS.length; layer++) {
             RenderType type = LAYER_TYPES[layer];
             type.setupRenderState();
             ShaderInstance shader = RenderSystem.getShader();
@@ -353,7 +358,7 @@ public final class RustClient {
 
         // Where it's red-hot: those few faces again over the top, tinted, every frame.
         BlockPos.MutableBlockPos lp = new BlockPos.MutableBlockPos();
-        for (int layer = 0; layer < LAYERS.length; layer++) {
+        for (int layer = 0; heatNow && layer < LAYERS.length; layer++) {
             boolean any = false;
             RenderType type = LAYER_TYPES[layer];
             for (Zone z : ZONES.values()) {
@@ -380,6 +385,10 @@ public final class RustClient {
         }
 
         // The glow of the red-hot moss (drawn after, additively).
+        if (!heatNow) {
+            poseStack.popPose();
+            return;
+        }
         VertexConsumer glow = buffers.getBuffer(GlowRenderType.GLOW);
         for (Zone z : ZONES.values()) {
             if (z.entry != null && !z.entry.visible()) continue;

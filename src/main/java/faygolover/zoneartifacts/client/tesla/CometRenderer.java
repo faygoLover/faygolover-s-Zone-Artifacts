@@ -1,5 +1,6 @@
 package faygolover.zoneartifacts.client.tesla;
 
+import faygolover.zoneartifacts.client.render.ZaShaders;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.BufferUploader;
@@ -121,7 +122,7 @@ public class CometRenderer extends EntityRenderer<CometEntity> {
         poseStack.pushPose();
         poseStack.translate(-cam.x, -cam.y, -cam.z);
         Matrix4f world = poseStack.last().pose();
-        RenderSystem.setShader(GameRenderer::getPositionColorShader);
+        RenderSystem.setShader(ZaShaders::soft);
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
         RenderSystem.disableCull();
@@ -144,17 +145,22 @@ public class CometRenderer extends EntityRenderer<CometEntity> {
         RenderSystem.disableBlend();
         poseStack.popPose();
 
-        // Pass 2: the fire (additive glow).
-        MultiBufferSource.BufferSource bufferSource = mc.renderBuffers().bufferSource();
+        // Pass 2: the fire (additive glow), drawn straight away like the core — not through the shared
+        // buffer source: in the full pack the fire batched there at this late stage never showed up.
+        BufferBuilder fire = Tesselator.getInstance().getBuilder();
+        fire.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
+        MultiBufferSource direct = type -> fire;
         for (CometEntity entity : PENDING) {
             if (entity.isRemoved()) continue;
             Vec3 pos = entity.getPosition(partialTick);
             poseStack.pushPose();
             poseStack.translate(pos.x - cam.x, pos.y - cam.y, pos.z - cam.z);
-            drawFire(entity, partialTick, poseStack, bufferSource);
+            drawFire(entity, partialTick, poseStack, direct);
             poseStack.popPose();
         }
-        bufferSource.endBatch(GlowRenderType.GLOW);
+        GlowRenderType.GLOW.setupRenderState();
+        BufferUploader.drawWithShader(fire.end());
+        GlowRenderType.GLOW.clearRenderState();
         RenderSystem.depthMask(true);
         PENDING.clear();
     }
@@ -206,6 +212,9 @@ public class CometRenderer extends EntityRenderer<CometEntity> {
         float size = entity.getSize();
         double scale = grow * size;
         double radius = RADIUS * scale;
+        // The core's surface: arches and tongues rise from here (they used to start out at the
+        // halo, and with the halo soft and see-through they seemed to grow out of thin air).
+        double surface = 0.16 * scale;
         float widthScale = (float) Math.sqrt(size) * grow;
         int intensity = ModClientConfig.effective(entity.getIntensity());
 
@@ -246,7 +255,7 @@ public class CometRenderer extends EntityRenderer<CometEntity> {
                 double bump = Math.sin(Math.PI * s);
                 Vec3 dir = a.scale(1.0 - s).add(b.scale(s)).normalize();
                 double wobble = 0.04 * Math.sin(time * 0.25 + k * 1.3 + p.seed);
-                points[k] = center.add(dir.scale(radius * (0.92 + (p.height * rise + wobble) * bump)));
+                points[k] = center.add(dir.scale(surface * 0.95 + radius * (p.height * rise + wobble) * bump));
                 outer[k] = 0.045f * widthScale * (0.5f + 0.5f * (float) bump);
                 inner[k] = 0.018f * widthScale * (0.5f + 0.5f * (float) bump);
                 outerColor[k] = FireDraw.fade(FireDraw.mix(cDeep, body, (float) bump * 0.6f), 0.6f * fade);
@@ -282,7 +291,7 @@ public class CometRenderer extends EntityRenderer<CometEntity> {
                 float alpha = 1.0f - t * t;
                 Vec3 dir = rotate(f.dir, ball.axis, spin);
                 Vec3 bend = rotate(f.bend, ball.axis, spin);
-                Vec3 base = center.add(dir.scale(radius * 0.9));
+                Vec3 base = center.add(dir.scale(surface * 0.95));
                 Vec3[] points = FireDraw.tongue(base, dir, bend, f.length * scale * extend, 6);
                 float[] widths = new float[points.length];
                 int[] colors = new int[points.length];

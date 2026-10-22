@@ -96,8 +96,9 @@ final class DistortionSources {
             Vec3 c = comet.getPosition(partial).add(0.0, comet.getBbHeight() / 2.0, 0.0);
             if (c.distanceToSqr(cam) > 48.0 * 48.0) continue;
             double size = comet.getSize();
-            out.add(Distortion.Lens.shimmer(c, 0.95 * size, comet.isCold() ? 0.035 : 0.055,
-                    time * 0.12 + comet.getId() * 0.37, 1.0f));
+            // A tight, calm shimmer right round the ball (a wide, fast-pulsing one swamped it).
+            out.add(Distortion.Lens.shimmer(c, 0.6 * size, comet.isCold() ? 0.015 : 0.022,
+                    time * 0.05 + comet.getId() * 0.37, 1.0f));
         }
     }
 }

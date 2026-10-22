@@ -1,5 +1,6 @@
 package faygolover.zoneartifacts.client;
 
+import faygolover.zoneartifacts.client.render.LatePass;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import faygolover.zoneartifacts.ZoneArtifacts;
@@ -111,6 +112,7 @@ public class AnomalyArcRenderer {
 
     @SubscribeEvent
     public static void onRenderLevelStage(RenderLevelStageEvent event) {
+        if (LatePass.deferred(event)) return;
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_PARTICLES) return;
 
         Minecraft mc = Minecraft.getInstance();
@@ -186,14 +188,14 @@ public class AnomalyArcRenderer {
         Matrix4f matrix = poseStack.last().pose();
 
         MultiBufferSource.BufferSource bufferSource = mc.renderBuffers().bufferSource();
-        VertexConsumer buffer = bufferSource.getBuffer(RenderType.lightning());
+        VertexConsumer buffer = bufferSource.getBuffer(GlowRenderType.ARC);
 
         for (int i = 0; i < toRender.size(); i++) {
             renderBundle(matrix, buffer, toRender.get(i), colorsToRender.get(i), now, camPos);
         }
         renderStrikes(matrix, buffer, now, camPos, mc.level);
 
-        bufferSource.endBatch(RenderType.lightning());
+        bufferSource.endBatch(GlowRenderType.ARC);
         poseStack.popPose();
     }
 

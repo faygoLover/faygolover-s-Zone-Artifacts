@@ -1,5 +1,7 @@
 package faygolover.zoneartifacts.client.razlom;
 
+import faygolover.zoneartifacts.client.render.ZaShaders;
+import faygolover.zoneartifacts.client.render.LatePass;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.BufferUploader;
@@ -79,6 +81,7 @@ public final class RazlomRenderer {
 
     @SubscribeEvent
     public static void onRenderLevelStage(RenderLevelStageEvent event) {
+        if (LatePass.deferred(event)) return;
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || RazlomClientHandler.states().isEmpty()) return;
         if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) {
@@ -97,7 +100,7 @@ public final class RazlomRenderer {
         poseStack.translate(-cam.x, -cam.y, -cam.z);
         Matrix4f matrix = poseStack.last().pose();
 
-        RenderSystem.setShader(GameRenderer::getPositionColorShader);
+        RenderSystem.setShader(ZaShaders::soft);
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
         RenderSystem.disableCull();

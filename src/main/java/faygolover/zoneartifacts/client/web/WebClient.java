@@ -1,5 +1,6 @@
 package faygolover.zoneartifacts.client.web;
 
+import faygolover.zoneartifacts.client.render.LatePass;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import faygolover.zoneartifacts.ZoneArtifacts;
@@ -213,6 +214,7 @@ public final class WebClient {
 
     @SubscribeEvent
     public static void onRenderLevelStage(RenderLevelStageEvent event) {
+        if (LatePass.deferred(event)) return;
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) return;
         Minecraft mc = Minecraft.getInstance();
         ClientLevel level = mc.level;

@@ -29,7 +29,7 @@ import net.minecraftforge.fml.common.Mod;
 import javax.annotation.Nullable;
 
 /**
- * The Haze: from outside a faint grey mist hanging in the zone; inside, the fog closes in to a few
+ * The Haze: from outside a grey mist hanging in the zone; inside, the fog closes in to a few
  * blocks ({@code ScreenFx}) a second after one walks in, sounds come muffled and a little lower ({@code SoundFx}), and now and
  * then something is heard far off — a knock, a groan of metal, a voice-like whine — from nowhere in
  * particular.
@@ -147,11 +147,11 @@ public final class DymkaClient {
         }
     }
 
-    /** From outside: a faint grey mist hanging in the zone. */
+    /** From outside: a grey mist hanging in the zone. */
     private static void mist(ClientLevel level, SyncAnomaliesPacket.Entry entry, AABB zone, Vec3 eye, long now) {
         int eff = ModClientConfig.effective(entry.intensity());
         double volume = zone.getXsize() * zone.getYsize() * zone.getZsize();
-        double rate = Math.min(1.5, volume * 0.002 * eff / 3.0);
+        double rate = Math.min(2.5, volume * 0.003 * eff / 3.0);
         int n = (int) rate + (RANDOM.nextDouble() < rate - (int) rate ? 1 : 0);
         for (int i = 0; i < n; i++) {
             Vec3 p = new Vec3(Mth.lerp(RANDOM.nextDouble(), zone.minX + 0.5, zone.maxX - 0.5),
@@ -159,8 +159,9 @@ public final class DymkaClient {
                     Mth.lerp(RANDOM.nextDouble(), zone.minZ + 0.5, zone.maxZ - 0.5));
             if (p.distanceToSqr(eye) < 4.0) continue;
             Vec3 v = new Vec3(RANDOM.nextGaussian() * 0.004, 0.0, RANDOM.nextGaussian() * 0.004);
-            Gas.add(new Gas.Puff(p, v, 1.0, 1.8 + RANDOM.nextDouble(), now, 140 + RANDOM.nextInt(80),
-                    0.022f + RANDOM.nextFloat() * 0.018f, 0xB9BEC2, 0xD4D8DB, RANDOM.nextFloat() * 10f).settle(p.y).drag(0.99));
+            // Plainly there from outside (it was so faint it hardly showed), still a mist and not a wall.
+            Gas.add(new Gas.Puff(p, v, 1.0, 2.0 + RANDOM.nextDouble() * 1.2, now, 140 + RANDOM.nextInt(80),
+                    0.05f + RANDOM.nextFloat() * 0.03f, 0xB9BEC2, 0xD4D8DB, RANDOM.nextFloat() * 10f).settle(p.y).drag(0.99));
         }
     }
 

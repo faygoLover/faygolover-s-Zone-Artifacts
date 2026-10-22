@@ -75,20 +75,24 @@ public final class ChemClient {
             double size = comet.getSize() * grow;
             int count = 5 + Math.min(10, ModClientConfig.effective(comet.getIntensity()));
             RandomSource shape = RandomSource.create(comet.getId() * 7919L);
-            // A core of liquid acid, with the gas rolling round and over it.
-            out.add(new Gas.FramePuff(c, 0.2 * size, 0.95f, ACID, ACID_DARK, shape.nextFloat() * 10f, true));
-            // Dense middle.
-            out.add(new Gas.FramePuff(c.add(cam.subtract(c).normalize().scale(-0.05 * size)), 0.42 * size, 0.6f, OLIVE, YELLOW_GREEN, shape.nextFloat() * 10f));
+            // A core of liquid acid, with the gas rolling round and over it (thin enough to see it through).
+            out.add(new Gas.FramePuff(c, 0.2 * size, 1.0f, ACID, ACID_DARK, shape.nextFloat() * 10f + time * 0.02f, true));
+            // The middle: a thin haze, its edge changing all the time.
+            out.add(new Gas.FramePuff(c.add(cam.subtract(c).normalize().scale(-0.05 * size)), 0.42 * size, 0.32f, OLIVE, YELLOW_GREEN,
+                    shape.nextFloat() * 10f + time * 0.05f));
             for (int i = 0; i < count; i++) {
                 Vec3 axis = new Vec3(shape.nextGaussian(), shape.nextGaussian(), shape.nextGaussian()).normalize();
                 Vec3 start = new Vec3(shape.nextGaussian(), shape.nextGaussian(), shape.nextGaussian()).normalize();
-                double speed = 0.01 + shape.nextDouble() * 0.025;
-                double dist = (0.12 + shape.nextDouble() * 0.22) * size;
-                double r = (0.22 + shape.nextDouble() * 0.2) * size * (1.0 + 0.12 * Math.sin(time * 0.07 + i));
+                double speed = 0.03 + shape.nextDouble() * 0.04;
+                float phase = shape.nextFloat() * 6.28f;
+                // Rolling round, drifting in and out, swelling and thinning — gas, never still.
+                double dist = (0.12 + shape.nextDouble() * 0.22) * size * (1.0 + 0.3 * Math.sin(time * 0.05 + phase));
+                double r = (0.2 + shape.nextDouble() * 0.2) * size * (1.0 + 0.2 * Math.sin(time * 0.09 + i * 1.7));
                 Vec3 dir = rotate(start, axis, time * speed + i);
                 int inner = i % 3 == 0 ? YELLOW_GREEN : OLIVE;
                 int outer = i % 2 == 0 ? LEMON : YELLOW_GREEN;
-                out.add(new Gas.FramePuff(c.add(dir.scale(dist)), r, 0.5f + 0.2f * shape.nextFloat(), inner, outer, shape.nextFloat() * 10f));
+                float alpha = (0.26f + 0.12f * shape.nextFloat()) * (0.75f + 0.25f * Mth.sin(time * 0.07f + phase));
+                out.add(new Gas.FramePuff(c.add(dir.scale(dist)), r, alpha, inner, outer, shape.nextFloat() * 10f + time * (0.04f + 0.03f * (i % 3))));
             }
             satellites(out, comet, c, size, time);
         }

@@ -1,0 +1,329 @@
+<title>Приёмы шейдеров для аномалий</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Tektur:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a field log of the Zone — one column of specimen plates, each a live split view (now | with the technique) and a short note. */
+:root {
+  --bg: #e8eae4;
+  --panel: #f4f5f1;
+  --ink: #1f2622;
+  --muted: #5b655f;
+  --line: #c7ccc4;
+  --accent: #b5651d;
+  --accent-ink: #ffffff;
+  --display: "Tektur", "IBM Plex Sans", "Segoe UI", sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", Roboto, Arial, sans-serif;
+  --mono: "IBM Plex Mono", Consolas, "Courier New", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #171b19; --panel: #1f2522; --ink: #e3e7e2; --muted: #9aa49d; --line: #333b36; --accent: #e08a3a; --accent-ink: #1a1208;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #171b19; --panel: #1f2522; --ink: #e3e7e2; --muted: #9aa49d; --line: #333b36; --accent: #e08a3a; --accent-ink: #1a1208;
+  color-scheme: dark;
+}
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.55; }
+.wrap { max-width: 980px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 40px 64px; display: grid; gap: 40px; }
+header { display: grid; gap: 14px; max-width: 70ch; }
+.kicker { font-family: var(--mono); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+h1 { font-family: var(--display); font-weight: 700; font-size: clamp(30px, 5vw, 46px); line-height: 1.05; margin: 0; text-wrap: balance; letter-spacing: -.01em; }
+header p { margin: 0; color: var(--muted); }
+.controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+button.toggle { font: 500 14px var(--body); background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 4px; padding: 8px 14px; cursor: pointer; }
+button.toggle:focus-visible, input[type=range]:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.note { font-size: 13px; color: var(--muted); }
+section.plate { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 22px; align-items: start; border-top: 1px solid var(--line); padding-top: 22px; }
+@media (max-width: 760px) { section.plate { grid-template-columns: minmax(0, 1fr); } }
+.view { display: grid; gap: 8px; min-width: 0; }
+.frame { position: relative; aspect-ratio: 16 / 10; max-width: 100%; border-radius: 4px; overflow: hidden; background: #000; }
+.frame canvas { width: 100%; height: 100%; display: block; }
+.tag { position: absolute; top: 8px; font: 500 11px var(--mono); letter-spacing: .08em; text-transform: uppercase; padding: 3px 7px; border-radius: 3px; background: rgba(12, 14, 13, .72); color: #f1f3ef; pointer-events: none; }
+.tag.l { left: 8px; } .tag.r { right: 8px; background: rgba(160, 82, 20, .88); }
+.view input[type=range] { width: 100%; accent-color: var(--accent); }
+.text { display: grid; gap: 10px; min-width: 0; }
+h2 { font-family: var(--display); font-weight: 500; font-size: 22px; line-height: 1.2; margin: 0; text-wrap: balance; }
+.text p { margin: 0; }
+dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; margin: 4px 0 0; font-size: 14px; }
+dt { font-family: var(--mono); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding-top: 2px; }
+dd { margin: 0; }
+.cost { font-family: var(--mono); font-size: 13px; }
+footer { color: var(--muted); font-size: 14px; max-width: 70ch; border-top: 1px solid var(--line); padding-top: 18px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="kicker">Zone Artifacts · заметка к 0.1.38</div>
+    <h1>Приёмы шейдеров для аномалий</h1>
+    <p>Шесть приёмов из шейдерпаков, которые можно перенести в сами аномалии. В каждом окне слева — как устроено сейчас, справа — с приёмом. Разделитель двигается ползунком под окном.</p>
+    <p class="note">Это иллюстрации на веб-странице, нарисованные теми же способами, а не снимки из игры. Сцена условная: белый бетон, как на витрине.</p>
+    <div class="controls"><button class="toggle" id="anim" type="button">Пауза</button><span class="note" id="animNote"></span></div>
+  </header>
+
+  <section class="plate">
+    <div class="view">
+      <div class="frame"><canvas data-demo="distort"></canvas><span class="tag l">Сейчас</span><span class="tag r">С приёмом</span></div>
+      <input type="range" id="s-distort" min="0" max="100" value="50" aria-label="Разделитель: искажение">
+    </div>
+    <div class="text">
+      <h2>Искажение по пикселям</h2>
+      <p>Сейчас линза — сетка из вершин: плавный «сжим», закрутка и кольца. Мелкое бурление ей не по силам. Шейдер считает сдвиг для каждого пикселя: шум даёт кипение внутри, а красный и синий каналы расходятся по-разному.</p>
+      <dl><dt>Где</dt><dd>Воронка, Жарка, Иней, Карусель, Пси-зона, Грави</dd><dt>Цена</dt><dd class="cost">лёгкая: один проход на линзу</dd></dl>
+    </div>
+  </section>
+
+  <section class="plate">
+    <div class="view">
+      <div class="frame"><canvas data-demo="soft"></canvas><span class="tag l">Сейчас</span><span class="tag r">С приёмом</span></div>
+      <input type="range" id="s-soft" min="0" max="100" value="50" aria-label="Разделитель: мягкие края">
+    </div>
+    <div class="text">
+      <h2>Мягкие края</h2>
+      <p>Облако газа, врезаясь в землю, обрывается ровной линией: видно, что это плоская картинка. С глубиной кадра облако редеет там, где близко к поверхности, и садится на землю.</p>
+      <dl><dt>Где</dt><dd>Кислотный туман, облако Амёбы и Химической кометы, Кисель, Сумрак</dd><dt>Цена</dt><dd class="cost">копия глубины раз в кадр</dd></dl>
+    </div>
+  </section>
+
+  <section class="plate">
+    <div class="view">
+      <div class="frame"><canvas data-demo="bloom"></canvas><span class="tag l">Сейчас</span><span class="tag r">С приёмом</span></div>
+      <input type="range" id="s-bloom" min="0" max="100" value="50" aria-label="Разделитель: блум">
+    </div>
+    <div class="text">
+      <h2>Свечение с блумом</h2>
+      <p>Сейчас ядро и ореол — диски, которые складываются и выгорают в белое пятно с краем. Блум размывает яркие места и даёт широкий мягкий ореол, а тональная кривая не даёт ядру выгореть.</p>
+      <dl><dt>Где</dt><dd>Кометы, Тесла, Электра, Хлопушка, Светлячок, Кисель</dd><dt>Цена</dt><dd class="cost">средняя: 2–4 прохода размытия в половинном размере</dd></dl>
+    </div>
+  </section>
+
+  <section class="plate">
+    <div class="view">
+      <div class="frame"><canvas data-demo="smoke"></canvas><span class="tag l">Сейчас</span><span class="tag r">С приёмом</span></div>
+      <input type="range" id="s-smoke" min="0" max="100" value="50" aria-label="Разделитель: объёмный дым">
+    </div>
+    <div class="text">
+      <h2>Объёмный дым</h2>
+      <p>Сейчас Сумрак — много плоских клубов, повёрнутых к камере. Шейдер проходит лучом сквозь объём и копит плотность по шуму: в середине сплошная тьма, по краю рваные языки, и всё это медленно клубится.</p>
+      <dl><dt>Где</dt><dd>Сумрак, Дымка, Кислотный туман</dd><dt>Цена</dt><dd class="cost">заметная: 12–24 шага на пиксель зоны</dd></dl>
+    </div>
+  </section>
+
+  <section class="plate">
+    <div class="view">
+      <div class="frame"><canvas data-demo="film"></canvas><span class="tag l">Сейчас</span><span class="tag r">С приёмом</span></div>
+      <input type="range" id="s-film" min="0" max="100" value="50" aria-label="Разделитель: плёнка пузыря">
+    </div>
+    <div class="text">
+      <h2>Плёнка пузыря</h2>
+      <p>Сейчас радуга и прозрачность заданы в вершинах сферы, поэтому видны грани. По пикселям плёнка переливается разводами, у края плотнее (френель), и блик чёткий.</p>
+      <dl><dt>Где</dt><dd>Мыльные пузыри, плёнка Амёбы</dd><dt>Цена</dt><dd class="cost">лёгкая</dd></dl>
+    </div>
+  </section>
+
+  <section class="plate">
+    <div class="view">
+      <div class="frame"><canvas data-demo="dither"></canvas><span class="tag l">Сейчас</span><span class="tag r">С приёмом</span></div>
+      <input type="range" id="s-dither" min="0" max="100" value="50" aria-label="Разделитель: дизеринг">
+    </div>
+    <div class="text">
+      <h2>Дизеринг</h2>
+      <p>Плавный спад тьмы или свечения в тёмных тонах ложится ступенями. Мелкий шум перед округлением цвета прячет ступени. Здесь ступени нарочно крупнее, чтобы их было видно.</p>
+      <dl><dt>Где</dt><dd>Сумрак, Дымка, ореолы свечений</dd><dt>Цена</dt><dd class="cost">почти бесплатно</dd></dl>
+    </div>
+  </section>
+
+  <footer>Все шесть приёмов работают одинаково с шейдерпаком и без него: с 0.1.38 аномалии при шейдерпаке рисуются после его кадра, где Oculus не глушит шейдеры модов. В отражения, тени и TAA шейдерпака они не попадают.</footer>
+</div>
+
+<script>
+(function () {
+  var COMMON = [
+    "precision highp float;",
+    "uniform vec2 res; uniform float t; uniform float split;",
+    "float h(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}",
+    "float n(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(h(i),h(i+vec2(1.,0.)),f.x),mix(h(i+vec2(0.,1.)),h(i+vec2(1.,1.)),f.x),f.y);}",
+    "float fbm(vec2 p){float v=0.,a=.5;for(int i=0;i<5;i++){v+=a*n(p);p=p*2.03+vec2(1.7,9.2);a*=.5;}return v;}",
+    "const float HZ=.40;",
+    "vec3 scene(vec2 uv){",
+    "  if(uv.y>HZ){",
+    "    if(uv.y>.88) return mix(vec3(.64,.69,.74),vec3(.47,.55,.63),clamp((uv.y-.88)/.12,0.,1.));",
+    "    vec2 b=vec2(uv.x*7.,(uv.y-HZ)*7.);",
+    "    vec3 c=vec3(.86,.86,.84)*(.92+.08*fbm(uv*38.));",
+    "    float seam=max(step(.975,fract(b.x)),step(.975,fract(b.y)));",
+    "    c*=1.-.07*seam; c*=.86+.14*smoothstep(HZ,HZ+.06,uv.y); return c;}",
+    "  float d=HZ-uv.y; float z=.08/max(d,1e-3);",
+    "  vec2 g=vec2((uv.x-.5)*z*6.,z*6.);",
+    "  vec3 c=vec3(.8,.8,.78)*(.9+.1*fbm(g*2.5));",
+    "  float l=max(step(.965,fract(g.x)),step(.965,fract(g.y)));",
+    "  c*=1.-.06*l*smoothstep(0.,.08,d); return c*(.82+.18*smoothstep(0.,.3,d));}",
+    "float sceneDepth(vec2 uv){ if(uv.y>HZ) return 9.; return .08/max(HZ-uv.y,1e-3)*6.;}",
+    "vec3 aces(vec3 x){return clamp((x*(2.51*x+.03))/(x*(2.43*x+.59)+.14),0.,1.);}",
+    "vec2 ASP(){return vec2(res.x/res.y,1.);}"
+  ].join("\n");
+
+  var MAIN = "void main(){vec2 uv=gl_FragCoord.xy/res; vec3 c = uv.x<split ? now(uv) : withIt(uv);" +
+    " float e=abs(uv.x-split)*res.x; c=mix(vec3(1.,.62,.25),c,smoothstep(.6,1.6,e)); gl_FragColor=vec4(c,1.);}";
+
+  var DEMOS = {
+    distort: [
+      "vec2 C=vec2(.5,.56); float R=.27;",
+      "vec3 now(vec2 uv){vec2 p=(uv-C)*ASP(); float r=length(p); if(r>R) return scene(uv);",
+      "  float x=r/R; float inner=(1.-x)*(1.-x);",
+      "  float s=x*(1.+.6*inner)+.03*sin(6.2832*(3.*x+t*.12))*4.*x*(1.-x);",
+      "  float a=atan(p.y,p.x)+.45*inner; vec2 q=vec2(cos(a),sin(a))*s*R; return scene(C+q/ASP());}",
+      "vec3 withIt(vec2 uv){vec2 p=(uv-C)*ASP(); float r=length(p); if(r>R*1.02) return scene(uv);",
+      "  float x=min(r/R,1.); float inner=(1.-x)*(1.-x); float env=4.*x*(1.-x);",
+      "  float a=atan(p.y,p.x)+(1.1+.25*sin(t*.7))*inner+.2*sin(t*.5+x*6.);",
+      "  float s=x*(1.+.9*inner);",
+      "  vec2 q=vec2(cos(a),sin(a))*s*R;",
+      "  vec2 turb=vec2(fbm(p*10.+vec2(t*.7,0.)),fbm(p*10.+vec2(3.1,-t*.6)))-.5;",
+      "  q+=turb*.09*env;",
+      "  vec2 dir=p/max(r,1e-4); float k=.014*(env+.3*inner);",
+      "  vec3 c; c.r=scene(C+(q+dir*k)/ASP()).r; c.g=scene(C+q/ASP()).g; c.b=scene(C+(q-dir*k)/ASP()).b;",
+      "  float rim=exp(-pow((x-.93)/.035,2.))*(.6+.4*sin(t*1.3+atan(p.y,p.x)*4.));",
+      "  c+=vec3(.07)*rim; c*=1.-.12*inner; return c;}"
+    ],
+    soft: [
+      "vec2 C=vec2(.5,.29); float R=.2;",
+      "vec4 puff(vec2 uv){vec2 p=(uv-C)*ASP(); float r=length(p)/R; if(r>1.) return vec4(0.);",
+      "  float dens=pow(1.-r,1.2)*(.55+.6*fbm(p*7.+vec2(t*.15,-t*.1)));",
+      "  float front=sceneDepth(C)-sqrt(max(1.-r*r,0.))*1.6;",
+      "  return vec4(vec3(.62,.72,.18),clamp(dens,0.,.95))*vec4(1.,1.,1.,1.)+vec4(0.,0.,0.,front*0.);}",
+      "float frontOf(vec2 uv){vec2 p=(uv-C)*ASP(); float r=length(p)/R; return sceneDepth(C)-sqrt(max(1.-r*r,0.))*1.6;}",
+      "vec3 now(vec2 uv){vec3 s=scene(uv); vec4 g=puff(uv); if(sceneDepth(uv)<frontOf(uv)) g.a=0.; return mix(s,g.rgb,g.a);}",
+      "vec3 withIt(vec2 uv){vec3 s=scene(uv); vec4 g=puff(uv); float gap=sceneDepth(uv)-frontOf(uv); g.a*=clamp(gap/1.4,0.,1.); return mix(s,g.rgb,g.a);}"
+    ],
+    bloom: [
+      "vec2 C=vec2(.5,.6);",
+      "vec3 base(vec2 uv){return scene(uv)*vec3(.28,.29,.33);}",
+      "vec3 now(vec2 uv){vec2 p=(uv-C)*ASP(); float r=length(p);",
+      "  vec3 c=base(uv); float pulse=1.+.06*sin(t*2.);",
+      "  c+=vec3(1.,.55,.15)*.9*smoothstep(.12*pulse,.04,r);",
+      "  c+=vec3(1.,.8,.4)*.8*smoothstep(.06,.03,r); c+=vec3(1.)*smoothstep(.03,.022,r);",
+      "  return min(c,vec3(1.));}",
+      "vec3 withIt(vec2 uv){vec2 p=(uv-C)*ASP(); float r=length(p);",
+      "  vec3 c=base(uv)*1.15; float pulse=1.+.06*sin(t*2.);",
+      "  c+=vec3(1.,.5,.12)*(1.4*exp(-r/(.035*pulse))+.45*exp(-r/.11)+.14*exp(-r/.32));",
+      "  c+=vec3(1.,.9,.7)*3.*exp(-r/.012);",
+      "  return aces(c);}"
+    ],
+    smoke: [
+      "vec2 C=vec2(.5,.58); vec2 HS=vec2(.2,.2);",
+      "vec3 now(vec2 uv){vec3 s=scene(uv); float a=0.; vec2 p=(uv-C)*ASP();",
+      "  for(int i=0;i<4;i++)for(int j=0;j<4;j++){",
+      "    vec2 cc=(vec2(float(i),float(j))/3.-.5)*HS*2.*vec2(1.,.95);",
+      "    cc+=.02*vec2(sin(t*.3+float(i*4+j)),cos(t*.27+float(j*3+i)));",
+      "    vec2 d=p-cc; float ang=atan(d.y,d.x); float rr=.085*(.8+.12*sin(ang*3.+float(i)+t*.2)+.08*sin(ang*5.-float(j)));",
+      "    float k=smoothstep(rr,rr*.86,length(d))*.9; a=1.-(1.-a)*(1.-k);}",
+      "  return mix(s,vec3(.02,.02,.025),a);}",
+      "vec3 withIt(vec2 uv){vec3 s=scene(uv); vec2 p=(uv-C)*ASP(); float T=1.;",
+      "  vec2 w=p+(vec2(fbm(p*5.+t*.12),fbm(p*5.-t*.1+4.))-.5)*.09;",
+      "  for(int i=0;i<16;i++){ float z=(float(i)+.5)/16.*2.-1.;",
+      "    vec3 q=vec3(w,z*.2); vec3 e=max(abs(q)-vec3(HS*.82,.16),0.);",
+      "    float edge=clamp(1.-length(e)*16.,0.,1.);",
+      "    float d=edge*(.5+.7*fbm(w*6.+vec2(z*1.7,t*.18)));",
+      "    T*=exp(-d*.55);}",
+      "  return mix(s,vec3(.015,.015,.02),1.-T);}"
+    ],
+    film: [
+      "vec2 C=vec2(.5,.58); float R=.23;",
+      "vec3 rainbow(float h){return .5+.5*cos(6.2832*(h+vec3(0.,.33,.67)));}",
+      "vec3 now(vec2 uv){vec2 p=(uv-C)*ASP(); float r=length(p)/R; vec3 s=scene(uv); if(r>1.) return s;",
+      "  float th=acos(clamp(r,0.,1.)); float ang=atan(p.y,p.x);",
+      "  float qt=floor(th/1.5708*6.)/6.*1.5708+.13; float qa=floor((ang+3.1416)/6.2832*20.)/20.;",
+      "  float rim=1.-sin(qt); float alpha=.05+.62*pow(rim,2.2);",
+      "  vec3 col=rainbow(rim*1.3+qa*.25+t*.02)*.9+.1;",
+      "  vec3 c=mix(s,col,alpha*.8); vec2 hp=p/R-vec2(-.42,.45); c+=vec3(.9)*smoothstep(.2,.0,length(hp*vec2(1.,1.6)))*.8; return c;}",
+      "vec3 withIt(vec2 uv){vec2 p=(uv-C)*ASP(); float r=length(p)/R; vec3 s=scene(uv); if(r>1.) return s;",
+      "  vec3 nrm=vec3(p/R,sqrt(max(1.-r*r,0.))); float fres=pow(1.-nrm.z,2.6);",
+      "  float thick=.4+.35*fbm(nrm.xy*2.5+vec2(t*.08,-t*.05))+.2*nrm.y;",
+      "  vec3 irid=.5+.5*cos(6.2832*(thick*2.2*vec3(1.,1.12,1.27)));",
+      "  vec3 refr=scene(uv+nrm.xy*.012*(1.-nrm.z));",
+      "  vec3 c=mix(refr,irid,.12+.75*fres)+vec3(.6,.68,.75)*fres*.25*smoothstep(-.2,.8,nrm.y);",
+      "  vec3 L=normalize(vec3(-.5,.6,.65)); float sp=pow(max(dot(reflect(-L,nrm),vec3(0.,0.,1.)),0.),60.);",
+      "  c+=vec3(1.)*sp*1.2; c=mix(s,c,smoothstep(1.,.985,r)); return c;}"
+    ],
+    dither: [
+      "vec2 C=vec2(.5,.55);",
+      "float shade(vec2 uv){vec2 p=(uv-C)*ASP(); float r=length(p); return smoothstep(.55,.0,r)*(.92+.04*sin(t*.4));}",
+      "vec3 tone(vec2 uv){return mix(scene(uv)*.42,vec3(.01,.01,.012),shade(uv));}",
+      "vec3 q(vec3 c){return floor(c*28.+.5)/28.;}",
+      "vec3 now(vec2 uv){return q(tone(uv));}",
+      "vec3 withIt(vec2 uv){float d=h(gl_FragCoord.xy+fract(t*7.)*vec2(17.,31.))-.5; return q(tone(uv)+d/28.);}"
+    ]
+  };
+
+  var VS = "attribute vec2 a; void main(){gl_Position=vec4(a,0.,1.);}";
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var playing = !reduce;
+  var views = [];
+
+  function build(canvas) {
+    var key = canvas.getAttribute("data-demo");
+    var gl = canvas.getContext("webgl", { antialias: false, preserveDrawingBuffer: true });
+    if (!gl) { canvas.parentNode.insertAdjacentHTML("beforeend", "<span class=\"tag l\" style=\"top:auto;bottom:8px\">WebGL недоступен</span>"); return; }
+    function sh(type, src) { var s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) { console.error(key, gl.getShaderInfoLog(s)); } return s; }
+    var prog = gl.createProgram();
+    gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS));
+    gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, COMMON + "\n" + DEMOS[key].join("\n") + "\n" + MAIN));
+    gl.linkProgram(prog);
+    gl.useProgram(prog);
+    var buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+    var loc = gl.getAttribLocation(prog, "a"); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    var slider = document.getElementById("s-" + key);
+    var v = { canvas: canvas, gl: gl, res: gl.getUniformLocation(prog, "res"), t: gl.getUniformLocation(prog, "t"),
+      split: gl.getUniformLocation(prog, "split"), slider: slider, visible: true, dirty: true };
+    slider.addEventListener("input", function () { v.dirty = true; if (!playing) draw(v, last); });
+    views.push(v);
+  }
+
+  function size(v) {
+    var dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    var w = Math.max(1, Math.round(v.canvas.clientWidth * dpr)), h = Math.max(1, Math.round(v.canvas.clientHeight * dpr));
+    if (v.canvas.width !== w || v.canvas.height !== h) { v.canvas.width = w; v.canvas.height = h; }
+  }
+
+  var last = 3.0;
+  function draw(v, time) {
+    size(v);
+    var gl = v.gl;
+    gl.viewport(0, 0, v.canvas.width, v.canvas.height);
+    gl.uniform2f(v.res, v.canvas.width, v.canvas.height);
+    gl.uniform1f(v.t, time);
+    gl.uniform1f(v.split, v.slider.value / 100);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll("canvas[data-demo]"), build);
+
+  if ("IntersectionObserver" in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { views.forEach(function (v) { if (v.canvas === e.target) v.visible = e.isIntersecting; }); });
+    });
+    views.forEach(function (v) { io.observe(v.canvas); });
+  }
+
+  var start = performance.now();
+  function frame(now) {
+    if (playing) {
+      last = 3.0 + (now - start) / 1000;
+      views.forEach(function (v) { if (v.visible) draw(v, last); });
+    }
+    requestAnimationFrame(frame);
+  }
+  views.forEach(function (v) { draw(v, last); });
+  requestAnimationFrame(frame);
+  window.addEventListener("resize", function () { views.forEach(function (v) { draw(v, last); }); });
+
+  var btn = document.getElementById("anim");
+  var note = document.getElementById("animNote");
+  function label() { btn.textContent = playing ? "Пауза" : "Запустить движение"; note.textContent = reduce && !playing ? "Движение выключено: в системе включено «уменьшить движение»." : ""; }
+  btn.addEventListener("click", function () { playing = !playing; if (playing) start = performance.now() - (last - 3.0) * 1000; label(); });
+  label();
+})();
+</script>

@@ -10,6 +10,7 @@ import net.minecraft.client.renderer.entity.ItemRenderer;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Mth;
 import net.minecraft.world.item.ItemDisplayContext;
 
 /** A thrown bolt or nut: its own 3D item model, tumbling as it flies. */
@@ -27,7 +28,7 @@ public class BoltRenderer extends EntityRenderer<BoltEntity> {
     public void render(BoltEntity bolt, float yaw, float partial, PoseStack pose, MultiBufferSource buffers, int light) {
         pose.pushPose();
         pose.translate(0.0, 0.03, 0.0);
-        float spin = (bolt.tickCount + partial) * 28.0f + bolt.getId() * 37.0f;
+        float spin = Mth.lerp(partial, bolt.spinO, bolt.spin) + bolt.getId() * 37.0f;
         pose.mulPose(Axis.YP.rotationDegrees(spin * 0.6f));
         pose.mulPose(Axis.XP.rotationDegrees(spin));
         items.renderStatic(bolt.getItem(), ItemDisplayContext.GROUND, light, OverlayTexture.NO_OVERLAY, pose, buffers, bolt.level(), bolt.getId());

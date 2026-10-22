@@ -7,6 +7,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.FluidTags;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -49,9 +50,18 @@ public class BoltEntity extends ThrowableItemProjectile {
         return ModItems.BOLT.get();
     }
 
+    /** Client: how far it has turned over (degrees), now and a tick ago — fast in flight, lazily
+     *  when it hangs slowly drifting (a Lift). */
+    public float spin;
+    public float spinO;
+
     @Override
     public void tick() {
         super.tick();
+        if (level().isClientSide) {
+            spinO = spin;
+            spin += Mth.clamp((float) getDeltaMovement().length() * 60.0f, 1.2f, 28.0f);
+        }
         if (!level().isClientSide && !sounded && isInWater()) {
             sounded = true;
             sound(BoltSounds.Group.WATER);

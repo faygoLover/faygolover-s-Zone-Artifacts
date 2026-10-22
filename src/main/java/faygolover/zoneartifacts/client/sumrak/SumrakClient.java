@@ -36,8 +36,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The Dusk: a volume of churning darkness (black {@link Gas} puffs, their edges curling out and back
- * like smoke). Whatever is inside is not drawn for anyone looking from outside (so it can't show
+ * The Dusk: a solid mass of churning darkness (black {@link Gas} puffs overlapping into one, those
+ * at its edges curling out and back like smoke). Whatever is inside is not drawn for anyone looking from outside (so it can't show
  * through the gaps), and no sound from inside reaches out; inside, black fog at arm's length and a
  * low drone in place of every other sound.
  */
@@ -174,7 +174,7 @@ public final class SumrakClient {
             int eff = DENSITY.get(zi);
             double volume = zone.getXsize() * zone.getYsize() * zone.getZsize();
             double step = Math.max(1.1, Math.cbrt(volume / 380.0));
-            float alpha = Mth.clamp(0.82f + 0.04f * eff, 0.82f, 0.97f);
+            float alpha = Mth.clamp(0.9f + 0.03f * eff, 0.9f, 0.98f);
             int nx = Math.max(1, (int) Math.round(zone.getXsize() / step));
             int ny = Math.max(1, (int) Math.round(zone.getYsize() / step));
             int nz = Math.max(1, (int) Math.round(zone.getZsize() / step));
@@ -200,8 +200,10 @@ public final class SumrakClient {
                             p = p.add(outward.scale(curl));
                         }
                         if (p.distanceToSqr(cam) < 0.8) continue;
-                        double r = step * (0.92 + 0.12 * Math.sin(time * 0.017 + seed));
-                        out.add(new Gas.FramePuff(p, r, edge ? alpha * 0.88f : alpha, INNER, OUTER, seed));
+                        // Inside, the puffs overlap heavily, so it reads as one solid mass of dark
+                        // (smaller ones showed as separate clumps); only the edge ones curl like smoke.
+                        double r = step * ((edge ? 1.15 : 1.5) + 0.1 * Math.sin(time * 0.017 + seed));
+                        out.add(new Gas.FramePuff(p, r, edge ? alpha * 0.9f : alpha, INNER, OUTER, seed));
                     }
                 }
             }

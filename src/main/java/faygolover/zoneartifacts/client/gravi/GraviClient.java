@@ -1,28 +1,20 @@
 package faygolover.zoneartifacts.client.gravi;
 
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import faygolover.zoneartifacts.ZoneArtifacts;
-import faygolover.zoneartifacts.client.GlowRenderType;
 import faygolover.zoneartifacts.client.distortion.Distortion;
-import faygolover.zoneartifacts.client.tesla.FireDraw;
 import faygolover.zoneartifacts.registry.ModParticles;
 import faygolover.zoneartifacts.tesla.Gravi;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.particle.Particle;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.core.particles.BlockParticleOption;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
-import org.joml.Matrix4f;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -31,8 +23,8 @@ import java.util.List;
 
 /**
  * Gravi's pops, as each client sees them: a tiny Voronka. For {@link Gravi#WINDUP_TICKS} ticks the
- * air pinches in (a small lens, {@link Distortion}) and dust and chips of the surface are drawn in;
- * then a snap — a small ring of bent air, a pale ring, dust and chips flung out.
+ * air is sucked in and wound round (a small lens, {@link Distortion}), a little dust swirling in with
+ * it; then a snap — a small ring of bent air, a few specks thrown out a short way.
  */
 @Mod.EventBusSubscriber(modid = ZoneArtifacts.MODID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public final class GraviClient {
@@ -81,32 +73,31 @@ public final class GraviClient {
             }
             Vec3 p = pop.pos();
             if (now < pop.due()) {
-                // Drawn in: dust from all round, chips of the surface.
-                for (int i = 0; i < 2; i++) {
+                // Drawn in: a little dust swirling in from all round, faster the nearer the snap.
+                float t = (now - pop.start()) / (float) Gravi.WINDUP_TICKS;
+                if (RANDOM.nextFloat() < 0.6f) {
                     Vec3 dir = new Vec3(RANDOM.nextGaussian(), RANDOM.nextGaussian(), RANDOM.nextGaussian()).normalize();
                     if (pop.normal() != null && dir.dot(pop.normal()) < 0) dir = dir.scale(-1);
-                    Vec3 from = p.add(dir.scale(0.7 + RANDOM.nextDouble() * 0.3));
-                    Vec3 v = p.subtract(from).scale(1.0 / 7.0);
-                    faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, ModParticles.GRAV_DUST.get(), from.x, from.y, from.z, v.x, v.y, v.z);
-                }
-                if (pop.surface() != null && RANDOM.nextInt(2) == 0) {
-                    Vec3 from = p.subtract(pop.normal() != null ? pop.normal().scale(0.25) : Vec3.ZERO);
-                    Vec3 v = p.subtract(from).scale(0.2).add(RANDOM.nextGaussian() * 0.02, 0.0, RANDOM.nextGaussian() * 0.02);
-                    faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, new BlockParticleOption(ParticleTypes.BLOCK, pop.surface()), from.x, from.y, from.z, v.x, v.y, v.z);
+                    Vec3 from = p.add(dir.scale(0.8 + RANDOM.nextDouble() * 0.5));
+                    Vec3 in = p.subtract(from);
+                    Vec3 swirl = in.cross(pop.normal() != null ? pop.normal() : new Vec3(0, 1, 0));
+                    if (swirl.lengthSqr() > 1.0E-6) swirl = swirl.normalize().scale(in.length() * 0.08);
+                    // Reaches the middle at the snap and is gone there (the dust has hardly any drag:
+                    // left to live, it flew on out the other side and far away).
+                    long left = Math.max(2, pop.due() - now);
+                    Vec3 v = in.scale(1.0 / left).add(swirl.scale(0.6));
+                    if (!faygolover.zoneartifacts.client.ClientAnomalyCache.hiddenAt(from)) {
+                        Particle dust = mc.particleEngine.createParticle(ModParticles.GRAV_DUST.get(), from.x, from.y, from.z, v.x, v.y, v.z);
+                        if (dust != null) dust.setLifetime((int) left + 1);
+                    }
                 }
             } else if (now == pop.due()) {
-                // The snap.
-                for (int i = 0; i < 10; i++) {
+                // The snap: a few specks thrown out a short way, settling.
+                for (int i = 0; i < 4; i++) {
                     Vec3 v = new Vec3(RANDOM.nextGaussian(), RANDOM.nextGaussian(), RANDOM.nextGaussian()).normalize()
-                            .scale(0.12 + RANDOM.nextDouble() * 0.15);
+                            .scale(0.03 + RANDOM.nextDouble() * 0.04);
                     if (pop.normal() != null && v.dot(pop.normal()) < 0) v = v.subtract(pop.normal().scale(2.0 * v.dot(pop.normal())));
-                    faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, ModParticles.GRAV_DUST.get(), p.x, p.y, p.z, v.x, v.y, v.z);
-                }
-                if (pop.surface() != null) {
-                    for (int i = 0; i < 6; i++) {
-                        Vec3 v = new Vec3(RANDOM.nextGaussian() * 0.12, 0.12 + RANDOM.nextDouble() * 0.12, RANDOM.nextGaussian() * 0.12);
-                        faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, new BlockParticleOption(ParticleTypes.BLOCK, pop.surface()), p.x, p.y, p.z, v.x, v.y, v.z);
-                    }
+                    faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, ModParticles.GRAV_DUST.get(), p.x, p.y, p.z, v.x, v.y - 0.01, v.z);
                 }
             }
         }
@@ -118,8 +109,9 @@ public final class GraviClient {
         for (Pop pop : POPS) {
             float t = (now - pop.start() + partial) / Gravi.WINDUP_TICKS;
             if (t < 1.0f) {
-                out.add(new Distortion.Lens(pop.pos(), 0.9, 0.3 + 1.2 * t, 0.4 * t, 0.02, time * 0.1, 0.0, 0.8, 0.1,
-                        0.0, Math.min(1.0f, t * 3.0f), 10, 20));
+                // A plain gravitational pull: the air sucked in and wound round, tighter and tighter.
+                out.add(new Distortion.Lens(pop.pos(), 1.1, 0.4 + 1.8 * t, 0.9 * t * t, 0.025, time * 0.12, -0.04 * t, 0.8, 0.1,
+                        0.0, Math.min(1.0f, t * 3.0f), 12, 24).churn(0.05 + 0.08 * t, 0.0, time * 0.1));
             } else {
                 float after = (now - pop.due() + partial) / AFTER_TICKS;
                 if (after >= 1.0f) continue;
@@ -128,51 +120,5 @@ public final class GraviClient {
                         0.0, 1.0f - after * after, 10, 20));
             }
         }
-    }
-
-    /** A small pale ring at each snap. */
-    @SubscribeEvent
-    public static void onRenderLevelStage(RenderLevelStageEvent event) {
-        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_PARTICLES || POPS.isEmpty()) return;
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null) return;
-        long now = mc.level.getGameTime();
-        float partial = event.getPartialTick();
-        Vec3 cam = event.getCamera().getPosition();
-        PoseStack poseStack = event.getPoseStack();
-        poseStack.pushPose();
-        poseStack.translate(-cam.x, -cam.y, -cam.z);
-        Matrix4f matrix = poseStack.last().pose();
-        MultiBufferSource.BufferSource bufferSource = mc.renderBuffers().bufferSource();
-        VertexConsumer buffer = bufferSource.getBuffer(GlowRenderType.GLOW);
-        for (Pop pop : POPS) {
-            float after = (now - pop.due() + partial) / AFTER_TICKS;
-            if (after < 0.0f || after >= 1.0f) continue;
-            float e = 1.0f - (1.0f - after) * (1.0f - after);
-            ring(matrix, buffer, pop.pos(), 0.15 + 1.0 * e, cam, 0.02f + 0.03f * (1.0f - after),
-                    FireDraw.argb((int) (150 * (1.0f - after)), 225, 225, 235));
-        }
-        bufferSource.endBatch(GlowRenderType.GLOW);
-        poseStack.popPose();
-    }
-
-    private static void ring(Matrix4f matrix, VertexConsumer buffer, Vec3 c, double radius, Vec3 cam, float halfWidth, int color) {
-        Vec3 toCam = cam.subtract(c);
-        if (toCam.lengthSqr() < 1.0E-6) return;
-        toCam = toCam.normalize();
-        Vec3 up = Math.abs(toCam.y) < 0.95 ? new Vec3(0, 1, 0) : new Vec3(1, 0, 0);
-        Vec3 right = toCam.cross(up).normalize();
-        Vec3 upOnPlane = right.cross(toCam).normalize();
-        int n = 24;
-        Vec3[] points = new Vec3[n + 1];
-        float[] widths = new float[n + 1];
-        int[] colors = new int[n + 1];
-        for (int i = 0; i <= n; i++) {
-            double a = Math.PI * 2.0 * i / n;
-            points[i] = c.add(right.scale(Math.cos(a) * radius)).add(upOnPlane.scale(Math.sin(a) * radius));
-            widths[i] = halfWidth;
-            colors[i] = color;
-        }
-        FireDraw.ribbon(matrix, buffer, points, widths, colors, cam);
     }
 }

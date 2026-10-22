@@ -1,5 +1,6 @@
 package faygolover.zoneartifacts.client.khlopushka;
 
+import faygolover.zoneartifacts.client.render.LatePass;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import faygolover.zoneartifacts.ZoneArtifacts;
@@ -9,9 +10,7 @@ import faygolover.zoneartifacts.client.tesla.LightningDraw;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.util.Mth;
-import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
@@ -21,7 +20,6 @@ import net.minecraftforge.fml.common.Mod;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
-import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -34,7 +32,6 @@ import java.util.List;
 @Mod.EventBusSubscriber(modid = ZoneArtifacts.MODID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public final class KhlopushkaClient {
 
-    private static final RandomSource RANDOM = RandomSource.create();
     private static final int BLAST_TICKS = 8;
 
     private record Clot(Vec3 at, long start, int ticks) {
@@ -108,17 +105,11 @@ public final class KhlopushkaClient {
         long now = level.getGameTime();
         CLOTS.removeIf(c -> now - c.start() > c.ticks() + 20);
         BLASTS.removeIf(b -> now - b.born() > BLAST_TICKS);
-        for (Clot c : CLOTS) {
-            float t = Mth.clamp((now - c.start()) / (float) c.ticks(), 0.0f, 1.0f);
-            if (RANDOM.nextFloat() < 0.2f + 0.8f * t) {
-                Vec3 v = new Vec3(RANDOM.nextGaussian(), RANDOM.nextGaussian(), RANDOM.nextGaussian()).scale(0.08 + 0.1 * t);
-                faygolover.zoneartifacts.client.ClientAnomalyCache.particle(level, ParticleTypes.ELECTRIC_SPARK, c.at().x, c.at().y, c.at().z, v.x, v.y, v.z);
-            }
-        }
     }
 
     @SubscribeEvent
     public static void onRenderLevelStage(RenderLevelStageEvent event) {
+        if (LatePass.deferred(event)) return;
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) return;
         if (CLOTS.isEmpty() && BLASTS.isEmpty()) return;
         Minecraft mc = Minecraft.getInstance();

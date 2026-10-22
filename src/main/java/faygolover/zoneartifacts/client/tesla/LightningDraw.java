@@ -1,12 +1,13 @@
 package faygolover.zoneartifacts.client.tesla;
 
+import faygolover.zoneartifacts.client.GlowRenderType;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 
 /**
- * Lightning geometry for the Tesla, drawn into a {@code RenderType.lightning()} buffer (additive,
+ * Lightning geometry for the Tesla, drawn into a {@code GlowRenderType.ARC} buffer (additive,
  * unlit, back faces culled). The jitter and camera-facing ribbon are the same technique Electra's
  * {@code AnomalyArcRenderer} uses; kept as a separate copy with alpha support so Electra's
  * renderer stays untouched.

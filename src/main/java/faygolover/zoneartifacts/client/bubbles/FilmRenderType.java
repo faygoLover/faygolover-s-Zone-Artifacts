@@ -2,6 +2,7 @@ package faygolover.zoneartifacts.client.bubbles;
 
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
+import faygolover.zoneartifacts.client.render.ZaShaders;
 import net.minecraft.client.renderer.RenderType;
 
 /**
@@ -16,7 +17,7 @@ final class FilmRenderType extends RenderType {
     private FilmRenderType() {
         super("fl_zone_arts_film", DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS, 65536, false, true,
                 () -> {
-                    POSITION_COLOR_SHADER.setupRenderState();
+                    ZaShaders.SOFT_SHARD.setupRenderState();
                     TRANSLUCENT_TRANSPARENCY.setupRenderState();
                     LEQUAL_DEPTH_TEST.setupRenderState();
                     NO_CULL.setupRenderState();
@@ -27,7 +28,7 @@ final class FilmRenderType extends RenderType {
                     NO_CULL.clearRenderState();
                     LEQUAL_DEPTH_TEST.clearRenderState();
                     TRANSLUCENT_TRANSPARENCY.clearRenderState();
-                    POSITION_COLOR_SHADER.clearRenderState();
+                    ZaShaders.SOFT_SHARD.clearRenderState();
                 });
     }
 }

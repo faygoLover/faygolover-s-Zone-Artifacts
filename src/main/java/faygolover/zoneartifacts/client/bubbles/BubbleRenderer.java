@@ -1,5 +1,6 @@
 package faygolover.zoneartifacts.client.bubbles;
 
+import faygolover.zoneartifacts.client.render.LatePass;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import faygolover.zoneartifacts.ZoneArtifacts;
@@ -38,6 +39,7 @@ public class BubbleRenderer extends EntityRenderer<BubbleEntity> {
 
     @Override
     public void render(BubbleEntity entity, float yaw, float partialTick, PoseStack poseStack, MultiBufferSource buffers, int light) {
+        if (LatePass.deferEntity(entity, partialTick, (ps, buf) -> render(entity, yaw, partialTick, ps, buf, light))) return;
         if (faygolover.zoneartifacts.client.ClientAnomalyCache.hiddenAt(entity.position())) return;
         float time = entity.tickCount + partialTick + entity.getId() * 13.1f;
         float charge = entity.charging() ? 1.0f - Math.max(0, entity.charge()) / 5.0f : 0.0f;

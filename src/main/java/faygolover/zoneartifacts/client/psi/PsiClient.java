@@ -50,9 +50,11 @@ public final class PsiClient {
     private static int outsideTicks;
     private static float scale = 1.0f;
     private static float waveSeconds = 6.0f;
-    /** Now and then the voices give way to something else close by. */
+    /** Now and then it's something else close by instead of the voices (chosen on going in). */
     private static final float POLTER_CHANCE = 0.2f;
-    private static int nextVoices = 0;
+    /** This visit's sound: chosen on going in, played round and round until the zone lets go. */
+    private static boolean polterThisTime;
+    private static boolean chosen;
     @Nullable
     private static Voice left;
     @Nullable
@@ -114,33 +116,38 @@ public final class PsiClient {
             if (outsideTicks > DELAY) level = Math.max(0.0f, level - RAMP);
         }
 
-        // Voices in the head: the left channel in the left ear, the right in the right; after each
-        // round a short pause, and now and then something else instead.
+        // Voices in the head, the left channel in the left ear, the right in the right — or now and
+        // then something else close by. Which one is decided on going in; it then loops on, one sound,
+        // until the zone lets go (and starts again by itself if the sound engine dropped it).
         if (level > 0.02f) {
+            if (!chosen) {
+                polterThisTime = RANDOM.nextFloat() < POLTER_CHANCE;
+                chosen = true;
+            }
             SoundManager sounds = mc.getSoundManager();
-            boolean playing = active(sounds, left) || active(sounds, right) || active(sounds, polter);
-            if (!playing && --nextVoices <= 0) {
-                if (RANDOM.nextFloat() < POLTER_CHANCE) {
+            if (polterThisTime) {
+                if (!alive(polter)) {
                     polter = new Voice(ModSounds.PSI_POLTER.get(), 0.0);
                     sounds.play(polter);
-                } else {
-                    left = new Voice(ModSounds.PSI_VOICES_L.get(), -1.5);
-                    right = new Voice(ModSounds.PSI_VOICES_R.get(), 1.5);
-                    sounds.play(left);
-                    sounds.play(right);
                 }
-                nextVoices = 20 + RANDOM.nextInt(80);
+            } else if (!alive(left) || !alive(right)) {
+                if (left != null) sounds.stop(left);
+                if (right != null) sounds.stop(right);
+                left = new Voice(ModSounds.PSI_VOICES_L.get(), -1.5);
+                right = new Voice(ModSounds.PSI_VOICES_R.get(), 1.5);
+                sounds.play(left);
+                sounds.play(right);
             }
-        } else {
-            nextVoices = 0;
+        } else if (!alive(left) && !alive(right) && !alive(polter)) {
+            chosen = false;
         }
     }
 
-    private static boolean active(SoundManager sounds, @Nullable Voice v) {
-        return v != null && !v.isStopped() && sounds.isActive(v);
+    private static boolean alive(@Nullable Voice v) {
+        return v != null && !v.isStopped();
     }
 
-    /** From outside one can't see the zone itself — only the air through it swims a little, colours apart. */
+    /** From outside one can't see the zone itself — only the air through it swims, colours apart. */
     public static void collect(List<Distortion.Patch> out, long now, float partial, Vec3 cam) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) return;
@@ -152,19 +159,26 @@ public final class PsiClient {
             float k = Mth.clamp(entry.intensity() / 3.0f, 0.3f, 1.6f);
             Vec3 base = new Vec3((zone.minX + zone.maxX) * 0.5, zone.minY, (zone.minZ + zone.maxZ) * 0.5);
             double width = Math.max(zone.getXsize(), zone.getZsize());
-            out.add(new Distortion.Haze(base, width, zone.getYsize(), 0.02 + 0.015 * k, time * 0.012, 1.3, true, 0.9f,
-                    entry.pos().hashCode() * 0.01).chroma(0.0025 * k));
+            // The air swims, swelling and easing smoothly; the colours only just come apart.
+            float seed = entry.pos().hashCode() * 0.01f;
+            float g = 0.5f + 0.3f * Mth.sin(time * 0.04f + seed) + 0.2f * Mth.sin(time * 0.023f + seed * 1.7f);
+            out.add(new Distortion.Haze(base, width, zone.getYsize(), (0.04 + 0.03 * k) * (0.85 + 0.3 * g), time * 0.012, 1.3, true,
+                    0.95f, seed).chroma((0.002 + 0.003 * g) * k));
         }
     }
 
-    /** A voice heard inside the head, from one side ({@code side} &lt; 0 left, &gt; 0 right, 0 middle):
+    /** A voice heard inside the head, from one side ({@code side} &lt; 0 left, &gt; 0 right, 0 middle), looping:
      *  its loudness follows the zone's hold on the senses; it falls silent and stops once that's gone. */
     private static final class Voice extends AbstractTickableSoundInstance {
         private int silent;
 
+        /** Was heard at least once; when made (see {@link #isStopped()}). */
+        private boolean heard;
+        private final long born = net.minecraft.Util.getMillis();
+
         Voice(SoundEvent sound, double side) {
             super(sound, SoundSource.AMBIENT, RandomSource.create());
-            this.looping = false;
+            this.looping = true;
             this.delay = 0;
             this.relative = true;
             this.attenuation = SoundInstance.Attenuation.NONE;
@@ -176,8 +190,10 @@ public final class PsiClient {
 
         @Override
         public void tick() {
+            heard = true;
             float want = 0.9f * Math.min(1.0f, level * scale);
-            this.volume += (want - this.volume) * 0.08f;
+            // In quickly, out slowly: after leaving the zone the voices die away over a few seconds.
+            this.volume += (want - this.volume) * (want > this.volume ? 0.08f : 0.03f);
             if (want <= 0.001f && this.volume < 0.01f) {
                 if (++silent > 20) stop();
             } else {
@@ -188,6 +204,14 @@ public final class PsiClient {
         @Override
         public boolean canStartSilent() {
             return true;
+        }
+
+        /** Also stopped if the sound engine dropped it (or never took it up), so it gets started again. */
+        @Override
+        public boolean isStopped() {
+            if (super.isStopped()) return true;
+            if (Minecraft.getInstance().getSoundManager().isActive(this)) return false;
+            return heard || net.minecraft.Util.getMillis() - born > 1000L;
         }
     }
 

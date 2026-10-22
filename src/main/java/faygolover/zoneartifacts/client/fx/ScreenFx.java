@@ -15,6 +15,14 @@ import faygolover.zoneartifacts.client.poppy.PoppyClient;
 import faygolover.zoneartifacts.client.psi.PsiClient;
 import faygolover.zoneartifacts.client.sumrak.SumrakClient;
 import faygolover.zoneartifacts.client.swamp.SwampClient;
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexSorting;
+import faygolover.zoneartifacts.client.render.LatePass;
+import faygolover.zoneartifacts.client.render.ScreenPass;
+import faygolover.zoneartifacts.client.render.ZaShaders;
+import net.minecraft.client.renderer.ShaderInstance;
+import net.minecraftforge.client.event.RenderLevelStageEvent;
+import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.GameRenderer;
@@ -155,15 +163,26 @@ public final class ScreenFx {
     }
 
     /**
-     * The psi zone's sight: the frame wobbles like hot air, its colours come apart towards the edges,
-     * and in waves it smears. {@code s} 0..1 is the strength, {@code wave} 0..1 the current wave.
+     * The psi zone's sight: the frame wobbles a little like hot air; its colours come apart — green
+     * one way, magenta the other — swelling and easing smoothly, more in waves; in the waves it also
+     * smears a little. The hand and what it holds stay sharp, trailing only a faint, fading after-image
+     * with its colours apart. {@code s} 0..1 is the strength, {@code wave} 0..1 the current wave.
      */
     private static void psi(GuiGraphics graphics, float s, float wave, float time, int width, int height) {
         if (!grab()) return;
+        Minecraft mc = Minecraft.getInstance();
+        boolean hand = Hand.maskThisFrame(mc);
         Matrix4f m = graphics.pose().last().pose();
-        float wobble = 0.008f * s + 0.02f * s * wave;
-        float split = 0.007f * s + 0.024f * s * wave;
-        float blur = 0.008f * s * (0.4f + wave);
+        float wobble = 0.004f * s + 0.009f * s * wave;
+        // How far apart the colours are: drifting smoothly between less and more, never jumping.
+        float drift = 0.5f + 0.3f * Mth.sin(time * 0.045f) + 0.2f * Mth.sin(time * 0.029f + 1.3f);
+        float apart = s * (0.003f + 0.007f * wave + 0.01f * drift);
+        float angle = 0.5f * Mth.sin(time * 0.013f) + 0.25f * Mth.sin(time * 0.007f + 2.0f);
+        float du = Mth.cos(angle) * apart;
+        float dv = Mth.sin(angle) * apart * 0.6f;
+        float split = 0.002f * s + 0.006f * s * wave;
+        // The smear: only in the waves, and slight.
+        float blur = 0.004f * s * wave;
 
         RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
         RenderSystem.setShaderTexture(0, copy.getColorTextureId());
@@ -171,24 +190,162 @@ public final class ScreenFx {
         RenderSystem.disableBlend();
         // Whole picture, wobbling.
         quadGrid(m, width, height, time, wobble, 0.0f, 0.0f, 0.0f, 1.0f);
-        // Red outwards, blue inwards.
-        RenderSystem.colorMask(true, false, false, false);
-        quadGrid(m, width, height, time, wobble, split, 0.0f, 0.0f, 1.0f);
-        RenderSystem.colorMask(false, false, true, false);
-        quadGrid(m, width, height, time, wobble, -split, 0.0f, 0.0f, 1.0f);
+        // Magenta one way, green the other (and a little outwards / inwards).
+        RenderSystem.colorMask(true, false, true, false);
+        quadGrid(m, width, height, time, wobble, split, du, dv, 1.0f);
+        RenderSystem.colorMask(false, true, false, false);
+        quadGrid(m, width, height, time, wobble, -split, -du, -dv, 1.0f);
         RenderSystem.colorMask(true, true, true, true);
-        // Smear.
         if (blur > 1.0E-4f) {
             RenderSystem.enableBlend();
             RenderSystem.defaultBlendFunc();
-            float a = Mth.clamp(0.3f * (s * (0.5f + wave)), 0.0f, 0.42f);
+            float a = Mth.clamp(0.22f * s * wave, 0.0f, 0.3f);
             quadGrid(m, width, height, time, wobble, 0.0f, blur, 0.0f, a);
             quadGrid(m, width, height, time, wobble, 0.0f, -blur, 0.0f, a);
             quadGrid(m, width, height, time, wobble, 0.0f, 0.0f, blur, a);
             quadGrid(m, width, height, time, wobble, 0.0f, 0.0f, -blur, a);
             RenderSystem.disableBlend();
         }
+        if (hand) Hand.draw(copy, s, du, dv);
         RenderSystem.enableDepthTest();
+    }
+
+    /**
+     * The hand (and what it holds) kept out of the psi sight: where it is on screen, its fading
+     * trail, drawing it back sharp. Where it is: with a shader pack, from the depth at the end of the
+     * world pass (the pack draws the hand into it, squeezed into the middle of the depth range);
+     * without, from what changed after the world was copied (only the hand is drawn in between).
+     */
+    @Mod.EventBusSubscriber(modid = ZoneArtifacts.MODID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.FORGE)
+    public static final class Hand {
+        /** With a shader pack: depth nearer than this is the hand (it sits at 0.44..0.56; the world past ~0.1 block, above 0.9). */
+        private static final float PACK_HAND_DEPTH = 0.75f;
+        /** How fast the after-image fades: what's left of it after a frame. */
+        private static final float TRAIL_KEEP = 0.9f;
+
+        private static TextureTarget world;
+        private static TextureTarget mask;
+        private static TextureTarget trail;
+        private static boolean worldReady;
+        private static boolean maskReady;
+        private static boolean trailFresh = true;
+
+        private Hand() {
+        }
+
+        @SubscribeEvent(priority = EventPriority.LOWEST)
+        public static void onRenderLevelStage(RenderLevelStageEvent event) {
+            if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_LEVEL) return;
+            Minecraft mc = Minecraft.getInstance();
+            worldReady = false;
+            maskReady = false;
+            if (PsiClient.strength(event.getPartialTick()) <= 0.004f) {
+                trailFresh = true;
+                return;
+            }
+            RenderTarget main = mc.getMainRenderTarget();
+            if (LatePass.active()) {
+                ShaderInstance shader = ZaShaders.handMask();
+                if (shader == null) return;
+                mask = fit(mask, main);
+                shader.setSampler("DepthSampler", main.getDepthTextureId());
+                shader.safeGetUniform("Threshold").set(PACK_HAND_DEPTH);
+                fullscreen(mask, shader, false);
+                maskReady = true;
+            } else {
+                world = fit(world, main);
+                blitColor(main, world);
+                worldReady = true;
+            }
+            main.bindWrite(true);
+        }
+
+        /** Works out this frame's hand mask (at the HUD, after {@link #grab()}); true if there is one. */
+        static boolean maskThisFrame(Minecraft mc) {
+            if (maskReady) return true;
+            if (!worldReady || copy == null) return false;
+            worldReady = false;
+            // A screen effect (pain blur and the like) changes every pixel after the world: no telling the hand apart.
+            if (mc.gameRenderer.currentEffect() != null) return false;
+            ShaderInstance shader = ZaShaders.handDiff();
+            if (shader == null) return false;
+            RenderTarget main = mc.getMainRenderTarget();
+            mask = fit(mask, main);
+            shader.setSampler("WorldSampler", world.getColorTextureId());
+            shader.setSampler("FrameSampler", copy.getColorTextureId());
+            shader.safeGetUniform("Threshold").set(0.03f);
+            fullscreen(mask, shader, false);
+            main.bindWrite(true);
+            maskReady = true;
+            return true;
+        }
+
+        /** Over the swimming picture: the hand's fading after-image (colours apart), then the hand itself, sharp. */
+        static void draw(TextureTarget frame, float s, float du, float dv) {
+            maskReady = false;
+            Minecraft mc = Minecraft.getInstance();
+            RenderTarget main = mc.getMainRenderTarget();
+            ShaderInstance over = ZaShaders.handOver();
+            ShaderInstance ghost = ZaShaders.ghost();
+            if (over == null || ghost == null) return;
+            // The trail: fade what's there, add this frame's hand.
+            boolean fresh = trail == null || trailFresh || trail.width != main.width || trail.height != main.height;
+            trail = fit(trail, main);
+            trail.bindWrite(true);
+            if (fresh) {
+                RenderSystem.clearColor(0.0f, 0.0f, 0.0f, 0.0f);
+                RenderSystem.clear(GL11.GL_COLOR_BUFFER_BIT, Minecraft.ON_OSX);
+                trailFresh = false;
+            } else {
+                RenderSystem.enableBlend();
+                RenderSystem.blendFunc(GlStateManager.SourceFactor.ZERO, GlStateManager.DestFactor.SRC_ALPHA);
+                RenderSystem.setShader(GameRenderer::getPositionColorShader);
+                fullscreenColor(TRAIL_KEEP);
+                RenderSystem.disableBlend();
+            }
+            over.setSampler("DiffuseSampler", frame.getColorTextureId());
+            over.setSampler("MaskSampler", mask.getColorTextureId());
+            over.safeGetUniform("Offset").set(0.0f, 0.0f);
+            over.safeGetUniform("Alpha").set(1.0f);
+            fullscreen(trail, over, false);
+
+            // The after-image, colours apart.
+            ghost.setSampler("DiffuseSampler", trail.getColorTextureId());
+            ghost.safeGetUniform("Alpha").set(0.7f * Math.min(1.0f, s));
+            RenderSystem.enableBlend();
+            RenderSystem.blendFunc(GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+            RenderSystem.colorMask(true, false, true, false);
+            ghost.safeGetUniform("Offset").set(du * 1.6f + 0.002f * s, dv * 1.6f);
+            fullscreen(main, ghost, true);
+            RenderSystem.colorMask(false, true, false, false);
+            ghost.safeGetUniform("Offset").set(-du * 1.6f - 0.002f * s, -dv * 1.6f);
+            fullscreen(main, ghost, true);
+            RenderSystem.colorMask(true, true, true, true);
+            RenderSystem.defaultBlendFunc();
+            RenderSystem.disableBlend();
+
+            // The hand itself, sharp, over all that.
+            fullscreen(main, over, false);
+        }
+
+        private static TextureTarget fit(TextureTarget target, RenderTarget main) {
+            return ScreenPass.fit(target, main);
+        }
+
+        private static void blitColor(RenderTarget from, RenderTarget to) {
+            GlStateManager._glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, from.frameBufferId);
+            GlStateManager._glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, to.frameBufferId);
+            GlStateManager._glBlitFrameBuffer(0, 0, from.width, from.height, 0, 0, to.width, to.height,
+                    GL11.GL_COLOR_BUFFER_BIT, GL11.GL_NEAREST);
+        }
+
+        private static void fullscreen(RenderTarget target, ShaderInstance shader, boolean blend) {
+            ScreenPass.fullscreen(target, shader, blend);
+        }
+
+        private static void fullscreenColor(float alpha) {
+            ScreenPass.black(alpha);
+        }
     }
 
     private static void quadGrid(Matrix4f m, int width, int height, float time, float wobble, float split,
@@ -215,8 +372,9 @@ public final class ScreenFx {
         // Edges stay put (no gaps at the screen's border).
         float edge = Math.min(Math.min(fx, 1.0f - fx), Math.min(fy, 1.0f - fy));
         float keep = Mth.clamp(edge * 8.0f, 0.0f, 1.0f);
-        float u = fx + keep * wobble * (Mth.sin(fy * 9.0f + time * 0.07f) + 0.6f * Mth.sin(fx * 13.0f - time * 0.05f));
-        float v = fy + keep * wobble * (Mth.sin(fx * 8.0f - time * 0.06f) + 0.6f * Mth.sin(fy * 11.0f + time * 0.08f));
+        // A few broad bends, not many small ones.
+        float u = fx + keep * wobble * (Mth.sin(fy * 5.0f + time * 0.06f) + 0.5f * Mth.sin(fx * 7.0f - time * 0.045f));
+        float v = fy + keep * wobble * (Mth.sin(fx * 4.5f - time * 0.05f) + 0.5f * Mth.sin(fy * 6.5f + time * 0.07f));
         // Colour split: radial from the middle, stronger to the edges.
         u = 0.5f + (u - 0.5f) * (1.0f - split) + du;
         v = 0.5f + (v - 0.5f) * (1.0f - split) + dv;

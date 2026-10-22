@@ -1,5 +1,7 @@
 package faygolover.zoneartifacts.client.swamp;
 
+import faygolover.zoneartifacts.client.render.ZaShaders;
+import faygolover.zoneartifacts.client.render.LatePass;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.BufferUploader;
@@ -193,6 +195,7 @@ public final class SwampClient {
 
     @SubscribeEvent
     public static void onRenderLevelStage(RenderLevelStageEvent event) {
+        if (LatePass.deferred(event)) return;
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) return;
         Minecraft mc = Minecraft.getInstance();
         ClientLevel level = mc.level;
@@ -207,7 +210,7 @@ public final class SwampClient {
         poseStack.translate(-cam.x, -cam.y, -cam.z);
         Matrix4f m = poseStack.last().pose();
 
-        RenderSystem.setShader(GameRenderer::getPositionColorShader);
+        RenderSystem.setShader(ZaShaders::soft);
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
         RenderSystem.disableCull();

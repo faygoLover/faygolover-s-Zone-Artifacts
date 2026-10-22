@@ -1,5 +1,6 @@
 package faygolover.zoneartifacts.client;
 
+import faygolover.zoneartifacts.client.render.LatePass;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import faygolover.zoneartifacts.ZoneArtifacts;
@@ -66,6 +67,7 @@ public final class ElectrifyRenderer {
 
     @SubscribeEvent
     public static void onRenderLevelStage(RenderLevelStageEvent event) {
+        if (LatePass.deferred(event)) return;
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_PARTICLES) return;
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) {
@@ -83,7 +85,7 @@ public final class ElectrifyRenderer {
         poseStack.translate(-camPos.x, -camPos.y, -camPos.z);
         Matrix4f matrix = poseStack.last().pose();
         MultiBufferSource.BufferSource bufferSource = mc.renderBuffers().bufferSource();
-        VertexConsumer buffer = bufferSource.getBuffer(RenderType.lightning());
+        VertexConsumer buffer = bufferSource.getBuffer(GlowRenderType.ARC);
 
         for (Iterator<Electrify> it = ACTIVE.iterator(); it.hasNext(); ) {
             Electrify e = it.next();
@@ -97,7 +99,7 @@ public final class ElectrifyRenderer {
             render(matrix, buffer, e, entity, life, now, partialTick, camPos);
         }
 
-        bufferSource.endBatch(RenderType.lightning());
+        bufferSource.endBatch(GlowRenderType.ARC);
         poseStack.popPose();
     }
 

@@ -1,5 +1,7 @@
 package faygolover.zoneartifacts.client.tesla;
 
+import faygolover.zoneartifacts.client.GlowRenderType;
+import faygolover.zoneartifacts.client.render.LatePass;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import faygolover.zoneartifacts.ZoneArtifacts;
@@ -87,6 +89,7 @@ public final class TeslaEffectRenderer {
 
     @SubscribeEvent
     public static void onRenderLevelStage(RenderLevelStageEvent event) {
+        if (LatePass.deferred(event)) return;
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_PARTICLES) return;
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) {
@@ -104,7 +107,7 @@ public final class TeslaEffectRenderer {
         poseStack.translate(-camPos.x, -camPos.y, -camPos.z);
         Matrix4f matrix = poseStack.last().pose();
         MultiBufferSource.BufferSource bufferSource = mc.renderBuffers().bufferSource();
-        VertexConsumer buffer = bufferSource.getBuffer(RenderType.lightning());
+        VertexConsumer buffer = bufferSource.getBuffer(GlowRenderType.ARC);
 
         for (Iterator<Burst> it = BURSTS.iterator(); it.hasNext(); ) {
             Burst burst = it.next();
@@ -134,7 +137,7 @@ public final class TeslaEffectRenderer {
             }
         }
 
-        bufferSource.endBatch(RenderType.lightning());
+        bufferSource.endBatch(GlowRenderType.ARC);
         poseStack.popPose();
     }
 

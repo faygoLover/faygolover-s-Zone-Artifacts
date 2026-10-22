@@ -65,7 +65,10 @@ public class AnomalyAmbientSoundHandler {
 
             Key key = new Key(entry.typeId(), entry.pos());
             desired.add(key);
-            if (!ACTIVE.containsKey(key)) {
+            SimpleSoundInstance playing = ACTIVE.get(key);
+            // Not playing any more though we never stopped it: the sound engine drops every channel whose
+            // volume goes to 0 (the game minimised, a slider at 0). Start it again.
+            if (playing == null || !mc.getSoundManager().isActive(playing)) {
                 start(mc, key, entry, ambient);
             }
         }

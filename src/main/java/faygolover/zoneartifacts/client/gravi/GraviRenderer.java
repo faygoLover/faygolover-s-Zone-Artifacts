@@ -1,5 +1,6 @@
 package faygolover.zoneartifacts.client.gravi;
 
+import faygolover.zoneartifacts.client.render.LatePass;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import faygolover.zoneartifacts.ZoneArtifacts;
@@ -38,6 +39,7 @@ public class GraviRenderer extends EntityRenderer<GraviEntity> {
     @Override
     public void render(GraviEntity entity, float entityYaw, float partialTick, PoseStack poseStack,
                        MultiBufferSource buffers, int packedLight) {
+        if (LatePass.deferEntity(entity, partialTick, (ps, buf) -> render(entity, entityYaw, partialTick, ps, buf, packedLight))) return;
         Player player = Minecraft.getInstance().player;
         if (player == null || !entity.getState().isVisible()) return;
         boolean show = PdaItem.holds(player) || TeslaRoutePlacerItem.heldKind(player) == RouteKind.GRAVI;

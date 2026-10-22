@@ -1,5 +1,7 @@
 package faygolover.zoneartifacts.client.gravity;
 
+import faygolover.zoneartifacts.client.render.ZaShaders;
+import faygolover.zoneartifacts.client.render.LatePass;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.BufferUploader;
@@ -57,6 +59,9 @@ public final class GravityRenderer {
     public static void onRenderLevelStage(RenderLevelStageEvent event) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || GravityClientHandler.states().isEmpty()) return;
+        // With a shader pack all of it in the late pass, the debris too (batched in the pack's own
+        // pass, our blocks could turn up a second time somewhere else).
+        if (LatePass.deferred(event)) return;
         if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) {
             renderSolid(event, mc);
         } else if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_PARTICLES) {
@@ -95,6 +100,7 @@ public final class GravityRenderer {
      *  refraction doesn't bend them. */
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onRenderShapes(RenderLevelStageEvent event) {
+        if (LatePass.deferred(event)) return;
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || GravityClientHandler.states().isEmpty()) return;
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) return;
@@ -107,7 +113,7 @@ public final class GravityRenderer {
         poseStack.pushPose();
         poseStack.translate(-cam.x, -cam.y, -cam.z);
         Matrix4f matrix = poseStack.last().pose();
-        RenderSystem.setShader(GameRenderer::getPositionColorShader);
+        RenderSystem.setShader(ZaShaders::soft);
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
         RenderSystem.disableCull();

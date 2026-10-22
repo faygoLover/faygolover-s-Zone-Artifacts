@@ -1,5 +1,6 @@
 package faygolover.zoneartifacts.client.poppy;
 
+import faygolover.zoneartifacts.client.render.LatePass;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
@@ -364,6 +365,9 @@ public final class PoppyClient {
 
     @SubscribeEvent
     public static void onRenderLevelStage(RenderLevelStageEvent event) {
+        // With a shader pack, in the late pass too: left in the pack's own pass, the flowers
+        // (batched by it) now and then turned up a second time, tilted, somewhere in the air.
+        if (LatePass.deferred(event)) return;
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_CUTOUT_BLOCKS || FIELDS.isEmpty()) return;
         Minecraft mc = Minecraft.getInstance();
         ClientLevel level = mc.level;

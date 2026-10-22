@@ -10,10 +10,11 @@ import java.util.List;
 /**
  * The gravitational anomalies' air distortion (drawn by {@link Distortion}):
  * <ul>
- *     <li><b>Voronka</b> — a gravitational lens: at rest a barely visible, slowly breathing pinch
- *     with a thin band of stronger refraction at the zone's edge, fading in after the cooldown
- *     (nothing during it); while pulling the pinch deepens, ripples run in to the center, the
- *     picture twists and goes blurry; the tear sends a ring of distortion rushing out;</li>
+ *     <li><b>Voronka</b> — a gravitational lens: at rest a plainly visible pinch, the air inside
+ *     boiling, its edge — a band of stronger refraction — running in waves and breathing; fading in
+ *     after the cooldown (nothing during it); while pulling the pinch deepens, ripples run in to the
+ *     center, it boils harder, the picture twists and goes blurry; the tear sends a ring of
+ *     distortion rushing out;</li>
  *     <li><b>Plesh</b> — while pulling, a lighter pinch with ripples; a small ring at the throw;</li>
  *     <li><b>Karusel</b> — a twisting column of shimmering air over its axis, faint at rest.</li>
  * </ul>
@@ -54,6 +55,10 @@ public final class VoronkaLens {
         double bumpAt = RIM_AT;
         double bumpWidth = 0.045;
         double blur = 0.0;
+        double churn;
+        double rimWave;
+        // The rim breathes: its band of refraction swells and shrinks.
+        double pulse = 1.0 + 0.5 * Math.sin(time * 0.21) + 0.2 * Math.sin(time * 0.53);
         float alpha;
         if (state.active()) {
             float t = state.progress(now, partial);
@@ -64,8 +69,10 @@ public final class VoronkaLens {
             twist = (0.35 + 0.1 * Math.sin(time * 0.15)) * t;
             ripple = 0.03 + 0.05 * t;
             ripplePhase = time * (0.05 + 0.07 * t);
-            bump = -0.045 - 0.03 * t;
+            bump = (-0.06 - 0.04 * t) * pulse;
             blur = 0.0015 + 0.0055 * t;
+            churn = 0.1 + 0.15 * t;
+            rimWave = 0.025;
             alpha = 1.0f;
         } else if (release >= 0.0f && release < 1.0f) {
             float e = 1.0f - (1.0f - release) * (1.0f - release);
@@ -74,18 +81,24 @@ public final class VoronkaLens {
             bumpAt = 0.78;
             bumpWidth = 0.12;
             blur = 0.004 * (1.0f - release);
+            churn = 0.12 * (1.0f - release);
+            rimWave = 0.0;
             alpha = 1.0f - release * release;
         } else {
             float ready = state.readiness(now, partial);
             if (ready <= 0.0f) return;
             radius = half * 1.1;
-            pinch = 0.2 * ready * (1.0 + 0.25 * Math.sin(time * 0.04));
-            ripple = 0.01 * ready;
+            // Even at rest it's plainly there: the air inside boils, the edge runs in waves and breathes.
+            pinch = 0.32 * ready * (1.0 + 0.25 * Math.sin(time * 0.04));
+            ripple = 0.018 * ready;
             ripplePhase = time * 0.02;
-            bump = -0.035;
+            bump = -0.06 * pulse;
+            churn = 0.09 * ready;
+            rimWave = 0.03 * ready;
             alpha = ready;
         }
-        out.add(new Distortion.Lens(c, radius, pinch, twist, ripple, ripplePhase, bump, bumpAt, bumpWidth, blur, alpha, 28, 40));
+        out.add(new Distortion.Lens(c, radius, pinch, twist, ripple, ripplePhase, bump, bumpAt, bumpWidth, blur, alpha, 28, 48)
+                .churn(churn, rimWave, time * 0.06));
     }
 
     private static void plesh(List<Distortion.Patch> out, GravityClientHandler.State state, long now, float partial, float time) {

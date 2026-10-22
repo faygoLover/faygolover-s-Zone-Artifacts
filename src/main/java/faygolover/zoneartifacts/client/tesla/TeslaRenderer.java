@@ -1,5 +1,6 @@
 package faygolover.zoneartifacts.client.tesla;
 
+import faygolover.zoneartifacts.client.render.LatePass;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import faygolover.zoneartifacts.ZoneArtifacts;
@@ -80,6 +81,7 @@ public class TeslaRenderer extends EntityRenderer<TeslaEntity> {
     @Override
     public void render(TeslaEntity entity, float entityYaw, float partialTick, PoseStack poseStack,
                        MultiBufferSource buffers, int packedLight) {
+        if (LatePass.deferEntity(entity, partialTick, (ps, buf) -> render(entity, entityYaw, partialTick, ps, buf, packedLight))) return;
         TeslaEntity.State state = entity.getState();
         if (!state.isVisible()) return;
 
@@ -101,7 +103,7 @@ public class TeslaRenderer extends EntityRenderer<TeslaEntity> {
         Vec3 camLocal = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition().subtract(lerpPos);
         Vec3 center = new Vec3(0.0, entity.getBbHeight() / 2.0, 0.0);
         Matrix4f matrix = poseStack.last().pose();
-        VertexConsumer buffer = buffers.getBuffer(RenderType.lightning());
+        VertexConsumer buffer = buffers.getBuffer(GlowRenderType.ARC);
 
         long now = entity.level().getGameTime();
         Ball ball = BALLS.computeIfAbsent(entity, e -> new Ball());
