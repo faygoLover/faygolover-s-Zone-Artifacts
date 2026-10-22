@@ -147,7 +147,11 @@ public final class PsiClient {
         return v != null && !v.isStopped();
     }
 
-    /** From outside one can't see the zone itself — only the air through it swims, colours apart. */
+    /**
+     * From outside one can't see the zone itself — only the air through it swims, calmly, the colours
+     * barely apart. From inside the same swimming air stays: a sheet of it just ahead, turning with the
+     * view (on top of the swimming sight, {@code ScreenFx}).
+     */
     public static void collect(List<Distortion.Patch> out, long now, float partial, Vec3 cam) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) return;
@@ -155,15 +159,29 @@ public final class PsiClient {
         for (SyncAnomaliesPacket.Entry entry : ClientAnomalyCache.entriesFor(mc.level.dimension())) {
             if (!AnomalyTypeIds.PSI.equals(entry.typeId())) continue;
             AABB zone = AnomalyGeometry.box(entry);
-            if (zone.contains(cam)) continue;
             float k = Mth.clamp(entry.intensity() / 3.0f, 0.3f, 1.6f);
-            Vec3 base = new Vec3((zone.minX + zone.maxX) * 0.5, zone.minY, (zone.minZ + zone.maxZ) * 0.5);
-            double width = Math.max(zone.getXsize(), zone.getZsize());
-            // The air swims, swelling and easing smoothly; the colours only just come apart.
             float seed = entry.pos().hashCode() * 0.01f;
-            float g = 0.5f + 0.3f * Mth.sin(time * 0.04f + seed) + 0.2f * Mth.sin(time * 0.023f + seed * 1.7f);
-            out.add(new Distortion.Haze(base, width, zone.getYsize(), (0.04 + 0.03 * k) * (0.85 + 0.3 * g), time * 0.012, 1.3, true,
-                    0.95f, seed).chroma((0.002 + 0.003 * g) * k).boil(0.25 + 0.15 * g));
+            float g = 0.5f + 0.5f * faygolover.zoneartifacts.client.Breath.of(time * 0.5f, seed);
+            double amplitude = (0.025 + 0.018 * k) * (0.85 + 0.3 * g);
+            double chroma = (0.0012 + 0.0018 * g) * k;
+            double boil = 0.12 + 0.08 * g;
+            if (!zone.contains(cam)) {
+                Vec3 base = new Vec3((zone.minX + zone.maxX) * 0.5, zone.minY, (zone.minZ + zone.maxZ) * 0.5);
+                double width = Math.max(zone.getXsize(), zone.getZsize());
+                out.add(new Distortion.Haze(base, width, zone.getYsize(), amplitude, time * 0.01, 1.3, true,
+                        0.95f, seed).chroma(chroma).boil(boil));
+            } else {
+                // Inside: the sheet just ahead (it must stand clear of the camera to be drawn).
+                Vec3 look = mc.gameRenderer.getMainCamera().getPosition().add(
+                        new Vec3(mc.gameRenderer.getMainCamera().getLookVector()));
+                Vec3 flat = new Vec3(look.x - cam.x, 0.0, look.z - cam.z);
+                if (flat.lengthSqr() < 1.0E-4) flat = new Vec3(1.0, 0.0, 0.0);
+                flat = flat.normalize();
+                double width = 7.0;
+                Vec3 base = new Vec3(cam.x, Math.max(zone.minY, cam.y - 3.0), cam.z).add(flat.scale(width * 0.65 + 0.6));
+                out.add(new Distortion.Haze(base, width, Math.min(zone.getYsize(), 6.0), amplitude, time * 0.01, 1.3, true,
+                        0.9f, seed).chroma(chroma).boil(boil));
+            }
         }
     }
 

@@ -139,7 +139,8 @@ public class TeslaRenderer extends EntityRenderer<TeslaEntity> {
         // The glow in its own pass without depth writes (additive, so the order doesn't matter):
         // loops behind the ball shine through it instead of being cut off by the halo's disc.
         buffer = buffers.getBuffer(GlowRenderType.GLOW);
-        float pulse = 1.0f + 0.08f * Mth.sin((now + partialTick) * 0.9f);
+        // Breathes slowly and unevenly (it used to beat fast and regular).
+        float pulse = 1.0f + 0.06f * faygolover.zoneartifacts.client.Breath.of(now % 72000L + partialTick, entity.getId() * 0.37f);
         LightningDraw.glow(matrix, buffer, center, 0.55 * scale * pulse, camLocal, 110, 180, 255, 120, 18);
         Vec3 toCam = camLocal.subtract(center).normalize();
         LightningDraw.glow(matrix, buffer, center.add(toCam.scale(0.02 * size)), 0.17 * scale * pulse, camLocal, 255, 255, 255, 240, 14);

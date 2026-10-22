@@ -146,16 +146,16 @@ public final class AnomalyLight {
             if (!(e instanceof TeslaEntity t) || e instanceof GraviEntity || !t.getState().isVisible()) continue;
             Vec3 c = e.getPosition(partial).add(0.0, e.getBbHeight() / 2.0, 0.0);
             float size = t.getSize();
-            float flicker = 0.85f + 0.15f * Mth.sin((time + partial) * 0.9f + e.getId());
+            // Steady light that breathes slowly, like the ball itself — no flicker.
+            float flicker = 1.0f + 0.12f * faygolover.zoneartifacts.client.Breath.of(time % 72000L + partial, e.getId() * 0.37f);
             if (e instanceof ChemCometEntity) {
                 out.add(new Light(c, 3.5f * size + 1.0f, 0.55f, 0.85f, 0.2f, 0.35f));
             } else if (e instanceof CometEntity comet) {
                 if (comet.isCold()) out.add(new Light(c, 6.0f * size + 1.5f, 0.35f, 0.75f, 1.0f, 1.0f * flicker));
                 else out.add(new Light(c, 6.0f * size + 1.5f, 1.0f, 0.55f, 0.18f, 1.1f * flicker));
             } else {
-                // The Tesla: a crackling blue-white ball.
-                float crackle = 0.7f + 0.3f * Mth.sin((time + partial) * 2.3f + e.getId() * 3.0f);
-                out.add(new Light(c, 5.0f * size + 1.5f, 0.6f, 0.75f, 1.0f, 0.9f * crackle));
+                // The Tesla: a steady blue-white light (it strobed).
+                out.add(new Light(c, 5.0f * size + 1.5f, 0.6f, 0.75f, 1.0f, 0.9f * flicker));
             }
         }
         KiselClient.lights((x, y, z, size, act) -> out.add(new Light(new Vec3(x, y, z), (float) (2.0 + size),

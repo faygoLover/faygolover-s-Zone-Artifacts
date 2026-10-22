@@ -254,7 +254,7 @@ public class CometRenderer extends EntityRenderer<CometEntity> {
                 double s = k / (double) ARCH_SEGMENTS;
                 double bump = Math.sin(Math.PI * s);
                 Vec3 dir = a.scale(1.0 - s).add(b.scale(s)).normalize();
-                double wobble = 0.04 * Math.sin(time * 0.25 + k * 1.3 + p.seed);
+                double wobble = 0.04 * Math.sin(time * 0.08 + k * 1.3 + p.seed);
                 points[k] = center.add(dir.scale(surface * 0.95 + radius * (p.height * rise + wobble) * bump));
                 outer[k] = 0.045f * widthScale * (0.5f + 0.5f * (float) bump);
                 inner[k] = 0.018f * widthScale * (0.5f + 0.5f * (float) bump);
@@ -276,7 +276,7 @@ public class CometRenderer extends EntityRenderer<CometEntity> {
             double angle = Math.PI * 2.0 * k / ringPoints + time * 0.04;
             double r = radius * (1.25 + 0.05 * Math.sin(angle * 3.0 + time * 0.2));
             ring[k] = center.add(rotate(u.scale(Math.cos(angle) * r).add(v.scale(Math.sin(angle) * r)), ball.axis, spin * 0.5f));
-            float flicker = 0.55f + 0.45f * Mth.sin((float) (angle * 2.0) + time * 0.3f);
+            float flicker = 0.55f + 0.45f * Mth.sin((float) (angle * 2.0) + time * 0.08f + ball.phase);
             ringWidth[k] = 0.02f * widthScale;
             ringColor[k] = FireDraw.fade(FireDraw.mix(cDeep, body, flicker), 0.45f * flicker);
         }
@@ -307,7 +307,8 @@ public class CometRenderer extends EntityRenderer<CometEntity> {
         // ---- the glowing core: its own pass without depth writes (additive, so the order doesn't
         // matter). Its layers used to fight over the same depth (the rippling halo), and the
         // halo's disc hid the arches behind the ball.
-        float pulse = 1.0f + 0.08f * Mth.sin(time * 0.7f + ball.phase);
+        // Breathes slowly and unevenly, like boiling magma (it used to beat fast and regular).
+        float pulse = 1.0f + 0.06f * faygolover.zoneartifacts.client.Breath.of(time, ball.phase);
         // (Kept soft: a bright, wide middle glow made the whole ball look much bigger than it is.)
         FireDraw.glow(matrix, buffer, center, 0.7 * scale * pulse, cam, FireDraw.fade(FireDraw.mix(cDeep, body, 0.5f), 0.28f), 20);
         // Like the Tesla's: past the pulsing halo only a faint tint of the body's colour and the small
