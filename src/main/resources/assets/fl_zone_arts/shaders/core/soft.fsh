@@ -1,6 +1,7 @@
 #version 150
 
 #moj_import <fog.glsl>
+#moj_import <fl_zone_arts:za_scene.glsl>
 
 // Zone Artifacts: soft alpha-blended shapes (jelly, gas, dark bands) — position_color plus the world's fog,
 // so they sink into it (the Haze, the far plane) like everything else.
@@ -20,5 +21,7 @@ void main() {
     if (color.a == 0.0) {
         discard;
     }
-    fragColor = linear_fog(color, vertexDistance, ZaFogStart, ZaFogEnd, ZaFogColor);
+    color.a *= za_soft(vertexDistance);
+    color = linear_fog(color, vertexDistance, ZaFogStart, ZaFogEnd, ZaFogColor);
+    fragColor = vec4(za_dither(color.rgb), color.a);
 }

@@ -163,8 +163,17 @@ public final class SumrakClient {
 
     /** The darkness itself: puffs on a loose grid through the zone, rolling slowly; the outer ones
      *  curl out past the edge and back like smoke. */
+    /** The Dusks in view and their density (the effects tuner), for the volumetric smoke ({@code Smoke}). */
+    public static List<AABB> zones() {
+        return ZONES;
+    }
+
+    public static List<Integer> densities() {
+        return DENSITY;
+    }
+
     private static void puffs(List<Gas.FramePuff> out) {
-        if (ZONES.isEmpty()) return;
+        if (ZONES.isEmpty() || ModClientConfig.volumetricSmoke()) return;
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) return;
         float time = (mc.level.getGameTime() % 72000L) + mc.getFrameTime();

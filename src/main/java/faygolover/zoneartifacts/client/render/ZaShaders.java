@@ -45,6 +45,14 @@ public final class ZaShaders {
     private static ShaderInstance distort;
     @Nullable
     private static ShaderInstance anomalyLight;
+    @Nullable
+    private static ShaderInstance depthPack;
+    @Nullable
+    private static ShaderInstance halo;
+    @Nullable
+    private static ShaderInstance smoke;
+    @Nullable
+    private static ShaderInstance film;
     /** The terrain's fog this frame (see {@link #syncFog()}). */
     private static float fogStart;
     private static float fogEnd = 1.0f;
@@ -52,6 +60,8 @@ public final class ZaShaders {
 
     /** For RenderTypes: the soft shader. */
     public static final RenderStateShard.ShaderStateShard SOFT_SHARD = new RenderStateShard.ShaderStateShard(ZaShaders::soft);
+    /** For RenderTypes: the bubble film shader (per pixel). */
+    public static final RenderStateShard.ShaderStateShard FILM_SHARD = new RenderStateShard.ShaderStateShard(ZaShaders::film);
     /** For RenderTypes: the glow shader. */
     public static final RenderStateShard.ShaderStateShard GLOW_SHARD = new RenderStateShard.ShaderStateShard(ZaShaders::glow);
 
@@ -78,6 +88,64 @@ public final class ZaShaders {
                 DefaultVertexFormat.POSITION_TEX_COLOR), s -> distort = s);
         event.registerShader(new ShaderInstance(event.getResourceProvider(), new ResourceLocation(ZoneArtifacts.MODID, "anomaly_light"),
                 DefaultVertexFormat.POSITION_TEX), s -> anomalyLight = s);
+        event.registerShader(new ShaderInstance(event.getResourceProvider(), new ResourceLocation(ZoneArtifacts.MODID, "depth_pack"),
+                DefaultVertexFormat.POSITION_TEX), s -> depthPack = s);
+        event.registerShader(new ShaderInstance(event.getResourceProvider(), new ResourceLocation(ZoneArtifacts.MODID, "halo"),
+                DefaultVertexFormat.POSITION_TEX_COLOR), s -> halo = s);
+        event.registerShader(new ShaderInstance(event.getResourceProvider(), new ResourceLocation(ZoneArtifacts.MODID, "smoke"),
+                DefaultVertexFormat.POSITION), s -> smoke = s);
+        event.registerShader(new ShaderInstance(event.getResourceProvider(), new ResourceLocation(ZoneArtifacts.MODID, "film"),
+                DefaultVertexFormat.POSITION_COLOR_NORMAL), s -> film = s);
+    }
+
+    /** A soap bubble's film per pixel. Falls back to the soft shader until loaded. */
+    public static ShaderInstance film() {
+        return film != null ? film : soft();
+    }
+
+    /** The film shader if loaded, else null. */
+    @Nullable
+    public static ShaderInstance filmOrNull() {
+        return film;
+    }
+
+    /** Smoke with depth, ray-marched ({@link Smoke}). Null until loaded. */
+    @Nullable
+    public static ShaderInstance smoke() {
+        return smoke;
+    }
+
+    /** The glow of the air round the fireballs ({@link Halo}). Null until loaded. */
+    @Nullable
+    public static ShaderInstance halo() {
+        return halo;
+    }
+
+    /** Packs the frame's depth into colour ({@link SceneDepth}). Null until loaded. */
+    @Nullable
+    public static ShaderInstance depthPack() {
+        return depthPack;
+    }
+
+    /** Our shaders that read the frame (za_scene.glsl): the soft and glow ones, and those added later. */
+    private static ShaderInstance[] sceneReaders() {
+        return new ShaderInstance[]{soft, glow, halo, smoke, film};
+    }
+
+    /**
+     * What our shaders know of the frame this time round: the packed depth ({@code depthTexture}, 0 for
+     * none), the world's inverse projection, the screen size, how far soft edges melt ({@code soft}, 0 =
+     * off) and the dithering ({@code dither}, in 1/255 steps; 0 = off).
+     */
+    static void syncScene(int depthTexture, org.joml.Matrix4f invProjection, int width, int height, float soft, float dither) {
+        for (ShaderInstance shader : sceneReaders()) {
+            if (shader == null) continue;
+            if (depthTexture != 0) shader.setSampler("ZaDepth", depthTexture);
+            shader.safeGetUniform("ZaInvProj").set(invProjection);
+            shader.safeGetUniform("ZaScreen").set((float) width, (float) height);
+            shader.safeGetUniform("ZaSoft").set(depthTexture != 0 ? soft : 0.0f);
+            shader.safeGetUniform("ZaDither").set(dither);
+        }
     }
 
     /** The anomalies' light on the world (screen pass). Null until loaded. */
@@ -146,7 +214,7 @@ public final class ZaShaders {
         fogStart = start;
         fogEnd = end;
         System.arraycopy(color, 0, FOG_COLOR, 0, 4);
-        for (ShaderInstance shader : new ShaderInstance[]{soft, glow}) {
+        for (ShaderInstance shader : new ShaderInstance[]{soft, glow, halo, film}) {
             if (shader == null) continue;
             shader.safeGetUniform("ZaFogStart").set(start);
             shader.safeGetUniform("ZaFogEnd").set(end);

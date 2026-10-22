@@ -14,6 +14,25 @@ final class FilmRenderType extends RenderType {
 
     static final RenderType FILM = new FilmRenderType();
 
+    /** The same, worked out per pixel in the film shader: position, colour (how lit / how bright) and the sphere's normal. */
+    static final RenderType FILM_PIXEL = new RenderType("fl_zone_arts_film_pixel", DefaultVertexFormat.POSITION_COLOR_NORMAL,
+            VertexFormat.Mode.QUADS, 65536, false, true,
+            () -> {
+                ZaShaders.FILM_SHARD.setupRenderState();
+                TRANSLUCENT_TRANSPARENCY.setupRenderState();
+                LEQUAL_DEPTH_TEST.setupRenderState();
+                NO_CULL.setupRenderState();
+                COLOR_WRITE.setupRenderState();
+            },
+            () -> {
+                COLOR_WRITE.clearRenderState();
+                NO_CULL.clearRenderState();
+                LEQUAL_DEPTH_TEST.clearRenderState();
+                TRANSLUCENT_TRANSPARENCY.clearRenderState();
+                ZaShaders.FILM_SHARD.clearRenderState();
+            }) {
+    };
+
     private FilmRenderType() {
         super("fl_zone_arts_film", DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS, 65536, false, true,
                 () -> {

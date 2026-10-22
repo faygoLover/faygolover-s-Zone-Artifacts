@@ -89,7 +89,9 @@ public final class LatePass {
             RustClient::onRenderLevelStage,
             SwampClient::onRenderLevelStage,
             CometEffectRenderer::onRenderLevelStage,
+            Smoke::onRenderLevelStage,
             CometLateRender::onRenderLevelStage,
+            Halo::onRenderLevelStage,
             TeslaEffectRenderer::onRenderLevelStage,
             TeslaRouteRenderer::onRenderLevelStage,
             IneyFrostRenderer::onRenderLevelStage,
@@ -198,8 +200,11 @@ public final class LatePass {
         if (event instanceof Replay) return;
         RenderLevelStageEvent.Stage stage = event.getStage();
         // The terrain's fog for our shaders (pack or not), as it is while the entities are drawn
-        // (a vanilla stage: Embeddium draws the terrain itself).
-        if (stage == RenderLevelStageEvent.Stage.AFTER_ENTITIES) ZaShaders.syncFog();
+        // (a vanilla stage: Embeddium draws the terrain itself); without a pack also the frame's depth.
+        if (stage == RenderLevelStageEvent.Stage.AFTER_ENTITIES) {
+            ZaShaders.syncFog();
+            if (!shaderPack()) SceneDepth.capture(new Matrix4f(RenderSystem.getProjectionMatrix()));
+        }
         if (stage == RenderLevelStageEvent.Stage.AFTER_SKY) {
             SNAPSHOTS.clear();
             ENTITIES.clear();
@@ -239,6 +244,7 @@ public final class LatePass {
         try {
             // The anomalies' light on the pack's frame, then — inside a Haze or a Dusk — their fog over it
             // (the pack ignores vanilla's), then the anomalies themselves.
+            SceneDepth.capture(SNAPSHOTS.get(SNAPSHOTS.size() - 1).projection());
             AnomalyLight.draw(SNAPSHOTS.get(0).partialTick(), true);
             RenderSystem.enableDepthTest();
             RenderSystem.depthFunc(GL11.GL_LEQUAL);

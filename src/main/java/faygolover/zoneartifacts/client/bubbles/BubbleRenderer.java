@@ -54,6 +54,39 @@ public class BubbleRenderer extends EntityRenderer<BubbleEntity> {
         Vec3 centre = entity.getPosition(partialTick).add(0.0, entity.getBbHeight() / 2.0, 0.0);
         Vec3 cam = this.entityRenderDispatcher.camera.getPosition();
         Matrix4f m = poseStack.last().pose();
+        net.minecraft.client.renderer.ShaderInstance pixelShader = faygolover.zoneartifacts.config.ModClientConfig.bubbleFilm()
+                ? faygolover.zoneartifacts.client.render.ZaShaders.filmOrNull() : null;
+        if (pixelShader != null) {
+            // Per pixel: the shader does the rainbow, the rim and the highlight; here only the shape.
+            pixelShader.safeGetUniform("ZaTime").set(time / 20.0f);
+            VertexConsumer px = buffers.getBuffer(FilmRenderType.FILM_PIXEL);
+            float[][][] pts = new float[RINGS + 1][SEGMENTS + 1][];
+            for (int i = 0; i <= RINGS; i++) {
+                double theta = Math.PI * i / RINGS;
+                for (int j = 0; j <= SEGMENTS; j++) {
+                    double phi = Math.PI * 2.0 * j / SEGMENTS;
+                    double nx = Math.sin(theta) * Math.cos(phi);
+                    double ny = Math.cos(theta);
+                    double nz = Math.sin(theta) * Math.sin(phi);
+                    double wob = 1.0 + 0.035 * Math.sin(phi * 3.0 + time * 0.17) * Math.sin(theta * 2.0 + time * 0.11)
+                            + (charge > 0 ? 0.03 * Math.sin(theta * 5.0 + time * 2.7) : 0.0);
+                    pts[i][j] = new float[]{(float) (nx * r * wob), (float) (ny * r * wob), (float) (nz * r * wob),
+                            (float) nx, (float) ny, (float) nz};
+                }
+            }
+            float a = Math.min(1.6f, bright) / 1.6f;
+            for (int i = 0; i < RINGS; i++) {
+                for (int j = 0; j < SEGMENTS; j++) {
+                    pixelVertex(px, m, pts[i][j], lit, a);
+                    pixelVertex(px, m, pts[i + 1][j], lit, a);
+                    pixelVertex(px, m, pts[i + 1][j + 1], lit, a);
+                    pixelVertex(px, m, pts[i][j + 1], lit, a);
+                }
+            }
+            poseStack.popPose();
+            super.render(entity, yaw, partialTick, poseStack, buffers, light);
+            return;
+        }
         VertexConsumer film = buffers.getBuffer(FilmRenderType.FILM);
         float[][][] pts = new float[RINGS + 1][SEGMENTS + 1][];
         for (int i = 0; i <= RINGS; i++) {
@@ -115,6 +148,10 @@ public class BubbleRenderer extends EntityRenderer<BubbleEntity> {
 
     private static float shadeOf(int channel, float lit) {
         return (channel & 0xFF) / 255.0f * lit;
+    }
+
+    private static void pixelVertex(VertexConsumer vc, Matrix4f m, float[] p, float lit, float bright) {
+        vc.vertex(m, p[0], p[1], p[2]).color(lit, lit, lit, bright).normal(p[3], p[4], p[5]).endVertex();
     }
 
     private static void vertex(VertexConsumer vc, Matrix4f m, float[] p) {

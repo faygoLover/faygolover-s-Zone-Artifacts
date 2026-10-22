@@ -149,6 +149,7 @@ public final class DymkaClient {
 
     /** From outside: a grey mist hanging in the zone. */
     private static void mist(ClientLevel level, SyncAnomaliesPacket.Entry entry, AABB zone, Vec3 eye, long now) {
+        if (ModClientConfig.volumetricSmoke()) return; // drawn as smoke with depth ({@code Smoke})
         int eff = ModClientConfig.effective(entry.intensity());
         double volume = zone.getXsize() * zone.getYsize() * zone.getZsize();
         double rate = Math.min(2.5, volume * 0.003 * eff / 3.0);
