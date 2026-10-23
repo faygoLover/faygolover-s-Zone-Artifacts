@@ -1,6 +1,6 @@
 package faygolover.zoneartifacts.client.distortion;
 
-import faygolover.zoneartifacts.client.render.LatePass;
+import faygolover.flrender.render.LatePass;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.pipeline.TextureTarget;
 import com.mojang.blaze3d.platform.GlStateManager;

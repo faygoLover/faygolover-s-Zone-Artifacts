@@ -1,6 +1,6 @@
 package faygolover.zoneartifacts.client.rust;
 
-import faygolover.zoneartifacts.client.render.LatePass;
+import faygolover.flrender.render.LatePass;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;

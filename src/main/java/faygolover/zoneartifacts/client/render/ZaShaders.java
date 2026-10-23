@@ -25,7 +25,7 @@ import java.util.function.Consumer;
  * fade to the fog colour), {@link #glow()} for additive glows and arcs (they fade out).
  * <p>
  * A mod's own shader is blanked by Oculus while a shader pack draws the world, so with a pack they
- * are only ever used in the {@link LatePass} (after the pack has finished its frame). Until they are
+ * are only ever used in the late pass ({@code faygolover.flrender.render.LatePass}) (after the pack has finished its frame). Until they are
  * loaded, vanilla's stand in.
  */
 @Mod.EventBusSubscriber(modid = ZoneArtifacts.MODID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.MOD)
@@ -49,10 +49,6 @@ public final class ZaShaders {
     private static ShaderInstance screenFog;
     @Nullable
     private static ShaderInstance distort;
-    @Nullable
-    private static ShaderInstance anomalyLight;
-    @Nullable
-    private static ShaderInstance depthPack;
     @Nullable
     private static ShaderInstance halo;
     @Nullable
@@ -86,8 +82,6 @@ public final class ZaShaders {
         register(event, "ghost", DefaultVertexFormat.POSITION_TEX, s -> ghost = s);
         register(event, "screen_fog", DefaultVertexFormat.POSITION_TEX, s -> screenFog = s);
         register(event, "distort", DefaultVertexFormat.POSITION_TEX_COLOR, s -> distort = s);
-        register(event, "anomaly_light", DefaultVertexFormat.POSITION_TEX, s -> anomalyLight = s);
-        register(event, "depth_pack", DefaultVertexFormat.POSITION_TEX, s -> depthPack = s);
         register(event, "halo", DefaultVertexFormat.POSITION_TEX_COLOR, s -> halo = s);
         register(event, "smoke", DefaultVertexFormat.POSITION, s -> smoke = s);
         register(event, "film", DefaultVertexFormat.POSITION_COLOR_NORMAL, s -> film = s);
@@ -138,12 +132,6 @@ public final class ZaShaders {
         return halo;
     }
 
-    /** Packs the frame's depth into colour ({@link SceneDepth}). Null until loaded. */
-    @Nullable
-    public static ShaderInstance depthPack() {
-        return depthPack;
-    }
-
     /** Our shaders that read the frame (za_scene.glsl): the soft and glow ones, and those added later. */
     private static ShaderInstance[] sceneReaders() {
         return new ShaderInstance[]{soft, glow, halo, smoke, film, puff};
@@ -165,12 +153,6 @@ public final class ZaShaders {
             shader.safeGetUniform("ZaSoft").set(depthTexture != 0 && airborne ? soft : 0.0f);
             shader.safeGetUniform("ZaDither").set(dither);
         }
-    }
-
-    /** The anomalies' light on the world (screen pass). Null until loaded. */
-    @Nullable
-    public static ShaderInstance anomalyLight() {
-        return anomalyLight;
     }
 
     /** Refraction per pixel (the air distortion at MEDIUM quality and up). Null until loaded. */

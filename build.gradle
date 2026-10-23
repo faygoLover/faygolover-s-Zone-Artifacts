@@ -53,10 +53,13 @@ sourceSets.main.resources { srcDir 'src/generated/resources' }
 
 repositories {
     mavenLocal()
+    // FL Render (shared client rendering) - required; its jar goes in libs/ (not in git).
+    flatDir { dir 'libs' }
 }
 
 dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
+    implementation fg.deobf("blank:flrender:${flrender_version}")
 }
 
 // Expands ${...} tokens from gradle.properties into mods.toml at build/IDE-sync time.

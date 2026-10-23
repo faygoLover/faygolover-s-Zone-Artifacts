@@ -23,3 +23,12 @@ description='''${mod_description}'''
     versionRange="${minecraft_version_range}"
     ordering="NONE"
     side="BOTH"
+
+# FL Render: the shaders, the late pass after a shader pack, the anomalies' light and the graphics settings
+# (Options > Video Settings > FL Render). Client only.
+[[dependencies.${mod_id}]]
+    modId="flrender"
+    mandatory=true
+    versionRange="[0.1.0,)"
+    ordering="AFTER"
+    side="CLIENT"

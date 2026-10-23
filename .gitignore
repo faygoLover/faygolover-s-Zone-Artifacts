@@ -31,3 +31,4 @@ __pycache__/
 # Working notes (not part of the mod)
 CLAUDE.md
 docs/specs/
+libs/*.jar

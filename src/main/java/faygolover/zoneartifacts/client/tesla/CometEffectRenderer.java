@@ -1,6 +1,6 @@
 package faygolover.zoneartifacts.client.tesla;
 
-import faygolover.zoneartifacts.client.render.LatePass;
+import faygolover.flrender.render.LatePass;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import faygolover.zoneartifacts.ZoneArtifacts;

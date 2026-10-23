@@ -1,5 +1,6 @@
 package faygolover.zoneartifacts.client.render;
 
+import faygolover.flrender.render.ScreenPass;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.pipeline.TextureTarget;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -14,7 +15,7 @@ import javax.annotation.Nullable;
 
 /**
  * The Haze's and the Dusk's fog with a shader pack on. A pack works out its own fog and ignores
- * vanilla's fog distances, so from inside neither closed in at all. In the {@link LatePass}, before
+ * vanilla's fog distances, so from inside neither closed in at all. In the late pass ({@code faygolover.flrender.render.LatePass}), before
  * the anomalies: vanilla's linear fog (the same distances and colour the zones set) laid over the
  * pack's finished frame from its depth; the hand stays clear. Without a pack vanilla's fog does it.
  */

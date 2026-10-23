@@ -1,5 +1,7 @@
 package faygolover.zoneartifacts.client.render;
 
+import faygolover.flrender.render.SceneDepth;
+import faygolover.flrender.render.LatePass;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.BufferUploader;

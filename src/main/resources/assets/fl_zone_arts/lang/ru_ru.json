@@ -403,5 +403,19 @@
   "subtitles.fl_zone_arts.bolt_hit_dirt": "Болт упал в землю",
   "subtitles.fl_zone_arts.bolt_hit_metal": "Болт звякнул о металл",
   "subtitles.fl_zone_arts.bolt_hit_water": "Болт упал в воду",
-  "subtitles.fl_zone_arts.bolt_hit_wood": "Болт стукнул о дерево"
+  "subtitles.fl_zone_arts.bolt_hit_wood": "Болт стукнул о дерево",
+  "flrender.technique.fl_zone_arts.air_distortion": "Аномалии: искажение воздуха",
+  "flrender.technique.fl_zone_arts.air_distortion.tooltip": "Преломление и марево вокруг аномалий (линза Воронки, дрожание над Жаркой). Пока хоть одно в поле зрения — одна копия кадра за кадр. Выключить, если с шейдерпаком или другими модами графики выглядит неправильно.",
+  "flrender.technique.fl_zone_arts.pixel_distortion": "Аномалии: искажение по пикселям",
+  "flrender.technique.fl_zone_arts.pixel_distortion.tooltip": "Преломление считается для каждого пикселя: воздух кипит, цвета расходятся. Выкл — простое преломление «Низкого». Нужно включённое искажение воздуха.",
+  "flrender.technique.fl_zone_arts.soft_edges": "Аномалии: мягкие края",
+  "flrender.technique.fl_zone_arts.soft_edges.tooltip": "Газ, лужи, свечение и дым плавно уходят в землю и стены, а не обрываются резкой линией.",
+  "flrender.technique.fl_zone_arts.dithering": "Аномалии: сглаживание переходов",
+  "flrender.technique.fl_zone_arts.dithering.tooltip": "Лёгкий шум в мягких градиентах (свечение, дым), чтобы они не ложились заметными полосами.",
+  "flrender.technique.fl_zone_arts.bubble_film": "Аномалии: плёнка пузырей",
+  "flrender.technique.fl_zone_arts.bubble_film.tooltip": "Плёнка мыльных пузырей по пикселям: радужные разводы, плотнее к краю, резкий блик.",
+  "flrender.technique.fl_zone_arts.glow_halo": "Аномалии: ореол огненных шаров",
+  "flrender.technique.fl_zone_arts.glow_halo.tooltip": "Мягкое свечение воздуха вокруг Комет и Теслы; сами шары не меняются.",
+  "flrender.technique.fl_zone_arts.volumetric_smoke": "Аномалии: объёмный дым",
+  "flrender.technique.fl_zone_arts.volumetric_smoke.tooltip": "Сумрак и Дымка — настоящий дым с глубиной вместо плоских клубов: на «Высоком» легче, на «Ультра» тоньше. Самое дорогое — на слабой видеокарте выключать первым."
 }

@@ -403,5 +403,19 @@
   "subtitles.fl_zone_arts.bolt_hit_dirt": "Bolt hits dirt",
   "subtitles.fl_zone_arts.bolt_hit_metal": "Bolt hits metal",
   "subtitles.fl_zone_arts.bolt_hit_water": "Bolt splashes",
-  "subtitles.fl_zone_arts.bolt_hit_wood": "Bolt hits wood"
+  "subtitles.fl_zone_arts.bolt_hit_wood": "Bolt hits wood",
+  "flrender.technique.fl_zone_arts.air_distortion": "Anomalies: air distortion",
+  "flrender.technique.fl_zone_arts.air_distortion.tooltip": "Refraction and heat haze round the anomalies (Voronka's lens, Zharka's shimmer). Costs one copy of the frame per frame while any is in view. Turn off if it looks wrong with a shader pack or other rendering mods.",
+  "flrender.technique.fl_zone_arts.pixel_distortion": "Anomalies: per-pixel distortion",
+  "flrender.technique.fl_zone_arts.pixel_distortion.tooltip": "Refraction worked out for every pixel: the air boils, colours part. Off = the plain refraction of Low. Needs air distortion on.",
+  "flrender.technique.fl_zone_arts.soft_edges": "Anomalies: soft edges",
+  "flrender.technique.fl_zone_arts.soft_edges.tooltip": "Gas, puddles, glows and smoke melt into the ground and walls instead of ending in a hard line.",
+  "flrender.technique.fl_zone_arts.dithering": "Anomalies: dithering",
+  "flrender.technique.fl_zone_arts.dithering.tooltip": "A trace of noise in soft gradients (glows, smoke) so they don't fall into visible bands.",
+  "flrender.technique.fl_zone_arts.bubble_film": "Anomalies: bubble film",
+  "flrender.technique.fl_zone_arts.bubble_film.tooltip": "The soap bubbles' film worked out per pixel: rainbow swirls, a denser rim, a sharp highlight.",
+  "flrender.technique.fl_zone_arts.glow_halo": "Anomalies: fireball halo",
+  "flrender.technique.fl_zone_arts.glow_halo.tooltip": "A soft glow of the air round the Comets and the Tesla; the balls themselves stay as they are.",
+  "flrender.technique.fl_zone_arts.volumetric_smoke": "Anomalies: volumetric smoke",
+  "flrender.technique.fl_zone_arts.volumetric_smoke.tooltip": "The Dusk and the Haze as real smoke with depth instead of flat puffs: High lighter, Ultra finer. The costliest of all - turn it off first on a weak video card."
 }

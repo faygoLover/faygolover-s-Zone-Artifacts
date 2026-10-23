@@ -1,6 +1,6 @@
 package faygolover.zoneartifacts.client.tesla;
 
-import faygolover.zoneartifacts.client.render.LatePass;
+import faygolover.flrender.render.LatePass;
 import faygolover.zoneartifacts.ZoneArtifacts;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
