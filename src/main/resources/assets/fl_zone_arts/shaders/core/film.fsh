@@ -27,7 +27,7 @@ float hash3(vec3 p) {
     return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
 }
 
-float noise3(vec3 x) {
+float za_noise3(vec3 x) {
     vec3 i = floor(x);
     vec3 f = fract(x);
     f = f * f * (3.0 - 2.0 * f);
@@ -42,7 +42,7 @@ void main() {
     float rim = 1.0 - facing;
     float fresnel = pow(rim, 2.2);
     // The film's thickness, swirling slowly, a little thicker at the bottom (it drains down).
-    float thick = 0.45 + 0.35 * noise3(n * 2.6 + vec3(ZaTime * 0.12, -ZaTime * 0.07, ZaTime * 0.05)) - 0.12 * n.y;
+    float thick = 0.45 + 0.35 * za_noise3(n * 2.6 + vec3(ZaTime * 0.12, -ZaTime * 0.07, ZaTime * 0.05)) - 0.12 * n.y;
     float phase = thick * 2.4 + rim * 0.6;
     vec3 rainbow = 0.5 + 0.5 * cos(6.2832 * (phase * vec3(1.0, 1.12, 1.27)));
     float alpha = (0.04 + 0.66 * fresnel) * vertexColor.a;

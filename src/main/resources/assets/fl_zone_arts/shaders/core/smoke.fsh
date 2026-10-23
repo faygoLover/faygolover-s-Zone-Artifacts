@@ -26,7 +26,7 @@ float hash3(vec3 p) {
     return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
 }
 
-float noise3(vec3 x) {
+float za_noise3(vec3 x) {
     vec3 i = floor(x);
     vec3 f = fract(x);
     f = f * f * (3.0 - 2.0 * f);
@@ -35,7 +35,7 @@ float noise3(vec3 x) {
 }
 
 float fbm3(vec3 p) {
-    return 0.55 * noise3(p) + 0.3 * noise3(p * 2.07 + 3.1) + 0.15 * noise3(p * 4.13 + 7.7);
+    return 0.55 * za_noise3(p) + 0.3 * za_noise3(p * 2.07 + 3.1) + 0.15 * za_noise3(p * 4.13 + 7.7);
 }
 
 float density(vec3 p) {
