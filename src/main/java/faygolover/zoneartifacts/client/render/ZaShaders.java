@@ -2,6 +2,8 @@ package faygolover.zoneartifacts.client.render;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.VertexFormat;
+import com.mojang.logging.LogUtils;
 import faygolover.zoneartifacts.ZoneArtifacts;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.RenderStateShard;
@@ -12,8 +14,10 @@ import net.minecraftforge.client.event.RegisterShadersEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
+import org.slf4j.Logger;
+
 import javax.annotation.Nullable;
-import java.io.IOException;
+import java.util.function.Consumer;
 
 /**
  * The anomalies' own two shaders — vanilla's position_color and lightning, but both sink into the
@@ -26,6 +30,8 @@ import java.io.IOException;
  */
 @Mod.EventBusSubscriber(modid = ZoneArtifacts.MODID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.MOD)
 public final class ZaShaders {
+
+    private static final Logger LOGGER = LogUtils.getLogger();
 
     @Nullable
     private static ShaderInstance soft;
@@ -71,35 +77,33 @@ public final class ZaShaders {
     }
 
     @SubscribeEvent
-    public static void onRegisterShaders(RegisterShadersEvent event) throws IOException {
-        event.registerShader(new ShaderInstance(event.getResourceProvider(), new ResourceLocation(ZoneArtifacts.MODID, "soft"),
-                DefaultVertexFormat.POSITION_COLOR), s -> soft = s);
-        event.registerShader(new ShaderInstance(event.getResourceProvider(), new ResourceLocation(ZoneArtifacts.MODID, "glow"),
-                DefaultVertexFormat.POSITION_COLOR), s -> glow = s);
-        event.registerShader(new ShaderInstance(event.getResourceProvider(), new ResourceLocation(ZoneArtifacts.MODID, "hand_mask"),
-                DefaultVertexFormat.POSITION_TEX), s -> handMask = s);
-        event.registerShader(new ShaderInstance(event.getResourceProvider(), new ResourceLocation(ZoneArtifacts.MODID, "hand_over"),
-                DefaultVertexFormat.POSITION_TEX), s -> handOver = s);
-        event.registerShader(new ShaderInstance(event.getResourceProvider(), new ResourceLocation(ZoneArtifacts.MODID, "hand_diff"),
-                DefaultVertexFormat.POSITION_TEX), s -> handDiff = s);
-        event.registerShader(new ShaderInstance(event.getResourceProvider(), new ResourceLocation(ZoneArtifacts.MODID, "ghost"),
-                DefaultVertexFormat.POSITION_TEX), s -> ghost = s);
-        event.registerShader(new ShaderInstance(event.getResourceProvider(), new ResourceLocation(ZoneArtifacts.MODID, "screen_fog"),
-                DefaultVertexFormat.POSITION_TEX), s -> screenFog = s);
-        event.registerShader(new ShaderInstance(event.getResourceProvider(), new ResourceLocation(ZoneArtifacts.MODID, "distort"),
-                DefaultVertexFormat.POSITION_TEX_COLOR), s -> distort = s);
-        event.registerShader(new ShaderInstance(event.getResourceProvider(), new ResourceLocation(ZoneArtifacts.MODID, "anomaly_light"),
-                DefaultVertexFormat.POSITION_TEX), s -> anomalyLight = s);
-        event.registerShader(new ShaderInstance(event.getResourceProvider(), new ResourceLocation(ZoneArtifacts.MODID, "depth_pack"),
-                DefaultVertexFormat.POSITION_TEX), s -> depthPack = s);
-        event.registerShader(new ShaderInstance(event.getResourceProvider(), new ResourceLocation(ZoneArtifacts.MODID, "halo"),
-                DefaultVertexFormat.POSITION_TEX_COLOR), s -> halo = s);
-        event.registerShader(new ShaderInstance(event.getResourceProvider(), new ResourceLocation(ZoneArtifacts.MODID, "smoke"),
-                DefaultVertexFormat.POSITION), s -> smoke = s);
-        event.registerShader(new ShaderInstance(event.getResourceProvider(), new ResourceLocation(ZoneArtifacts.MODID, "film"),
-                DefaultVertexFormat.POSITION_COLOR_NORMAL), s -> film = s);
-        event.registerShader(new ShaderInstance(event.getResourceProvider(), new ResourceLocation(ZoneArtifacts.MODID, "puff"),
-                DefaultVertexFormat.POSITION_COLOR), s -> puff = s);
+    public static void onRegisterShaders(RegisterShadersEvent event) {
+        register(event, "soft", DefaultVertexFormat.POSITION_COLOR, s -> soft = s);
+        register(event, "glow", DefaultVertexFormat.POSITION_COLOR, s -> glow = s);
+        register(event, "hand_mask", DefaultVertexFormat.POSITION_TEX, s -> handMask = s);
+        register(event, "hand_over", DefaultVertexFormat.POSITION_TEX, s -> handOver = s);
+        register(event, "hand_diff", DefaultVertexFormat.POSITION_TEX, s -> handDiff = s);
+        register(event, "ghost", DefaultVertexFormat.POSITION_TEX, s -> ghost = s);
+        register(event, "screen_fog", DefaultVertexFormat.POSITION_TEX, s -> screenFog = s);
+        register(event, "distort", DefaultVertexFormat.POSITION_TEX_COLOR, s -> distort = s);
+        register(event, "anomaly_light", DefaultVertexFormat.POSITION_TEX, s -> anomalyLight = s);
+        register(event, "depth_pack", DefaultVertexFormat.POSITION_TEX, s -> depthPack = s);
+        register(event, "halo", DefaultVertexFormat.POSITION_TEX_COLOR, s -> halo = s);
+        register(event, "smoke", DefaultVertexFormat.POSITION, s -> smoke = s);
+        register(event, "film", DefaultVertexFormat.POSITION_COLOR_NORMAL, s -> film = s);
+        register(event, "puff", DefaultVertexFormat.POSITION_COLOR, s -> puff = s);
+    }
+
+    /**
+     * One shader. If it fails (a driver that won't compile it), it stays null - its effect is skipped or
+     * falls back - instead of the whole game crashing on start.
+     */
+    private static void register(RegisterShadersEvent event, String name, VertexFormat format, Consumer<ShaderInstance> onLoad) {
+        try {
+            event.registerShader(new ShaderInstance(event.getResourceProvider(), new ResourceLocation(ZoneArtifacts.MODID, name), format), onLoad);
+        } catch (Exception e) {
+            LOGGER.error("Zone Artifacts: shader {} failed to load, its effect is off", name, e);
+        }
     }
 
     /**

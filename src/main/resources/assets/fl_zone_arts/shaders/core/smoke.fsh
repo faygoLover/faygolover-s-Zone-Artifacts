@@ -62,21 +62,21 @@ void main() {
     vec3 t1 = (ZaBoxMax - vec3(0.0)) * inv;
     vec3 tmin = min(t0, t1);
     vec3 tmax = max(t0, t1);
-    float near = max(max(max(tmin.x, tmin.y), tmin.z), 0.0);
-    float far = min(min(tmax.x, tmax.y), tmax.z);
-    far = min(far, za_scene_distance());
-    if (far <= near) {
+    float tNear = max(max(max(tmin.x, tmin.y), tmin.z), 0.0);
+    float tFar = min(min(tmax.x, tmax.y), tmax.z);
+    tFar = min(tFar, za_scene_distance());
+    if (tFar <= tNear) {
         discard;
     }
     int steps = max(ZaSteps, 4);
-    float step = (far - near) / float(steps);
+    float stepLen = (tFar - tNear) / float(steps);
     float jitter = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453);
     float transmit = 1.0;
     for (int i = 0; i < 64; i++) {
         if (i >= steps) break;
-        float t = near + (float(i) + jitter) * step;
+        float t = tNear + (float(i) + jitter) * stepLen;
         float d = density(dir * t);
-        transmit *= exp(-d * ZaSmoke.a * step);
+        transmit *= exp(-d * ZaSmoke.a * stepLen);
         if (transmit < 0.01) break;
     }
     float a = 1.0 - transmit;
