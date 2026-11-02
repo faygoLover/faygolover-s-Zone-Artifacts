@@ -45,8 +45,9 @@ RULES = {
                    spread={"start": 0.3, "per_second": 0.05, "reset_seconds": 3},
                    physiology={"body_temp_per_damage": 0.05}),
     "razlom": rule(["anomaly_razlom"], "burn", "hit_point"),
-    # Вспышка перед глазами: ожог лица, лёгкая контузия.
-    "khlopushka": rule(["anomaly_khlopushka"], "burn", "head",
+    # Вспышка перед глазами: ожог лица, лёгкая контузия. Множитель 0.4 (02.11, Ж12): было 17–36 в голову за удар,
+    # часто подряд — ГМы лечили вручную; стало 7–14, слабее пули в грудь (22,5).
+    "khlopushka": rule(["anomaly_khlopushka"], "burn", "head", severity_multiplier=0.4,
                        complications={"concussion": ch(0, 0.02, 0.4, amount_per_severity=0.5)}),
     # Огненный шар: ожоги и ушибы со стороны удара.
     "comet": rule(["anomaly_comet"], "burn", "explosion", secondary_wound="bruise", secondary_share=0.4),
