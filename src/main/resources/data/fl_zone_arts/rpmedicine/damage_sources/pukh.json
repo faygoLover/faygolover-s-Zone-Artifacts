@@ -5,5 +5,5 @@
   ],
   "wound": "burn",
   "location": "hit_point",
-  "severity_multiplier": 0.5
+  "severity_multiplier": 0.3
 }

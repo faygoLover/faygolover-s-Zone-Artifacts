@@ -17,5 +17,6 @@
       "per_severity": 0.04,
       "max": 0.9
     }
-  }
+  },
+  "severity_multiplier": 0.6
 }

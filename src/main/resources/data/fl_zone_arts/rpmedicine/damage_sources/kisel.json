@@ -4,5 +4,6 @@
     "fl_zone_arts:anomaly_kisel"
   ],
   "wound": "burn",
-  "location": "lower_legs"
+  "location": "lower_legs",
+  "severity_multiplier": 0.6
 }

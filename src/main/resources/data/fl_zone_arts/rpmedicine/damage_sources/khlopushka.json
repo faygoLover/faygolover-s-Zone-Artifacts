@@ -5,7 +5,6 @@
   ],
   "wound": "burn",
   "location": "head",
-  "severity_multiplier": 0.4,
   "complications": {
     "concussion": {
       "min_severity": 0,
@@ -13,5 +12,6 @@
       "max": 0.4,
       "amount_per_severity": 0.5
     }
-  }
+  },
+  "severity_multiplier": 0.4
 }

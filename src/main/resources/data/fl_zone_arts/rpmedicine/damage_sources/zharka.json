@@ -12,5 +12,6 @@
   },
   "physiology": {
     "body_temp_per_damage": 0.05
-  }
+  },
+  "severity_multiplier": 0.6
 }

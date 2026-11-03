@@ -4,5 +4,6 @@
     "fl_zone_arts:anomaly_cold_comet"
   ],
   "wound": "frostbite",
-  "location": "explosion"
+  "location": "explosion",
+  "severity_multiplier": 0.6
 }

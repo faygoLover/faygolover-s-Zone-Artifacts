@@ -6,10 +6,10 @@
   ],
   "wound": "burn",
   "location": "head",
-  "severity_multiplier": 0.3,
   "physiology": {
     "lungs_per_damage": 1.5,
     "spo2_per_damage": 3.0,
     "inhaled": true
-  }
+  },
+  "severity_multiplier": 0.2
 }

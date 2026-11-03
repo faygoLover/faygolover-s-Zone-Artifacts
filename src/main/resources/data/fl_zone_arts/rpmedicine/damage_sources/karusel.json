@@ -22,5 +22,6 @@
       "max": 0.3,
       "blunt": true
     }
-  }
+  },
+  "severity_multiplier": 0.6
 }

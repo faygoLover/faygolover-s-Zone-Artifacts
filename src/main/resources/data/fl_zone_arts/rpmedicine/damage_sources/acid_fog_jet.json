@@ -7,5 +7,6 @@
   "location": "bottom_up",
   "spread": {
     "from_source": true
-  }
+  },
+  "severity_multiplier": 0.6
 }

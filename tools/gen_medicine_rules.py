@@ -5,7 +5,7 @@ Medicine читает эту папку из любого мода; без Medic
 RP Medicine docs/datapack.md, решения по каждой аномалии — RP Medicine docs/11_anomalies.md.
 Запуск из корня репозитория: python tools/gen_medicine_rules.py. Сгенерированное коммитится.
 
-Тяжесть раны = урон × 5 × severity_multiplier; шанс осложнения = (тяжесть − min_severity) × per_severity,
+Тяжесть раны = урон × 5 × severity_multiplier × SCALE (кроме правил с absolute); шанс осложнения = (тяжесть − min_severity) × per_severity,
 не больше max. Мало урона — мало осложнений.
 """
 import json, os
@@ -18,7 +18,20 @@ def ch(min_sev, per, mx, **extra):
     return dict({"min_severity": min_sev, "per_severity": per, "max": mx}, **extra)
 
 
+# Общий множитель тяжести ран от аномалий (03.11, Ж12: аномалии били слишком сильно, ГМы лечили вручную). Свой
+# severity_multiplier правила умножается на него; absolute=True — число правила как есть (Хлопушка, Паутина).
+# Нужно сильнее — ГМ поднимет в датапаке. Шаг округления 0,05.
+SCALE = 0.6
+
+
 def rule(types, wound, location=None, **fields):
+    absolute = fields.pop("absolute", False)
+    if wound != "none":
+        sm = fields.pop("severity_multiplier", 1.0)
+        if not absolute:
+            sm = round(sm * SCALE * 20) / 20
+        if sm != 1.0:
+            fields["severity_multiplier"] = sm
     r = {"priority": 30, "damage_types": ["fl_zone_arts:" + t for t in types], "wound": wound}
     if location:
         r["location"] = location
@@ -47,7 +60,7 @@ RULES = {
     "razlom": rule(["anomaly_razlom"], "burn", "hit_point"),
     # Вспышка перед глазами: ожог лица, лёгкая контузия. Множитель 0.4 (02.11, Ж12): было 17–36 в голову за удар,
     # часто подряд — ГМы лечили вручную; стало 7–14, слабее пули в грудь (22,5).
-    "khlopushka": rule(["anomaly_khlopushka"], "burn", "head", severity_multiplier=0.4,
+    "khlopushka": rule(["anomaly_khlopushka"], "burn", "head", severity_multiplier=0.4, absolute=True,
                        complications={"concussion": ch(0, 0.02, 0.4, amount_per_severity=0.5)}),
     # Огненный шар: ожоги и ушибы со стороны удара.
     "comet": rule(["anomaly_comet"], "burn", "explosion", secondary_wound="bruise", secondary_share=0.4),
@@ -102,8 +115,9 @@ RULES = {
     "rust_burn": rule(["anomaly_rust_burn"], "burn", "bottom_up", infection_risk=2.0, spread={"start": 0.6}),
     # Стеклянные иглы: несколько частей, только порезы (без осколков).
     "kamerton": rule(["anomaly_kamerton"], "cut", "explosion"),
-    # Нити: порез в точке касания, шанс задеть артерию.
-    "web": rule(["anomaly_web"], "cut", "hit_point", complications={"arterial": ch(5, 0.02, 0.4)}),
+    # Нити: порез в точке касания, шанс задеть артерию. 0,5 (03.11): касание било 45–54 сразу в 3–4 части.
+    "web": rule(["anomaly_web"], "cut", "hit_point", severity_multiplier=0.5, absolute=True,
+                complications={"arterial": ch(5, 0.02, 0.4)}),
     # Трясина: без ран, удушье (как suffocation в Medicine).
     "swamp": rule(["anomaly_swamp"], "none", physiology={"spo2_per_damage": 4}),
     # Маковое поле: без ран, нехватка кислорода и повреждение мозга.

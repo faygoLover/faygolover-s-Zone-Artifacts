@@ -4,5 +4,6 @@
     "fl_zone_arts:anomaly_kamerton"
   ],
   "wound": "cut",
-  "location": "explosion"
+  "location": "explosion",
+  "severity_multiplier": 0.6
 }

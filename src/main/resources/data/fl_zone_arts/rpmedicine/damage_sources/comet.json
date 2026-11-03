@@ -6,5 +6,6 @@
   "wound": "burn",
   "location": "explosion",
   "secondary_wound": "bruise",
-  "secondary_share": 0.4
+  "secondary_share": 0.4,
+  "severity_multiplier": 0.6
 }

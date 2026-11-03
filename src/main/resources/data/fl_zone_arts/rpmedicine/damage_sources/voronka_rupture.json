@@ -5,7 +5,6 @@
   ],
   "wound": "bruise",
   "location": "explosion",
-  "severity_multiplier": 1.3,
   "complications": {
     "fracture": {
       "min_severity": 5,
@@ -23,5 +22,6 @@
       "per_severity": 0.015,
       "max": 0.4
     }
-  }
+  },
+  "severity_multiplier": 0.8
 }

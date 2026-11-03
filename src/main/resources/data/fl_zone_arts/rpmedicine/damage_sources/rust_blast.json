@@ -5,9 +5,9 @@
   ],
   "wound": "burn",
   "location": "bottom_up",
-  "severity_multiplier": 1.2,
   "infection_risk": 2.0,
   "spread": {
     "start": 0.6
-  }
+  },
+  "severity_multiplier": 0.7
 }
