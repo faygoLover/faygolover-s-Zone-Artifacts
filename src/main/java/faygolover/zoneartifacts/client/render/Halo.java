@@ -114,7 +114,8 @@ public final class Halo {
         }
         EXTRA.clear();
         if (!any) {
-            buffer.end();
+            // Пустой буфер всё равно надо отпустить, иначе общий буфер Tesselator висит «занятым» до конца кадра.
+            buffer.end().release();
             return;
         }
         RenderSystem.setShader(() -> shader);
