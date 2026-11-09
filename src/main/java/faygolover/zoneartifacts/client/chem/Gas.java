@@ -178,7 +178,9 @@ public final class Gas {
         if (frame.isEmpty()) return;
 
         Vec3 cam = event.getCamera().getPosition();
-        frame.removeIf(f -> faygolover.zoneartifacts.client.ClientAnomalyCache.hiddenAt(f.pos()));
+        net.minecraft.client.renderer.culling.Frustum frustum = event.getFrustum();
+        frame.removeIf(f -> faygolover.zoneartifacts.client.ClientAnomalyCache.hiddenAt(f.pos()) || (frustum != null && !frustum.isVisible(
+                new net.minecraft.world.phys.AABB(f.pos(), f.pos()).inflate(f.radius() * 1.5 + 0.5))));
         frame.sort(Comparator.comparingDouble((FramePuff f) -> f.pos().distanceToSqr(cam)).reversed());
 
         PoseStack poseStack = lateStagePose(event);
