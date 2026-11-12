@@ -663,7 +663,7 @@ public final class ModCommonConfig {
         WEB_REGROW_SECONDS = b.comment("A snapped thread grows back after this long, seconds (the cooldown tuner).")
                 .defineInRange("regrowSeconds", 30.0, 1.0, 36000.0);
         WEB_INTENSITY = b.comment("How brightly the threads glint (the effects tuner).").defineInRange("intensity", 3, 1, 50);
-        WEB_LIGHT_ITEMS = b.comment("Items that, held in hand and pointed at a thread, make it glint (flashlights of any mod).",
+        WEB_LIGHT_ITEMS = b.comment("Items that, held in hand (or worn in a Curios slot) and pointed at a thread, make it glint (flashlights of any mod).",
                         "An item id, or id{keys}: a light only while its NBT says so - each key must be there and true / not 0;",
                         "?key is checked only if it's there (e.g. a battery that counts as full when missing).",
                         "Example: sa_combat:flashlight{FlashlightOn,?FlashlightBattery}")

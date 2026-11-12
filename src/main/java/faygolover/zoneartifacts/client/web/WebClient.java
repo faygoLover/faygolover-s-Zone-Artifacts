@@ -260,7 +260,8 @@ public final class WebClient {
         float time = (now % 72000L) + partial;
         Vec3 cam = event.getCamera().getPosition();
         java.util.Map<Item, java.util.List<String>> lightMap = lightItems(now);
-        boolean torch = isLight(lightMap, player.getMainHandItem()) || isLight(lightMap, player.getOffhandItem());
+        boolean torch = isLight(lightMap, player.getMainHandItem()) || isLight(lightMap, player.getOffhandItem())
+                || faygolover.zoneartifacts.compat.CuriosWorn.any(player, s -> isLight(lightMap, s));
         Vec3 look = player.getViewVector(partial);
         float skyDarken = level.getSkyDarken(partial);
 
