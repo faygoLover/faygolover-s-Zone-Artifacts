@@ -1,10 +1,10 @@
 # faygolover's Zone Artifacts — указатель кода
 
-Создано `python _family/tools/mapgen.py` 15.11.2026, версия 0.1.41.3, коммит `a12f2f8`.
+Создано `python _family/tools/mapgen.py`, версия мода 0.1.41.4.
 **Руками не править**: пересоздаётся скриптом. Смысл, потоки работы и рецепты — в `docs/MAP.md`.
 Разбор по шаблонам, без компиляции: необычно оформленная регистрация может отсутствовать в списках.
 
-Всего: 209 файлов, 29143 строк Java.
+Всего: 210 файлов, 29171 строк Java.
 
 ## 1. Пакеты
 
@@ -42,8 +42,8 @@
 | `faygolover.zoneartifacts.client.swamp` | 1 | 275 |
 | `faygolover.zoneartifacts.client.tesla` | 12 | 1803 |
 | `faygolover.zoneartifacts.client.thermal` | 5 | 788 |
-| `faygolover.zoneartifacts.client.web` | 1 | 359 |
-| `faygolover.zoneartifacts.compat` | 1 | 62 |
+| `faygolover.zoneartifacts.client.web` | 1 | 360 |
+| `faygolover.zoneartifacts.compat` | 2 | 89 |
 | `faygolover.zoneartifacts.config` | 2 | 775 |
 | `faygolover.zoneartifacts.gear` | 4 | 532 |
 | `faygolover.zoneartifacts.item` | 6 | 397 |
@@ -255,9 +255,10 @@
 - `ThermalParticle`, 165 — The thermal anomalies' slow, long-lived particles.
 
 ### `faygolover.zoneartifacts.client.web`
-- `WebClient`, 359 — The Web on the client: threads almost invisible in the dark that catch the light — a faint sheen where there's light enough, sparks of glint running along them, and a bright gleam where a light held in someone's hand points at the…
+- `WebClient`, 360 — The Web on the client: threads almost invisible in the dark that catch the light — a faint sheen where there's light enough, sparks of glint running along them, and a bright gleam where a light held in someone's hand points at the…
 
 ### `faygolover.zoneartifacts.compat`
+- `CoreLight`, 27 — RP Core (optional): the family-wide answer to "does this entity carry a switched-on light".
 - `CuriosWorn`, 62 — Items worn in Curios slots (RP Lights headlamp, belt lamp).
 
 ### `faygolover.zoneartifacts.config`
@@ -348,7 +349,7 @@
 ### `faygolover.zoneartifacts.tuner`
 - `TunerKind` (enum), 50 — What a tuner changes, and by how much per click (left-click lowers, right-click raises; the larger step is used while sneaking).
 
-Классов без описания: 5 из 209.
+Классов без описания: 5 из 210.
 
 ## 3. Подписки на события
 
@@ -448,11 +449,11 @@
 
 ## 8. Что берёт из RP Core и что ему даёт
 
-Не использует.
+Методы `RpCoreAPI` (сколько вызовов): `carriesLight` 1.
 
 ## 9. Связи с другими модами
 
-Проверки `isLoaded`: `curios` (CuriosWorn).
+Проверки `isLoaded`: `curios` (CuriosWorn); `rpcore` (CoreLight).
 
 Отражение (`Class.forName`):
 - `FogCulling` → `me.jellysquid.mods.sodium.client.SodiumClientMod`
@@ -460,7 +461,7 @@
 - `CuriosWorn` → `top.theillusivec4.curios.api.type.capability.ICuriosItemHandler`
 - `CuriosWorn` → `net.minecraftforge.items.IItemHandlerModifiable`
 
-Пакеты других модов семейства в коде: `flrender` — 35 файлов.
+Пакеты других модов семейства в коде: `flrender` — 35 файлов; `rpcore` — 1 файлов.
 
 ## 10. Зарегистрированные id
 

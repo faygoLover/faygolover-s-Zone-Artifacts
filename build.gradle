@@ -63,6 +63,8 @@ repositories {
 dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
     implementation fg.deobf("blank:flrender:${flrender_version}")
+    // RP Core is optional: compile-only, used through compat/CoreLight (lights carried by the player).
+    compileOnly fg.deobf("blank:rpcore:${rpcore_version}")
 }
 
 // Expands ${...} tokens from gradle.properties into mods.toml at build/IDE-sync time.
